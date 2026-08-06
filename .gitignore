@@ -1,0 +1,51 @@
+@'
+# Arquivos gerados durante a execução
+Logs/
+Reports/
+Locks/
+
+# Temporários e resultados locais
+_STAGING/
+_FAILED/
+*.tmp
+*.partial
+*.partial.7z
+
+# Backups manuais de scripts
+*.bak
+*.backup
+*.old
+*.orig
+*.copy
+* - Copy.*
+
+# Logs e relatórios soltos
+*.log
+*.html
+#*.json
+
+# Exceções: arquivos JSON que façam parte do código/configuração
+!config.example.json
+
+# Credenciais e configurações locais
+.env
+.env.*
+*.secret
+*.secrets
+credentials.*
+smtp-credentials.*
+config.local.*
+
+# PowerShell
+*.clixml
+
+# Editores
+.vscode/
+.idea/
+
+# Windows
+Thumbs.db
+Desktop.ini
+'@ | Set-Content `
+    -LiteralPath ".gitignore" `
+    -Encoding UTF8

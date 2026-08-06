@@ -14,6 +14,11 @@ param(
 
     [string]$BatchName,
 
+    # Passado pelo wrapper Invoke-CascadeBackup.ps1 para que os lotes de uma mesma
+    # cascata noturna publiquem dentro da mesma pasta na raiz do repositorio. Quando
+    # ausente (execucao manual/avulsa), o script gera seu proprio identificador.
+    [string]$CascadeId,
+
     [ValidateRange(1, 30)]
     [int]$KeepRestorePoints = 3,
 
@@ -66,7 +71,7 @@ Set-StrictMode -Version 2.0
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
 
-$ScriptVersion = '1.1.0'
+$ScriptVersion = '1.2.0'
 $RunId = [guid]::NewGuid().ToString('N')
 $RunStart = Get-Date
 $Mode = if ($Execute) { 'EXECUTE' } else { 'PLAN' }
@@ -99,6 +104,7 @@ $FailedRoot = $null
 $RestorePointName = $null
 $StagingPoint = $null
 $FinalPoint = $null
+$CascadeGroupName = $null
 $CurrentStage = 'Inicializacao'
 $ExitCode = 1
 $LockAcquired = $false
@@ -619,6 +625,7 @@ function Write-RestorePointMarker {
         RunId = $RunId
         Status = $Status
         TierName = $EffectiveBatchName
+        CascadeId = $CascadeGroupName
         ComputerName = $ComputerName
         CreatedAt = $RunStart.ToString('o')
         FinishedAt = (Get-Date).ToString('o')
@@ -631,6 +638,46 @@ function Write-RestorePointMarker {
     }
 
     $marker | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $Path -Encoding UTF8
+}
+
+function Get-NestedLeafDirectories {
+    <#
+        Enumera pastas-folha (pontos de restauracao individuais, por lote) sob uma
+        raiz que pode misturar dois layouts: o antigo, raso (pontos publicados antes
+        da v1.2.0, onde a propria pasta de primeiro nivel JA e o ponto) e o atual,
+        aninhado (pasta da cascata da noite > subpasta por lote). Uma pasta e folha
+        quando contem -LeafIndicator diretamente; caso contrario e tratada como
+        container de cascata e seus filhos diretos sao verificados no lugar dela.
+    #>
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Root,
+
+        [Parameter(Mandatory = $true)]
+        [string]$LeafIndicator,
+
+        [string[]]$ExcludeNames = @()
+    )
+
+    $result = New-Object System.Collections.Generic.List[object]
+    $topLevel = @(Get-ChildItem -LiteralPath $Root -Directory -ErrorAction SilentlyContinue |
+        Where-Object { $ExcludeNames -notcontains $_.Name })
+
+    foreach ($entry in $topLevel) {
+        if (Test-Path -LiteralPath (Join-Path $entry.FullName $LeafIndicator)) {
+            $result.Add([pscustomobject]@{ Leaf = $entry; GroupParent = $null })
+            continue
+        }
+
+        $children = @(Get-ChildItem -LiteralPath $entry.FullName -Directory -ErrorAction SilentlyContinue)
+        foreach ($child in $children) {
+            if (Test-Path -LiteralPath (Join-Path $child.FullName $LeafIndicator)) {
+                $result.Add([pscustomobject]@{ Leaf = $child; GroupParent = $entry })
+            }
+        }
+    }
+
+    return $result.ToArray()
 }
 
 function Get-EffectiveKeepRestorePoints {
@@ -648,13 +695,12 @@ function Get-EffectiveKeepRestorePoints {
 }
 
 function Invoke-Retention {
-    $directories = @(Get-ChildItem -LiteralPath $RepositoryRoot -Directory -ErrorAction SilentlyContinue |
-        Where-Object { $_.Name -notin @('_STAGING', '_FAILED') })
+    $entries = Get-NestedLeafDirectories -Root $RepositoryRoot -LeafIndicator 'COMPLETE.marker.json' -ExcludeNames @('_STAGING', '_FAILED')
 
     $complete = New-Object System.Collections.Generic.List[object]
-    foreach ($directory in $directories) {
+    foreach ($entry in $entries) {
+        $directory = $entry.Leaf
         $markerPath = Join-Path $directory.FullName 'COMPLETE.marker.json'
-        if (-not (Test-Path -LiteralPath $markerPath)) { continue }
 
         try {
             $marker = Get-Content -LiteralPath $markerPath -Raw | ConvertFrom-Json
@@ -668,6 +714,7 @@ function Invoke-Retention {
                 }
                 $complete.Add([pscustomobject]@{
                     Directory = $directory
+                    GroupParent = $entry.GroupParent
                     CreatedAt = [datetime]$marker.CreatedAt
                     TierName = $tierName
                 })
@@ -699,6 +746,15 @@ function Invoke-Retention {
             Remove-Item -LiteralPath $item.Directory.FullName -Recurse -Force -ErrorAction Stop
             $DeletedRestorePoints.Add($item.Directory.FullName)
             $totalDeleted++
+
+            # Se essa era a ultima subpasta restante da pasta da noite, remove tambem
+            # o container vazio (evita acumular pastas de data sem conteudo).
+            if ($null -ne $item.GroupParent -and (Test-Path -LiteralPath $item.GroupParent.FullName)) {
+                $remaining = @(Get-ChildItem -LiteralPath $item.GroupParent.FullName -Force -ErrorAction SilentlyContinue)
+                if ($remaining.Count -eq 0) {
+                    Remove-Item -LiteralPath $item.GroupParent.FullName -Force -ErrorAction SilentlyContinue
+                }
+            }
         }
     }
 
@@ -709,16 +765,26 @@ function Remove-ExpiredFailedPoints {
     if ($FailedRetentionDays -le 0 -or -not (Test-Path -LiteralPath $FailedRoot)) { return }
 
     $limit = (Get-Date).AddDays(-$FailedRetentionDays)
-    $expired = @(Get-ChildItem -LiteralPath $FailedRoot -Directory -ErrorAction SilentlyContinue |
-        Where-Object { $_.LastWriteTime -lt $limit })
+    # 'Metadata' e criado logo no inicio do staging de toda execucao (com ou sem
+    # sucesso), entao serve como indicador confiavel de pasta-folha aqui, igual ao
+    # marker.json serve para Invoke-Retention.
+    $entries = Get-NestedLeafDirectories -Root $FailedRoot -LeafIndicator 'Metadata'
+    $expired = @($entries | Where-Object { $_.Leaf.LastWriteTime -lt $limit })
 
     foreach ($item in $expired) {
         try {
-            Write-Log "Removendo tentativa falha expirada: $($item.FullName)." 'WARNING'
-            Remove-Item -LiteralPath $item.FullName -Recurse -Force -ErrorAction Stop
+            Write-Log "Removendo tentativa falha expirada: $($item.Leaf.FullName)." 'WARNING'
+            Remove-Item -LiteralPath $item.Leaf.FullName -Recurse -Force -ErrorAction Stop
         }
         catch {
-            $Warnings.Add("Nao foi possivel remover tentativa falha: $($item.FullName): $($_.Exception.Message)")
+            $Warnings.Add("Nao foi possivel remover tentativa falha: $($item.Leaf.FullName): $($_.Exception.Message)")
+        }
+
+        if ($null -ne $item.GroupParent -and (Test-Path -LiteralPath $item.GroupParent.FullName)) {
+            $remaining = @(Get-ChildItem -LiteralPath $item.GroupParent.FullName -Force -ErrorAction SilentlyContinue)
+            if ($remaining.Count -eq 0) {
+                Remove-Item -LiteralPath $item.GroupParent.FullName -Force -ErrorAction SilentlyContinue
+            }
         }
     }
 }
@@ -1043,10 +1109,26 @@ try {
     $StagingRoot = Join-Path $RepositoryRoot '_STAGING'
     $FailedRoot = Join-Path $RepositoryRoot '_FAILED'
     $RestorePointName = "{0}_{1}_{2}" -f $Timestamp, (Get-SafeName $EffectiveBatchName), $RunId.Substring(0, 8)
+    # Staging fica raso (direto em _STAGING\<RestorePointName>) de proposito - so o
+    # destino final/falho e que ganha a pasta compartilhada da cascata, o que evita
+    # mexer em Remove-OrphanedStagingDirectories.
     $StagingPoint = Join-Path $StagingRoot $RestorePointName
-    $FinalPoint = Join-Path $RepositoryRoot $RestorePointName
+
+    # CascadeGroupName agrupa os lotes de uma mesma "noite" na mesma pasta, na raiz
+    # do repositorio. Quando -CascadeId vem do wrapper (Invoke-CascadeBackup.ps1), os
+    # tres lotes compartilham o mesmo valor. Numa execucao manual/avulsa, o script
+    # gera o seu proprio grupo (rotulo RUN em vez de CASCATA, ja que nao e uma cascata
+    # completa) - o layout no disco fica sempre aninhado, com ou sem cascata real.
+    if ($PSBoundParameters.ContainsKey('CascadeId') -and -not [string]::IsNullOrWhiteSpace($CascadeId)) {
+        $CascadeGroupName = Get-SafeName $CascadeId
+    }
+    else {
+        $CascadeGroupName = "{0}_RUN_{1}" -f $RunStart.ToString('yyyy-MM-dd'), $RunId.Substring(0, 8)
+    }
+    $FinalPoint = Join-Path (Join-Path $RepositoryRoot $CascadeGroupName) $RestorePointName
 
     Write-Log "Lote: $EffectiveBatchName"
+    Write-Log "Cascade: $CascadeGroupName"
     Write-Log "Repositorio: $RepositoryRoot"
 
     Write-Stage -Number 1 -Total 9 -Title 'Validar host, destino e ferramentas'
@@ -1454,9 +1536,13 @@ try {
         if ($failureCount -gt 0) {
             $OverallStatus = 'PARTIAL_FAILED'
             Write-RestorePointMarker -Path (Join-Path $StagingPoint 'FAILED.marker.json') -Status 'PARTIAL_FAILED'
-            $failedDestination = Join-Path $FailedRoot $RestorePointName
+            $failedDestination = Join-Path (Join-Path $FailedRoot $CascadeGroupName) $RestorePointName
             if (Test-Path -LiteralPath $failedDestination) {
                 Remove-Item -LiteralPath $failedDestination -Recurse -Force
+            }
+            $failedDestinationParent = Split-Path -Parent $failedDestination
+            if (-not (Test-Path -LiteralPath $failedDestinationParent)) {
+                New-Item -ItemType Directory -Path $failedDestinationParent -Force | Out-Null
             }
             Move-Item -LiteralPath $StagingPoint -Destination $failedDestination
             $FinalPoint = $failedDestination
@@ -1473,6 +1559,10 @@ try {
         Write-RestorePointMarker -Path (Join-Path $StagingPoint 'COMPLETE.marker.json') -Status 'COMPLETE'
         if (Test-Path -LiteralPath $FinalPoint) {
             throw "Destino final ja existe: $FinalPoint"
+        }
+        $finalPointParent = Split-Path -Parent $FinalPoint
+        if (-not (Test-Path -LiteralPath $finalPointParent)) {
+            New-Item -ItemType Directory -Path $finalPointParent -Force | Out-Null
         }
         Move-Item -LiteralPath $StagingPoint -Destination $FinalPoint
         $RepositoryPublished = $true
@@ -1506,9 +1596,13 @@ catch {
                 New-Item -ItemType Directory -Path $FailedRoot -Force | Out-Null
             }
             Write-RestorePointMarker -Path (Join-Path $StagingPoint 'FAILED.marker.json') -Status 'FAILED'
-            $failedDestination = Join-Path $FailedRoot $RestorePointName
+            $failedDestination = Join-Path (Join-Path $FailedRoot $CascadeGroupName) $RestorePointName
             if (Test-Path -LiteralPath $failedDestination) {
                 Remove-Item -LiteralPath $failedDestination -Recurse -Force
+            }
+            $failedDestinationParent = Split-Path -Parent $failedDestination
+            if (-not (Test-Path -LiteralPath $failedDestinationParent)) {
+                New-Item -ItemType Directory -Path $failedDestinationParent -Force | Out-Null
             }
             Move-Item -LiteralPath $StagingPoint -Destination $failedDestination
             $FinalPoint = $failedDestination
@@ -1541,6 +1635,7 @@ finally {
         ScriptVersion = $ScriptVersion
         ComputerName = $ComputerName
         BatchName = $EffectiveBatchName
+        CascadeId = $CascadeGroupName
         Status = $OverallStatus
         Mode = $Mode
         StartTime = $RunStart.ToString('yyyy-MM-dd HH:mm:ss')

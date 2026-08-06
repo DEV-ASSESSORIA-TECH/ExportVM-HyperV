@@ -17,12 +17,14 @@ Ele substitui provisoriamente o Windows Server Backup por um fluxo mais previsí
 
 > Esta solução é uma contingência de exportação completa. Ela não é incremental e não substitui permanentemente plataformas como Veeam ou Acronis.
 
+Este documento é a referência técnica (arquitetura, configuração, formatos de arquivo). Para o dia a dia (checklist matinal, leitura de log, o que fazer se algo falhar) use o [RUNBOOK.md](RUNBOOK.md). Para o histórico de versões e os números da validação em produção, veja o [CHANGELOG.md](CHANGELOG.md). Para comandos rápidos de instalação/teste, veja o [LEIA-ME.txt](LEIA-ME.txt).
+
 ---
 
 ## Versão atual
 
 ```text
-Invoke-VMExportBackup.ps1 v1.1.0
+Invoke-VMExportBackup.ps1 v1.2.0
 ```
 
 A versão 1.0.5 já foi validada com:
@@ -40,7 +42,7 @@ A versão 1.0.5 já foi validada com:
 - retenção após sucesso;
 - heartbeat em operações longas.
 
-A versão 1.1.0 adiciona (pendente de validação em produção — ver "Status atual"):
+A versão 1.1.0 adiciona (validada em produção em 2026-08-05/06 — ver "Status atual" e [CHANGELOG.md](CHANGELOG.md)):
 
 - classificação automática de VM em lote por tamanho lógico do disco (`Config\Tiers.json`), sem lista fixa de VMs por lote;
 - parâmetros gerais migrados para `Config\Settings.json` (sobrescrevíveis por linha de comando, que sempre tem prioridade);
@@ -48,6 +50,13 @@ A versão 1.1.0 adiciona (pendente de validação em produção — ver "Status 
 - limpeza automática de diretórios de staging órfãos deixados por uma execução interrompida à força;
 - e-mail enviado apenas quando o lote termina em `FAILED`/`PARTIAL_FAILED` — sucesso e plano ficam silenciosos;
 - `Install-VMExportBackupTask.ps1` cria uma tarefa agendada por lote automaticamente, a partir de `Config\Tiers.json`.
+
+A versão 1.2.0 adiciona (motivada pela cascata da v1.1.0 ter terminado perto demais do horário de expediente):
+
+- **cascata real**: uma única tarefa agendada (`Invoke-CascadeBackup.ps1`), disparando uma vez por noite, roda SMALL → MEDIUM → BIG em sequência — cada lote começa assim que o anterior termina, em vez de três horários fixos independentes;
+- **agrupamento por noite**: os três lotes de uma mesma cascata compartilham uma assinatura (`CascadeId`) e publicam dentro da mesma pasta na raiz do repositório, nomeada com o dia de início da cascata (ver "Destino do backup");
+- `Config\Tiers.json` schema v2: `ScheduleTime`/`ExecutionTimeLimitHours` por lote deram lugar a `CascadeStartTime`/`CascadeExecutionTimeLimitHours` no nível raiz do arquivo;
+- `Install-VMExportBackupTask.ps1` passa a criar **uma única tarefa** (não mais uma por lote), e remove automaticamente as tarefas do modelo antigo (v1.1.0) se existirem no host.
 
 ---
 
@@ -70,7 +79,7 @@ A rotina executa as seguintes etapas:
 13. Compara o tamanho exportado com o tamanho listado pelo 7-Zip.
 14. Calcula SHA-256, salvo quando `-SkipHash` for utilizado.
 15. Remove a exportação temporária após validação.
-16. Publica o ponto somente quando todas as VMs do lote terminam com sucesso.
+16. Publica o ponto somente quando todas as VMs do lote terminam com sucesso, dentro da pasta compartilhada da cascata (`-CascadeId`) quando informado, ou de uma pasta própria em execuções manuais/avulsas.
 17. Aplica a retenção própria do lote (`KeepRestorePoints` de `Tiers.json`) somente depois da publicação.
 18. Gera log, JSON e HTML, com o nome do lote em destaque.
 19. Envia e-mail apenas quando o lote termina em falha (`FAILED`/`PARTIAL_FAILED`).
@@ -86,21 +95,22 @@ A rotina executa as seguintes etapas:
 | `Export-VMWorker.ps1` | Worker isolado para `Export-VM` |
 | `Get-FileHashWorker.ps1` | Worker isolado para SHA-256 |
 | `TierHelpers.ps1` | Funções compartilhadas de lote: carregamento/validação de `Tiers.json`, tamanho lógico da VM, cálculo de timeout por lote |
-| `Install-VMExportBackupTask.ps1` | Cria uma tarefa agendada por lote como `SYSTEM`, a partir de `Config\Tiers.json` |
-| `Config\Tiers.json` | Limiares de tamanho, retenção e horário de agendamento de cada lote |
+| `Invoke-CascadeBackup.ps1` | Wrapper da cascata noturna: gera o `CascadeId` compartilhado e roda os lotes em sequência, um processo por vez |
+| `Install-VMExportBackupTask.ps1` | Cria a tarefa agendada única (cascata) como `SYSTEM`, a partir de `Config\Tiers.json`; migra tarefas do modelo antigo se existirem |
+| `Config\Tiers.json` | Limiares de tamanho e retenção por lote, horário/teto de tempo da cascata (`CascadeStartTime`/`CascadeExecutionTimeLimitHours`) |
 | `Config\Settings.json` | Parâmetros gerais (drive, timeouts, SMTP etc.), sobrescrevíveis por linha de comando |
 
 ---
 
 ## Diretório de instalação
 
-Copie os quatro scripts para:
+Copie a pasta inteira (os seis scripts `.ps1` **e** a pasta `Config\` com `Tiers.json`/`Settings.json`) para:
 
 ```text
 C:\Scripts\WindowsServerBackup
 ```
 
-Eles podem coexistir com scripts antigos do Windows Server Backup, mas não utilizam o WSB.
+Eles podem coexistir com scripts antigos do Windows Server Backup, mas não utilizam o WSB. Sem a pasta `Config\`, `Invoke-VMExportBackup.ps1` roda em modo legado (sem lotes, exige `-VMName` ou processa todas as VMs) e `Install-VMExportBackupTask.ps1` recusa a rodar — ambos exigem `TierHelpers.ps1` presente.
 
 ---
 
@@ -116,20 +126,30 @@ Estrutura esperada:
 F:\HyperV-Exports\
 ├── _STAGING\
 ├── _FAILED\
-├── 2026-08-05_00-30-00_SMALL_1234abcd\
-│   ├── Archives\
-│   │   ├── SRV-AD.7z
-│   │   ├── SRV-DOCS.7z
+├── 2026-08-06_CASCATA_a1b2c3d4\
+│   ├── SMALL\
+│   │   ├── Archives\
+│   │   │   ├── SRV-AD.7z
+│   │   │   ├── SRV-DOCS.7z
+│   │   │   └── ...
+│   │   ├── Metadata\
+│   │   │   ├── HostInventory.json
+│   │   │   └── logs por VM
+│   │   └── COMPLETE.marker.json
+│   ├── MEDIUM\
 │   │   └── ...
-│   ├── Metadata\
-│   │   ├── HostInventory.json
-│   │   └── logs por VM
-│   ├── Working\
-│   └── COMPLETE.marker.json
+│   └── BIG\
+│       └── ...
 └── ...
 ```
 
-O nome do ponto de restauração inclui o nome do lote (`SMALL`/`MEDIUM`/`BIG`/`ADHOC`), e o `COMPLETE.marker.json` grava esse mesmo nome em `TierName` — é isso que permite a retenção contar cada lote separadamente (ver "Retenção por lote").
+A pasta de primeiro nível é a **pasta da cascata** — uma por noite, nomeada com o dia em que a cascata começou e uma assinatura (`CascadeId`) compartilhada pelos três lotes daquela execução (ver "Instalação como tarefa agendada"). Dentro dela, cada lote mantém sua própria subpasta (`SMALL`/`MEDIUM`/`BIG`), cada uma com seu `Archives`/`Metadata`/`COMPLETE.marker.json` — os três continuam sendo processos isolados (retry, falha e relatório independentes por lote); só a pasta pai é compartilhada.
+
+Execuções manuais/avulsas (sem passar por uma cascata) geram sua própria pasta de primeiro nível no mesmo padrão, rotulada `RUN` em vez de `CASCATA` (ex.: `2026-08-06_RUN_9f8e7d6c\BIG\`) — o layout aninhado é sempre o mesmo, com ou sem cascata real.
+
+O `COMPLETE.marker.json` de cada lote grava `TierName` (o lote) e `CascadeId` (o nome da pasta da noite) — é o `TierName` que permite a retenção contar cada lote separadamente, independente de qual noite/cascata publicou o ponto (ver "Retenção por lote").
+
+> Pontos publicados antes da v1.2.0 ficam num layout raso mais antigo (a própria pasta de primeiro nível já é o ponto, sem subpasta por lote) e continuam funcionando normalmente — retenção e limpeza reconhecem os dois layouts.
 
 ### `_STAGING`
 
@@ -149,13 +169,13 @@ Esses conjuntos:
 
 ### Pontos completos
 
-Os pontos válidos ficam diretamente em:
+Os pontos válidos ficam em:
 
 ```text
-F:\HyperV-Exports\AAAA-MM-DD_HH-MM-SS-xxxxxxxx
+F:\HyperV-Exports\<AAAA-MM-DD>_CASCATA_<assinatura>\<LOTE>\
 ```
 
-e contêm:
+e cada subpasta de lote contém:
 
 ```text
 COMPLETE.marker.json
@@ -298,7 +318,8 @@ $files = @(
     'C:\Scripts\WindowsServerBackup\Export-VMWorker.ps1',
     'C:\Scripts\WindowsServerBackup\Get-FileHashWorker.ps1',
     'C:\Scripts\WindowsServerBackup\Install-VMExportBackupTask.ps1',
-    'C:\Scripts\WindowsServerBackup\TierHelpers.ps1'
+    'C:\Scripts\WindowsServerBackup\TierHelpers.ps1',
+    'C:\Scripts\WindowsServerBackup\Invoke-CascadeBackup.ps1'
 )
 
 foreach ($file in $files) {
@@ -330,34 +351,46 @@ Errors = 0
 
 # Lotes automáticos por tamanho
 
-A partir da v1.1.0 os lotes deixaram de ser listas fixas de VM mantidas à mão. Cada execução classifica automaticamente todas as VMs do host pelo tamanho lógico atual do disco, usando os limiares definidos em `Config\Tiers.json` — não é preciso atualizar nada quando uma VM é criada ou removida do host.
+Cada execução classifica automaticamente todas as VMs do host pelo tamanho lógico atual do disco, usando os limiares definidos em `Config\Tiers.json` — não é preciso atualizar nada quando uma VM é criada ou removida do host.
 
 Configuração atual (ajustável no arquivo, sem precisar editar nenhum script):
 
 ```json
 {
+    "SchemaVersion": 2,
+    "CascadeStartTime": "21:00",
+    "CascadeExecutionTimeLimitHours": 20,
     "Tiers": [
-        { "Name": "SMALL",  "MinSizeGB": 0,  "MaxSizeGB": 25,   "KeepRestorePoints": 3, "ScheduleTime": "00:30" },
-        { "Name": "MEDIUM", "MinSizeGB": 25, "MaxSizeGB": 75,   "KeepRestorePoints": 3, "ScheduleTime": "06:00" },
-        { "Name": "BIG",    "MinSizeGB": 75, "MaxSizeGB": null, "KeepRestorePoints": 3, "ScheduleTime": "12:00" }
+        { "Name": "SMALL",  "MinSizeGB": 0,  "MaxSizeGB": 25,   "KeepRestorePoints": 3 },
+        { "Name": "MEDIUM", "MinSizeGB": 25, "MaxSizeGB": 75,   "KeepRestorePoints": 3 },
+        { "Name": "BIG",    "MinSizeGB": 75, "MaxSizeGB": null, "KeepRestorePoints": 3 }
     ],
     "DefaultTier": "SMALL"
 }
 ```
 
-`MinSizeGB` é inclusivo, `MaxSizeGB` é exclusivo (as faixas precisam ser contínuas, sem lacuna nem sobreposição — o script valida isso e recusa a rodar se `Tiers.json` estiver inconsistente). Os cortes atuais (25 GB e 75 GB) foram calibrados com os tamanhos reais observados nas primeiras execuções dos três lotes manuais. Ajuste livremente conforme VMs forem adicionadas ou removidas do host.
+`MinSizeGB` é inclusivo, `MaxSizeGB` é exclusivo (as faixas precisam ser contínuas, sem lacuna nem sobreposição — o script valida isso e recusa a rodar se `Tiers.json` estiver inconsistente). Os cortes atuais (25 GB e 75 GB) foram calibrados com os tamanhos reais observados nas execuções dos três lotes. Ajuste livremente conforme VMs forem adicionadas ou removidas do host.
+
+`CascadeStartTime` é o horário único de disparo da cascata inteira (não mais um horário por lote — ver "Instalação como tarefa agendada"). `CascadeExecutionTimeLimitHours` é o teto de tempo para a cascata inteira (SMALL+MEDIUM+BIG somados); o valor atual (20h) reflete a duração real medida na validação de produção de 2026-08-05/06 (SMALL 0h32, MEDIUM 2h13, BIG 5h46, total 8h30 — ver [CHANGELOG.md](CHANGELOG.md)), com folga de mais de 2x sobre o observado.
 
 ---
 
-## Instalação como tarefa agendada (recomendado)
+## Instalação como tarefa agendada
 
 ```powershell
 & "C:\Scripts\WindowsServerBackup\Install-VMExportBackupTask.ps1"
 ```
 
-Cria/atualiza uma tarefa agendada por lote (`Backup Hyper-V - Lote SMALL`, `Backup Hyper-V - Lote MEDIUM`, `Backup Hyper-V - Lote BIG`), cada uma disparando no horário definido em `Tiers.json` e já com e-mail de falha habilitado (sem `-SkipEmail`). O `ExecutionTimeLimit` de cada tarefa é calculado a partir do pior caso teórico (VMs do lote × tentativas × timeouts configurados); se o valor calculado parecer alto demais, fixe um `ExecutionTimeLimitHours` mais realista por lote em `Tiers.json` depois de observar a duração real nos logs.
+**Roda uma única vez**, como administrador. Nessa execução ele:
 
-Rodar o instalador de novo depois de mudar `Tiers.json` (adicionar, remover ou renomear um lote) atualiza as tarefas existentes e remove automaticamente as tarefas de lotes que não existem mais no config.
+1. Lê `Config\Tiers.json`.
+2. Conta quantas VMs caem em cada lote hoje e loga (informativo, não bloqueante) a soma do pior caso teórico por lote comparada ao `CascadeExecutionTimeLimitHours` configurado.
+3. Cria/atualiza **uma única tarefa** no Agendador de Tarefas do Windows (`Backup Hyper-V - Cascata Noturna`), com gatilho **diário recorrente** em `CascadeStartTime`, apontando para `Invoke-CascadeBackup.ps1`, rodando como `SYSTEM`, com `ExecutionTimeLimit` = `CascadeExecutionTimeLimitHours`.
+4. Remove automaticamente as tarefas do modelo antigo (uma por lote, v1.1.0) se ainda existirem no host — evita rodar os dois modelos em paralelo, competindo pelo mesmo lock.
+
+Depois dessa execução, o Agendador do Windows dispara `Invoke-CascadeBackup.ps1` uma vez por noite, sem precisar rodar o instalador de novo — só é preciso rodá-lo outra vez se `Tiers.json` mudar (novo lote, lote removido, horário ou teto de tempo diferente, retenção diferente).
+
+**Como a cascata funciona de fato**: `Invoke-CascadeBackup.ps1` gera uma assinatura (`CascadeId`) uma única vez, e roda cada lote definido em `Tiers.json`, na ordem em que aparecem (`MinSizeGB` ascendente — hoje SMALL → MEDIUM → BIG), como um processo `powershell.exe` separado por vez, esperando cada um terminar antes de iniciar o próximo — diferente da v1.1.0, aqui não há mais horários fixos independentes por lote nem risco de colisão de lock entre eles (é sempre um de cada vez, garantido pelo próprio wrapper, não só por espaçamento de horário). Uma falha num lote não impede os seguintes de rodar; cada lote continua alertando por e-mail individualmente.
 
 ---
 
@@ -375,7 +408,7 @@ Troque `BIG` por `MEDIUM` ou `SMALL`. Sem `-Execute`, roda em modo PLAN — só 
 & "C:\Scripts\WindowsServerBackup\Invoke-VMExportBackup.ps1" -VMName "SRV-VPN","SRV-VoIP" -Execute
 ```
 
-Esse tipo de execução conta como o lote `ADHOC`, com retenção própria (usa o `KeepRestorePoints` geral de `Config\Settings.json`, já que não corresponde a nenhum lote real de `Tiers.json`).
+Esse tipo de execução conta como o lote `ADHOC`, com retenção própria (usa o `KeepRestorePoints` geral de `Config\Settings.json`, já que não corresponde a nenhum lote real de `Tiers.json`). Execuções manuais (com `-BatchName` ou `-VMName`, fora da cascata) não usam `-CascadeId` — o script gera sua própria pasta de primeiro nível (rótulo `RUN`, ver "Destino do backup").
 
 ---
 
@@ -526,7 +559,9 @@ A partir da v1.1.0 o e-mail para `suporte@assessoriatech.com` (integrado ao Tifl
 
 ## Retenção por lote
 
-Cada lote tem sua própria contagem de retenção, definida em `Config\Tiers.json` (`KeepRestorePoints`). Um ponto publicado pelo lote `BIG` nunca é contado nem removido pela retenção do lote `MEDIUM` ou `SMALL` — cada um mantém seus próprios pontos completos mais recentes, independente dos outros.
+Cada lote tem sua própria contagem de retenção, definida em `Config\Tiers.json` (`KeepRestorePoints`). Um ponto publicado pelo lote `BIG` nunca é contado nem removido pela retenção do lote `MEDIUM` ou `SMALL` — cada um mantém seus próprios pontos completos mais recentes, independente dos outros e independente de em qual pasta de cascata/noite ele está.
+
+A busca por pontos reconhece os dois layouts: pastas de primeiro nível que já são o ponto (`COMPLETE.marker.json` direto — layout anterior à v1.2.0) e pastas de primeiro nível que são uma cascata/noite (sem marcador direto, com subpastas por lote — layout atual). Em ambos os casos, o lote de cada ponto é lido do `TierName` gravado no marcador, não da posição no disco. Ao apagar o último lote restante de uma pasta de cascata, a pasta vazia também é removida.
 
 Pontos completos publicados por versões do script anteriores à v1.1.0 (sem `TierName` no marcador) caem num grupo `LEGACY` à parte, com retenção baseada no `KeepRestorePoints` geral de `Config\Settings.json` — não são apagados por engano pela retenção de um lote real.
 
@@ -543,7 +578,8 @@ Pontos completos publicados por versões do script anteriores à v1.1.0 (sem `Ti
 - Verifique espaço livre antes de iniciar.
 - Mantenha os backups lógicos dos bancos de dados em paralelo.
 - Ajuste `MinSizeGB`/`MaxSizeGB` em `Config\Tiers.json` conforme VMs forem adicionadas, removidas ou crescerem de tamanho no host.
-- Depois de observar a duração real de cada lote nos logs, considere fixar um `ExecutionTimeLimitHours` realista por lote em `Tiers.json` — o valor calculado automaticamente pelo instalador é intencionalmente conservador (pode passar de 100h) e serve como teto de segurança, não como estimativa de duração.
+- `CascadeExecutionTimeLimitHours` está fixado com base na duração real observada (ver [CHANGELOG.md](CHANGELOG.md)). Se o parque de VMs crescer bastante, reavalie esse valor — o comparativo informativo que o instalador imprime (soma do pior caso teórico por lote) ajuda a perceber se o teto configurado ficou apertado demais.
+- Depois de mudar `Tiers.json` (horário, teto de tempo, lotes), rode `Install-VMExportBackupTask.ps1` de novo para a tarefa agendada refletir a mudança.
 
 ---
 
@@ -552,12 +588,14 @@ Pontos completos publicados por versões do script anteriores à v1.1.0 (sem `Ti
 ```text
 Fluxo principal (v1.0.5): validado
 Checkpoint Linux: validado
-Lote SMALL de teste: validado
-Lote BIG: validado
-Classificação automática por tamanho (v1.1.0): implementada, pendente de validação em producao
-Retenção por lote (v1.1.0): implementada, pendente de validação em producao
-Limpeza de staging órfão (v1.1.0): implementada, pendente de validação em producao
-E-mail apenas em falha (v1.1.0): implementado, pendente de validação em producao
-Agendamento por lote via instalador (v1.1.0): implementado, pendente de instalação em producao
+Classificação automática por tamanho (v1.1.0): validado em produção (2026-08-05/06, 17/17 VMs, 3/3 lotes)
+Retenção por lote (v1.1.0): validado em produção (cada lote manteve seu próprio ponto, 0 remoções indevidas)
+Limpeza de staging órfão (v1.1.0): implementado, sem caso real acionado ainda
+E-mail apenas em falha (v1.1.0): validado em produção (3 sucessos, 3 execuções silenciosas, 0 chamados abertos)
+Cascata real via Invoke-CascadeBackup.ps1 (v1.2.0): implementada, pendente de validação em produção
+Agrupamento por noite (CascadeId, pasta compartilhada) (v1.2.0): implementado, pendente de validação em produção
+Instalador de tarefa unica + migração do modelo antigo (v1.2.0): implementado, pendente de instalação em produção
 Restauração completa de teste: pendente
 ```
+
+Detalhes da validação de produção (durações reais, tamanhos, taxa de compactação) em [CHANGELOG.md](CHANGELOG.md). Checklist do dia a dia em [RUNBOOK.md](RUNBOOK.md).

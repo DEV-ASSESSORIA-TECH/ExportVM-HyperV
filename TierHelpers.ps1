@@ -55,7 +55,8 @@ function Get-TierDefinitions {
 
         Retorna $null se o arquivo simplesmente nao existir (uso sem tiering,
         comportamento ALL/legado). Retorna um objeto com .Tiers (array ordenado por
-        MinSizeGB) e .DefaultTier quando o arquivo existe e e valido.
+        MinSizeGB), .DefaultTier, .CascadeStartTime e .CascadeExecutionTimeLimitHours
+        quando o arquivo existe e e valido.
     #>
     param(
         [Parameter(Mandatory = $true)]
@@ -83,8 +84,6 @@ function Get-TierDefinitions {
             MinSizeGB = [double]$_.MinSizeGB
             MaxSizeGB = if ($null -eq $_.MaxSizeGB) { $null } else { [double]$_.MaxSizeGB }
             KeepRestorePoints = [int]$_.KeepRestorePoints
-            ScheduleTime = [string]$_.ScheduleTime
-            ExecutionTimeLimitHours = if ($null -eq $_.ExecutionTimeLimitHours) { $null } else { [double]$_.ExecutionTimeLimitHours }
         }
     }) | Sort-Object MinSizeGB
 
@@ -92,12 +91,34 @@ function Get-TierDefinitions {
         if ([string]::IsNullOrWhiteSpace($tier.Name)) {
             throw "'$Path' contem um tier sem 'Name'."
         }
-        if (-not ($tier.ScheduleTime -match '^([01]\d|2[0-3]):[0-5]\d$')) {
-            throw "Tier '$($tier.Name)' em '$Path' tem ScheduleTime invalido: '$($tier.ScheduleTime)'. Use HH:mm."
-        }
         if ($tier.KeepRestorePoints -lt 1) {
             throw "Tier '$($tier.Name)' em '$Path' tem KeepRestorePoints invalido: deve ser >= 1."
         }
+    }
+
+    # Desde o schema v2, o agendamento e um unico gatilho em cascata (nao mais um
+    # horario por lote): os lotes rodam em sequencia, um atras do outro, a partir de
+    # CascadeStartTime. ExecutionTimeLimit tambem passa a ser um teto unico para a
+    # cadeia inteira, ja que o Agendador do Windows so aplica um limite por tarefa.
+    # Acesso via PSObject.Properties.Name primeiro (nao direto em $raw.X): sob
+    # Set-StrictMode -Version 2.0, ler uma propriedade que nao existe de jeito nenhum
+    # no objeto (nao so nula) lanca erro antes mesmo do throw customizado abaixo rodar.
+    $hasCascadeStartTime = $raw.PSObject.Properties.Name -contains 'CascadeStartTime'
+    if (-not $hasCascadeStartTime -or [string]::IsNullOrWhiteSpace([string]$raw.CascadeStartTime)) {
+        throw "'$Path' nao define 'CascadeStartTime' (horario de inicio da cascata, formato HH:mm)."
+    }
+    if (-not ([string]$raw.CascadeStartTime -match '^([01]\d|2[0-3]):[0-5]\d$')) {
+        throw "'$Path' tem CascadeStartTime invalido: '$($raw.CascadeStartTime)'. Use HH:mm."
+    }
+    $cascadeStartTime = [string]$raw.CascadeStartTime
+
+    $hasCascadeLimit = $raw.PSObject.Properties.Name -contains 'CascadeExecutionTimeLimitHours'
+    if (-not $hasCascadeLimit -or $null -eq $raw.CascadeExecutionTimeLimitHours) {
+        throw "'$Path' nao define 'CascadeExecutionTimeLimitHours' (teto de horas para a cascata inteira)."
+    }
+    $cascadeExecutionTimeLimitHours = [double]$raw.CascadeExecutionTimeLimitHours
+    if ($cascadeExecutionTimeLimitHours -le 0) {
+        throw "'$Path' tem CascadeExecutionTimeLimitHours invalido: deve ser maior que zero."
     }
 
     $names = @($tiers | Select-Object -ExpandProperty Name)
@@ -136,6 +157,8 @@ function Get-TierDefinitions {
     return [pscustomobject]@{
         Tiers = $tiers
         DefaultTier = $defaultTier
+        CascadeStartTime = $cascadeStartTime
+        CascadeExecutionTimeLimitHours = $cascadeExecutionTimeLimitHours
     }
 }
 
@@ -195,9 +218,11 @@ function Resolve-VMTier {
 
 function Get-TierWorstCaseHours {
     <#
-        Calcula um teto de tempo (em horas) para um lote inteiro, usado para
-        preencher o ExecutionTimeLimit da tarefa agendada quando o operador nao
-        fixou um valor explicito em Tiers.json.
+        Calcula um teto de tempo (em horas) para um lote inteiro. Usado pelo
+        instalador (Install-VMExportBackupTask.ps1) apenas como referencia
+        informativa - a soma desse valor por lote e comparada (em log, sem bloquear)
+        contra CascadeExecutionTimeLimitHours configurado, para sinalizar se o teto
+        da cascata parece baixo demais.
 
         O IntegrityTimeoutHours governa TRES etapas por VM por tentativa dentro de
         Invoke-VMExportBackup.ps1 (teste "7z t", listagem estrutural "7z l -slt" e o

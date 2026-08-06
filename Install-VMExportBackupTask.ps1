@@ -3,7 +3,11 @@
 
 [CmdletBinding()]
 param(
-    [string]$TaskNamePrefix = 'Backup Hyper-V - Lote'
+    [string]$TaskName = 'Backup Hyper-V - Cascata Noturna',
+
+    # Prefixo das tarefas do modelo antigo (uma por lote, horarios independentes,
+    # anterior a v1.2.0) - removidas automaticamente ao instalar a cascata unica.
+    [string]$LegacyTaskNamePrefix = 'Backup Hyper-V - Lote'
 )
 
 Set-StrictMode -Version 2.0
@@ -11,6 +15,7 @@ $ErrorActionPreference = 'Stop'
 
 $scriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $mainScript = Join-Path $scriptRoot 'Invoke-VMExportBackup.ps1'
+$cascadeScript = Join-Path $scriptRoot 'Invoke-CascadeBackup.ps1'
 $tierHelpersPath = Join-Path $scriptRoot 'TierHelpers.ps1'
 $configDir = Join-Path $scriptRoot 'Config'
 $tiersConfigPath = Join-Path $configDir 'Tiers.json'
@@ -19,23 +24,25 @@ $settingsConfigPath = Join-Path $configDir 'Settings.json'
 if (-not (Test-Path -LiteralPath $mainScript)) {
     throw "Script principal nao encontrado: $mainScript"
 }
+if (-not (Test-Path -LiteralPath $cascadeScript)) {
+    throw "Wrapper de cascata nao encontrado: $cascadeScript"
+}
 if (-not (Test-Path -LiteralPath $tierHelpersPath)) {
     throw "Modulo de lotes nao encontrado: $tierHelpersPath"
 }
 
 . $tierHelpersPath
 
-# Diferente do script principal (que tolera a ausencia de Tiers.json e roda tudo em
-# modo ALL/manual), o instalador exige a config de lotes: sua unica funcao e criar uma
-# tarefa agendada por lote, entao nao ha um "modo sem lote" util aqui.
+# A cascata precisa da config de lotes para saber a ordem e o horario de disparo -
+# diferente do script principal, aqui nao ha "modo sem lote" util.
 $tierDefinitions = Get-TierDefinitions -Path $tiersConfigPath
 if ($null -eq $tierDefinitions) {
-    throw "$tiersConfigPath nao encontrado. Crie a config de lotes antes de instalar as tarefas agendadas."
+    throw "$tiersConfigPath nao encontrado. Crie a config de lotes antes de instalar a tarefa agendada."
 }
 
-# Timeouts/RetryCount usados para calcular o pior caso de duracao por lote devem
-# refletir o que o script principal realmente vai usar em tempo de execucao
-# (Settings.json, quando presente, senao os defaults de param() do script principal).
+# Timeouts/RetryCount usados so para o comparativo informativo abaixo devem refletir
+# o que o script principal realmente vai usar em tempo de execucao (Settings.json,
+# quando presente, senao os defaults de param() do script principal).
 $effective = [ordered]@{
     ExportTimeoutHours = 12
     CompressionTimeoutHours = 12
@@ -67,117 +74,76 @@ try {
     }
 }
 catch {
-    Write-Warning "Nao foi possivel enumerar VMs do host para calcular ExecutionTimeLimit ($($_.Exception.Message)). Usando contagem minima de 1 VM por lote para o calculo de pior caso."
+    Write-Warning "Nao foi possivel enumerar VMs do host para o comparativo informativo de ExecutionTimeLimit ($($_.Exception.Message))."
 }
+
+# Comparativo informativo (nao bloqueante): soma do pior caso teorico por lote contra
+# o CascadeExecutionTimeLimitHours configurado. Diferente da v1.1.0, esse valor NAO e
+# usado para preencher o ExecutionTimeLimit automaticamente - a cascata usa sempre o
+# valor unico configurado em Tiers.json, calibrado com duracoes reais observadas.
+$estimatedTotalHours = 0
+foreach ($tier in $tierDefinitions.Tiers) {
+    $vmCount = [int]$vmCountByTier[$tier.Name]
+    $tierWorstCase = Get-TierWorstCaseHours -VMCount $vmCount -RetryCount ([int]$effective.RetryCount) `
+        -ExportTimeoutHours ([double]$effective.ExportTimeoutHours) `
+        -CompressionTimeoutHours ([double]$effective.CompressionTimeoutHours) `
+        -IntegrityTimeoutHours ([double]$effective.IntegrityTimeoutHours)
+    $estimatedTotalHours += $tierWorstCase
+    Write-Host "Lote '$($tier.Name)': $vmCount VM(s), pior caso individual calculado = ${tierWorstCase}h."
+}
+Write-Host "Soma dos piores casos calculados: ${estimatedTotalHours}h | CascadeExecutionTimeLimitHours configurado: $($tierDefinitions.CascadeExecutionTimeLimitHours)h."
+if ($tierDefinitions.CascadeExecutionTimeLimitHours -lt $estimatedTotalHours) {
+    Write-Warning "CascadeExecutionTimeLimitHours ($($tierDefinitions.CascadeExecutionTimeLimitHours)h) e menor que a soma dos piores casos calculados (${estimatedTotalHours}h). Normal se o valor configurado ja reflete duracoes reais observadas (mais realista que o pior caso teorico) - so fique atento se o parque de VMs crescer bastante."
+}
+
+$action = New-ScheduledTaskAction `
+    -Execute 'powershell.exe' `
+    -Argument "-NoProfile -ExecutionPolicy Bypass -File `"$cascadeScript`"" `
+    -WorkingDirectory $scriptRoot
+
+$parts = $tierDefinitions.CascadeStartTime.Split(':')
+$today = Get-Date
+$at = Get-Date -Year $today.Year -Month $today.Month -Day $today.Day -Hour ([int]$parts[0]) -Minute ([int]$parts[1]) -Second 0
+$trigger = New-ScheduledTaskTrigger -Daily -At $at
+
+$settings = New-ScheduledTaskSettingsSet `
+    -StartWhenAvailable `
+    -AllowStartIfOnBatteries `
+    -DontStopIfGoingOnBatteries `
+    -MultipleInstances IgnoreNew `
+    -ExecutionTimeLimit (New-TimeSpan -Hours $tierDefinitions.CascadeExecutionTimeLimitHours) `
+    -RestartCount 1 `
+    -RestartInterval (New-TimeSpan -Minutes 30)
 
 $principal = New-ScheduledTaskPrincipal `
     -UserId 'SYSTEM' `
     -LogonType ServiceAccount `
     -RunLevel Highest
 
-$createdTasks = New-Object System.Collections.Generic.List[object]
+$tierNamesJoined = ($tierDefinitions.Tiers | Select-Object -ExpandProperty Name) -join ' -> '
 
-foreach ($tier in $tierDefinitions.Tiers) {
-    $taskName = "$TaskNamePrefix $($tier.Name)"
-    $vmCount = [int]$vmCountByTier[$tier.Name]
+$task = New-ScheduledTask `
+    -Action $action `
+    -Trigger $trigger `
+    -Settings $settings `
+    -Principal $principal `
+    -Description "Roda a cascata noturna de backup Hyper-V ($tierNamesJoined) via Invoke-CascadeBackup.ps1: cada lote comeca assim que o anterior termina, classificacao automatica por tamanho, retencao propria por lote, e-mail so em falha."
 
-    $worstCaseHours = Get-TierWorstCaseHours `
-        -VMCount $vmCount `
-        -RetryCount ([int]$effective.RetryCount) `
-        -ExportTimeoutHours ([double]$effective.ExportTimeoutHours) `
-        -CompressionTimeoutHours ([double]$effective.CompressionTimeoutHours) `
-        -IntegrityTimeoutHours ([double]$effective.IntegrityTimeoutHours)
+Register-ScheduledTask -TaskName $TaskName -InputObject $task -Force | Out-Null
 
-    $limitHours = $worstCaseHours
-    if ($null -ne $tier.ExecutionTimeLimitHours) {
-        $limitHours = [double]$tier.ExecutionTimeLimitHours
-        if ($limitHours -lt $worstCaseHours) {
-            Write-Warning "Lote '$($tier.Name)': ExecutionTimeLimitHours configurado ($limitHours h) e menor que o pior caso calculado ($worstCaseHours h para $vmCount VM(s)). Mantendo o valor configurado - o Task Scheduler pode encerrar a execucao a forca antes de terminar."
-        }
-    }
+Write-Host "Tarefa criada/atualizada: $TaskName | Horario=$($tierDefinitions.CascadeStartTime) | ExecutionTimeLimit=$($tierDefinitions.CascadeExecutionTimeLimitHours)h | Ordem=$tierNamesJoined"
 
-    $arguments = New-Object System.Collections.Generic.List[string]
-    $arguments.Add('-NoProfile')
-    $arguments.Add('-ExecutionPolicy Bypass')
-    $arguments.Add('-File')
-    $arguments.Add(('"{0}"' -f $mainScript))
-    $arguments.Add('-Execute')
-    $arguments.Add('-BatchName')
-    $arguments.Add($tier.Name)
-
-    $action = New-ScheduledTaskAction `
-        -Execute 'powershell.exe' `
-        -Argument ($arguments -join ' ') `
-        -WorkingDirectory $scriptRoot
-
-    $parts = $tier.ScheduleTime.Split(':')
-    $today = Get-Date
-    $at = Get-Date -Year $today.Year -Month $today.Month -Day $today.Day -Hour ([int]$parts[0]) -Minute ([int]$parts[1]) -Second 0
-    $trigger = New-ScheduledTaskTrigger -Daily -At $at
-
-    $settings = New-ScheduledTaskSettingsSet `
-        -StartWhenAvailable `
-        -AllowStartIfOnBatteries `
-        -DontStopIfGoingOnBatteries `
-        -MultipleInstances IgnoreNew `
-        -ExecutionTimeLimit (New-TimeSpan -Hours $limitHours) `
-        -RestartCount 1 `
-        -RestartInterval (New-TimeSpan -Minutes 30)
-
-    $task = New-ScheduledTask `
-        -Action $action `
-        -Trigger $trigger `
-        -Settings $settings `
-        -Principal $principal `
-        -Description "Exporta as VMs do lote $($tier.Name) (classificacao automatica por tamanho), compacta individualmente em 7z, testa integridade, gera relatorio e aplica retencao propria do lote somente apos sucesso completo."
-
-    Register-ScheduledTask -TaskName $taskName -InputObject $task -Force | Out-Null
-
-    $createdTasks.Add([pscustomobject]@{
-        TaskName = $taskName
-        Tier = $tier.Name
-        ScheduleTime = $tier.ScheduleTime
-        VMCount = $vmCount
-        ExecutionTimeLimitHours = $limitHours
-        WorstCaseHours = $worstCaseHours
-    })
-
-    Write-Host "Tarefa criada/atualizada: $taskName | Horario=$($tier.ScheduleTime) | VMs=$vmCount | ExecutionTimeLimit=${limitHours}h (pior caso calculado=${worstCaseHours}h)"
-}
-
-# Checagem diagnostica de colisao: nao bloqueia, so avisa. O lock global do script
-# principal ja impede duas execucoes simultaneas - se um lote ainda estiver rodando
-# quando o proximo disparar, o proximo falha na hora (e agora isso vira e-mail de
-# falha), em vez de esperar. Melhor avisar aqui do que descobrir isso durante a noite.
-$sortedByTime = @($createdTasks | Sort-Object { [datetime]::ParseExact($_.ScheduleTime, 'HH:mm', $null) })
-for ($i = 0; $i -lt $sortedByTime.Count; $i++) {
-    $current = $sortedByTime[$i]
-    $next = if ($i -lt $sortedByTime.Count - 1) { $sortedByTime[$i + 1] } else { $sortedByTime[0] }
-
-    $currentStart = [datetime]::ParseExact($current.ScheduleTime, 'HH:mm', $null)
-    $currentEnd = $currentStart.AddHours($current.ExecutionTimeLimitHours)
-    $nextStart = [datetime]::ParseExact($next.ScheduleTime, 'HH:mm', $null)
-    if ($i -eq $sortedByTime.Count - 1) { $nextStart = $nextStart.AddDays(1) }
-
-    if ($currentEnd -gt $nextStart) {
-        Write-Warning "Possivel colisao de agenda: lote '$($current.Tier)' (inicio $($current.ScheduleTime), ate $($current.ExecutionTimeLimitHours) h de execucao) pode ainda estar rodando quando o lote '$($next.Tier)' (inicio $($next.ScheduleTime)) disparar. Isso NAO enfileira - o segundo lote falha imediatamente por causa do lock global do script principal. Ajuste ScheduleTime em $tiersConfigPath se isso nao for intencional."
-    }
-}
-
-# Remove tarefas de lotes que existiam antes mas saíram de Tiers.json, para nao deixar
-# uma tarefa orfa tentando rodar -BatchName <lote removido> (o script principal
-# rejeitaria isso, mas e melhor nao deixar a tentativa acontecer).
-$currentTaskNames = @($createdTasks | Select-Object -ExpandProperty TaskName)
-$existingTasks = @(Get-ScheduledTask -ErrorAction SilentlyContinue | Where-Object { $_.TaskName -like "$TaskNamePrefix *" })
-$staleTasks = @($existingTasks | Where-Object { $currentTaskNames -notcontains $_.TaskName })
-
-foreach ($stale in $staleTasks) {
-    Write-Host "Removendo tarefa de lote descontinuado: $($stale.TaskName)" -ForegroundColor Yellow
-    Unregister-ScheduledTask -TaskName $stale.TaskName -Confirm:$false
+# Migra hosts que ainda tem o modelo antigo (uma tarefa por lote, horarios
+# independentes, v1.1.0) removendo essas tarefas - deixa-las ativas rodaria o fluxo
+# antigo em paralelo com a cascata nova, competindo pelo mesmo lock.
+$legacyTasks = @(Get-ScheduledTask -ErrorAction SilentlyContinue | Where-Object { $_.TaskName -like "$LegacyTaskNamePrefix *" })
+foreach ($legacy in $legacyTasks) {
+    Write-Host "Removendo tarefa do modelo antigo (uma por lote): $($legacy.TaskName)" -ForegroundColor Yellow
+    Unregister-ScheduledTask -TaskName $legacy.TaskName -Confirm:$false
 }
 
 Write-Host ''
-Write-Host "Resumo: $($createdTasks.Count) tarefa(s) criada(s)/atualizada(s), $($staleTasks.Count) tarefa(s) orfa(s) removida(s)."
+Write-Host "Resumo: 1 tarefa de cascata instalada, $($legacyTasks.Count) tarefa(s) do modelo antigo removida(s)."
 Write-Host "Conta: SYSTEM"
-Write-Host "Script principal: $mainScript"
+Write-Host "Wrapper: $cascadeScript"
 Write-Host "Config de lotes: $tiersConfigPath"
