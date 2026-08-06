@@ -1,33 +1,40 @@
-@'
 # Arquivos gerados durante a execução
 Logs/
 Reports/
 Locks/
 
-# Temporários e resultados locais
+# Áreas temporárias do repositório de backup
 _STAGING/
 _FAILED/
+
+# Arquivos temporários
 *.tmp
+*.temp
 *.partial
 *.partial.7z
+*.part
 
-# Backups manuais de scripts
+# Backups manuais e cópias antigas de scripts
 *.bak
+*.bak-*
 *.backup
 *.old
 *.orig
 *.copy
 * - Copy.*
+* - Copia.*
+* - Cópia.*
 
 # Logs e relatórios soltos
 *.log
 *.html
-#*.json
 
-# Exceções: arquivos JSON que façam parte do código/configuração
-!config.example.json
+# Arquivos exportados ou gerados localmente
+*.clixml
+*.zip
+*.7z
 
-# Credenciais e configurações locais
+# Credenciais e segredos locais
 .env
 .env.*
 *.secret
@@ -35,17 +42,37 @@ _FAILED/
 credentials.*
 smtp-credentials.*
 config.local.*
+*.local.json
 
-# PowerShell
-*.clixml
-
-# Editores
+# Editores e IDEs
 .vscode/
 .idea/
+*.code-workspace
 
-# Windows
+# Arquivos do Windows
 Thumbs.db
 Desktop.ini
-'@ | Set-Content `
-    -LiteralPath ".gitignore" `
-    -Encoding UTF8
+$RECYCLE.BIN/
+System Volume Information/
+
+# PowerShell
+*.ps1xml.user
+*.psd1.user
+
+# Arquivos de teste ou saída local
+TestResults/
+Coverage/
+Output/
+Temp/
+
+# ============================================================
+# Configurações versionadas
+# ============================================================
+
+# Os arquivos abaixo permanecem no repositório:
+#
+# Config/Settings.json
+# Config/Tiers.json
+#
+# Não adicionar uma regra global "*.json", pois os arquivos de
+# configuração fazem parte do projeto.
