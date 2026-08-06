@@ -1,0 +1,26 @@
+{
+    "SchemaVersion": 2,
+    "CascadeStartTime": "21:00",
+    "CascadeExecutionTimeLimitHours": 20,
+    "Tiers": [
+        {
+            "Name": "SMALL",
+            "MinSizeGB": 0,
+            "MaxSizeGB": 25,
+            "KeepRestorePoints": 3
+        },
+        {
+            "Name": "MEDIUM",
+            "MinSizeGB": 25,
+            "MaxSizeGB": 75,
+            "KeepRestorePoints": 3
+        },
+        {
+            "Name": "BIG",
+            "MinSizeGB": 75,
+            "MaxSizeGB": null,
+            "KeepRestorePoints": 3
+        }
+    ],
+    "DefaultTier": "SMALL"
+}

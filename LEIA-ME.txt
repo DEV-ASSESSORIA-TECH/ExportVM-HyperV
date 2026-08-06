@@ -1,0 +1,181 @@
+VM Export Backup v1.2
+=========================
+
+Este e um resumo de comandos rapidos. Para arquitetura/configuracao completa,
+veja README-VM-Export-Backup.md. Para checklist do dia a dia e o que fazer
+quando algo falha, veja RUNBOOK.md. Para historico de versoes e os numeros da
+validacao de producao, veja CHANGELOG.md.
+
+Objetivo
+--------
+Substituir temporariamente o Windows Server Backup por um fluxo previsivel:
+
+1. Classifica automaticamente cada VM do Hyper-V em um lote (SMALL/MEDIUM/BIG)
+   pelo tamanho logico atual do disco, usando os limiares de Config\Tiers.json.
+2. Roda os lotes em cascata: um atras do outro, cada um comecando assim que o
+   anterior termina, a partir de um horario unico de disparo (CascadeStartTime).
+3. Exporta uma VM por vez com CaptureDataConsistentState quando suportado.
+4. Compacta cada VM em um arquivo 7z separado.
+5. Testa integralmente cada arquivo com `7z t`.
+6. Calcula SHA-256, salvo quando `-SkipHash` for usado.
+7. Publica o ponto somente quando TODAS as VMs do lote terminarem com sucesso,
+   dentro da pasta compartilhada daquela noite (mesma assinatura para os 3 lotes).
+8. Aplica retencao propria do lote somente depois da publicacao do novo ponto.
+9. Gera log, JSON, HTML e envia o relatorio por e-mail SOMENTE em caso de falha.
+10. Exibe heartbeat a cada 30 segundos em operacoes longas.
+
+Arquivos
+--------
+- Invoke-VMExportBackup.ps1       Script principal (roda um lote por vez).
+- Invoke-CascadeBackup.ps1        Wrapper: gera o CascadeId e roda os lotes em sequencia.
+- Export-VMWorker.ps1             Worker isolado para Export-VM.
+- Get-FileHashWorker.ps1          Worker isolado para SHA-256.
+- TierHelpers.ps1                 Funcoes compartilhadas de classificacao por lote.
+- Install-VMExportBackupTask.ps1  Cria a tarefa agendada unica (cascata) como SYSTEM.
+- Config\Tiers.json                Limiares/retencao por lote + horario/teto da cascata.
+- Config\Settings.json             Parametros gerais (drive, timeouts, SMTP etc.).
+
+Diretorio de instalacao
+-----------------------
+Copie a pasta inteira (scripts + Config\) para:
+
+C:\Scripts\WindowsServerBackup
+
+Eles convivem com os scripts do WSB, mas nao chamam o WSB.
+
+Destino padrao
+--------------
+
+F:\HyperV-Exports
+
+Estrutura (uma pasta por noite, com subpasta por lote dentro):
+
+F:\HyperV-Exports\
+  _STAGING\
+  _FAILED\
+  2026-08-06_CASCATA_a1b2c3d4\
+    SMALL\
+      Archives\
+        SRV-AD.7z
+        SRV-DOCS.7z
+        ...
+      Metadata\
+        HostInventory.json
+        logs por VM
+      COMPLETE.marker.json
+    MEDIUM\
+      ...
+    BIG\
+      ...
+
+A pasta de primeiro nivel e uma noite/cascata inteira (nome = dia de inicio +
+assinatura compartilhada pelos 3 lotes). Dentro dela, cada lote mantem sua
+propria subpasta e seu proprio marcador/relatorio - continuam sendo processos
+isolados. A retencao conta cada lote separadamente (KeepRestorePoints de
+Config\Tiers.json), procurando dentro das pastas de cada noite.
+
+Execucoes manuais/avulsas (fora de uma cascata) geram sua propria pasta de
+primeiro nivel, rotulada RUN em vez de CASCATA.
+
+Importante: o script nao toca em F:\WindowsImageBackup.
+
+Antes de usar
+-------------
+1. Instale o 7-Zip em C:\Program Files\7-Zip\7z.exe.
+2. Rode como administrador.
+3. Desative tarefas antigas que chamem ExportVMs(3).ps1 ou BackupVMs(3).ps1.
+4. Revogue a senha SMTP que estava gravada em texto puro no script antigo.
+5. Confira/ajuste Config\Tiers.json e Config\Settings.json para o ambiente atual.
+
+Validacao de sintaxe
+--------------------
+
+$files = @(
+  'C:\Scripts\WindowsServerBackup\Invoke-VMExportBackup.ps1',
+  'C:\Scripts\WindowsServerBackup\Invoke-CascadeBackup.ps1',
+  'C:\Scripts\WindowsServerBackup\Export-VMWorker.ps1',
+  'C:\Scripts\WindowsServerBackup\Get-FileHashWorker.ps1',
+  'C:\Scripts\WindowsServerBackup\Install-VMExportBackupTask.ps1',
+  'C:\Scripts\WindowsServerBackup\TierHelpers.ps1'
+)
+
+foreach ($file in $files) {
+  $tokens = $null
+  $errors = $null
+  [void][System.Management.Automation.Language.Parser]::ParseFile(
+    $file,
+    [ref]$tokens,
+    [ref]$errors
+  )
+  [pscustomobject]@{ File = $file; Errors = $errors.Count }
+  $errors
+}
+
+Teste de plano (mostra a classificacao por lote, nao exporta nada)
+--------------------------------------------------------------------
+
+& 'C:\Scripts\WindowsServerBackup\Invoke-VMExportBackup.ps1' -BatchName SMALL
+
+Teste real com um lote pequeno
+-------------------------------
+
+& 'C:\Scripts\WindowsServerBackup\Invoke-VMExportBackup.ps1' -BatchName SMALL -Execute -SkipEmail
+
+Teste real com VMs especificas (fora do esquema de lotes, conta como ADHOC)
+------------------------------------------------------------------------------
+
+& 'C:\Scripts\WindowsServerBackup\Invoke-VMExportBackup.ps1' -VMName 'SRV-VoIP' -Execute -SkipEmail
+
+Teste real da cascata inteira, manual (SMALL -> MEDIUM -> BIG em sequencia)
+------------------------------------------------------------------------------
+
+& 'C:\Scripts\WindowsServerBackup\Invoke-CascadeBackup.ps1'
+
+Instalar a tarefa agendada definitiva (cascata unica, horario de Tiers.json)
+------------------------------------------------------------------------------
+
+& 'C:\Scripts\WindowsServerBackup\Install-VMExportBackupTask.ps1'
+
+Roda UMA VEZ. Cria 1 tarefa diaria recorrente (Backup Hyper-V - Cascata
+Noturna) no Agendador do Windows, disparando em CascadeStartTime (hoje 21:00)
+e rodando SMALL -> MEDIUM -> BIG em sequencia real (cada lote comeca quando o
+anterior termina, nao horarios fixos independentes). Remove automaticamente
+as tarefas do modelo antigo (uma por lote, v1.1.0) se existirem. So precisa
+rodar de novo se Tiers.json mudar (horario, teto de tempo, lotes).
+
+Se voce tinha criado uma tarefa de teste unico antes de instalar a definitiva,
+remova-a (o nome dela nao bate com nenhum padrao reconhecido pelo instalador):
+
+Unregister-ScheduledTask -TaskName 'Backup Hyper-V - TESTE UNICO (Todos os Lotes)' -Confirm:$false
+
+Comportamento de seguranca
+--------------------------
+- O ponto antigo nunca e apagado antes do novo estar completo.
+- Uma falha em qualquer VM faz o conjunto do lote ir para _FAILED.
+- Conjuntos em _FAILED nao contam para retencao.
+- Cada VM gera seu proprio 7z; uma corrupcao nao invalida todas as VMs.
+- O arquivo parcial usa a extensao .partial.7z e so vira .7z depois do teste.
+- O lock impede duas execucoes simultaneas (de qualquer lote) - a cascata em si
+  ja garante que os lotes rodem um de cada vez, o lock e uma segunda camada.
+- O rotulo do volume e validado antes de qualquer gravacao.
+- Staging orfao de uma execucao morta a forca e movido para _FAILED automaticamente.
+- Retencao e independente por lote (BIG nao apaga pontos de MEDIUM/SMALL),
+  mesmo com varios lotes compartilhando a mesma pasta de noite.
+- E-mail so dispara em falha (FAILED/PARTIAL_FAILED); sucesso fica em silencio.
+
+Restauracao
+-----------
+Para testar restauracao de uma VM:
+1. Extraia o arquivo 7z da VM para um diretorio alternativo.
+2. Localize o arquivo .vmcx exportado.
+3. Use Import-VM ou o assistente de importacao do Hyper-V.
+4. Para teste, escolha copiar a VM e gerar um novo identificador.
+5. Conecte-a a um switch isolado antes de iniciar.
+
+Passo a passo mais detalhado (com validacao pos-restauracao) em RUNBOOK.md.
+
+Observacao
+----------
+Este fluxo e uma contingencia de exportacao completa. Nao e incremental e nao
+substitui permanentemente Veeam/Acronis. Ainda assim, e muito mais seguro que
+o script antigo porque valida cada arquivo e so gira a retencao apos sucesso.
