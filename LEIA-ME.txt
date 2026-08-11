@@ -1,0 +1,147 @@
+﻿VM Export Backup v1.0
+=========================
+
+Objetivo
+--------
+Substituir temporariamente o Windows Server Backup por um fluxo previsivel:
+
+1. Lista as VMs atuais do Hyper-V.
+2. Exporta uma VM por vez com CaptureDataConsistentState quando suportado.
+3. Compacta cada VM em um arquivo 7z separado.
+4. Testa integralmente cada arquivo com `7z t`.
+5. Calcula SHA-256, salvo quando `-SkipHash` for usado.
+6. Publica o ponto somente quando TODAS as VMs terminarem com sucesso.
+7. Aplica retencao somente depois da publicacao do novo ponto.
+8. Gera log, JSON, HTML e envia o relatorio pelo relay SMTP.
+9. Exibe heartbeat a cada 30 segundos em operacoes longas.
+
+Arquivos
+--------
+- Invoke-VMExportBackup.ps1       Script principal.
+- Export-VMWorker.ps1             Worker isolado para Export-VM.
+- Get-FileHashWorker.ps1          Worker isolado para SHA-256.
+- Install-VMExportBackupTask.ps1  Cria a tarefa agendada como SYSTEM.
+
+Diretorio de instalacao
+-----------------------
+Copie os quatro scripts para:
+
+C:\Scripts\WindowsServerBackup
+
+Eles convivem com os scripts do WSB, mas nao chamam o WSB.
+
+Destino padrao
+--------------
+
+F:\HyperV-Exports
+
+Estrutura:
+
+F:\HyperV-Exports\
+  _STAGING\
+  _FAILED\
+  2026-08-03_00-30-00-1234abcd\
+    Archives\
+      SRV-AD.7z
+      SRV-DOCS.7z
+      ...
+    Metadata\
+      HostInventory.json
+      logs por VM
+    COMPLETE.marker.json
+
+Importante: o script nao toca em F:\WindowsImageBackup.
+
+Antes de usar
+-------------
+1. Instale o 7-Zip em C:\Program Files\7-Zip\7z.exe.
+2. Rode como administrador.
+3. Desative tarefas antigas que chamem ExportVMs(3).ps1 ou BackupVMs(3).ps1.
+4. Revogue a senha SMTP que estava gravada em texto puro no script antigo.
+
+Validacao de sintaxe
+--------------------
+
+$files = @(
+  'C:\Scripts\WindowsServerBackup\Invoke-VMExportBackup.ps1',
+  'C:\Scripts\WindowsServerBackup\Export-VMWorker.ps1',
+  'C:\Scripts\WindowsServerBackup\Get-FileHashWorker.ps1',
+  'C:\Scripts\WindowsServerBackup\Install-VMExportBackupTask.ps1'
+)
+
+foreach ($file in $files) {
+  $tokens = $null
+  $errors = $null
+  [void][System.Management.Automation.Language.Parser]::ParseFile(
+    $file,
+    [ref]$tokens,
+    [ref]$errors
+  )
+  [pscustomobject]@{ File = $file; Errors = $errors.Count }
+  $errors
+}
+
+Teste de plano
+--------------
+
+& 'C:\Scripts\WindowsServerBackup\Invoke-VMExportBackup.ps1' `
+  -BackupDrive F: `
+  -ExpectedVolumeLabel 'BACKUP-HYPERV' `
+  -SkipEmail
+
+Teste real com uma VM pequena
+-----------------------------
+
+& 'C:\Scripts\WindowsServerBackup\Invoke-VMExportBackup.ps1' `
+  -BackupDrive F: `
+  -ExpectedVolumeLabel 'BACKUP-HYPERV' `
+  -VMName 'SRV-VoIP' `
+  -KeepRestorePoints 3 `
+  -CompressionLevel 3 `
+  -Execute `
+  -SkipEmail
+
+Execucao real com todas as VMs
+------------------------------
+
+& 'C:\Scripts\WindowsServerBackup\Invoke-VMExportBackup.ps1' `
+  -BackupDrive F: `
+  -ExpectedVolumeLabel 'BACKUP-HYPERV' `
+  -KeepRestorePoints 3 `
+  -CompressionLevel 3 `
+  -Execute
+
+Criar tarefa diaria as 00:30
+----------------------------
+
+& 'C:\Scripts\WindowsServerBackup\Install-VMExportBackupTask.ps1' `
+  -DailyAt '00:30' `
+  -BackupDrive F: `
+  -ExpectedVolumeLabel 'BACKUP-HYPERV' `
+  -KeepRestorePoints 3 `
+  -CompressionLevel 3
+
+Comportamento de seguranca
+--------------------------
+- O ponto antigo nunca e apagado antes do novo estar completo.
+- Uma falha em qualquer VM faz o conjunto ir para _FAILED.
+- Conjuntos em _FAILED nao contam para retencao.
+- Cada VM gera seu proprio 7z; uma corrupcao nao invalida todas as VMs.
+- O arquivo parcial usa a extensao .partial.7z e so vira .7z depois do teste.
+- O lock impede duas execucoes simultaneas.
+- O rotulo do volume e validado antes de qualquer gravacao.
+
+Restauracao
+-----------
+Para testar restauracao de uma VM:
+1. Extraia o arquivo 7z da VM para um diretorio alternativo.
+2. Localize o arquivo .vmcx exportado.
+3. Use Import-VM ou o assistente de importacao do Hyper-V.
+4. Para teste, escolha copiar a VM e gerar um novo identificador.
+5. Conecte-a a um switch isolado antes de iniciar.
+
+Observacao
+----------
+Este fluxo e uma contingencia de exportacao completa. Nao e incremental e nao
+substitui permanentemente Veeam/Acronis. Ainda assim, e muito mais seguro que
+o script antigo porque valida cada arquivo e so gira a retencao apos sucesso.

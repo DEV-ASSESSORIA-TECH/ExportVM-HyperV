@@ -1,0 +1,123 @@
+﻿<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Backup Hyper-V por exportacao - SRV-HOST01</title>
+<style>
+body { font-family: Segoe UI, Arial, sans-serif; margin: 24px; color: #222; }
+h1, h2 { margin-bottom: 8px; }
+.badge { display: inline-block; padding: 7px 12px; border-radius: 6px; font-weight: 700; }
+.ok { background: #dff6dd; color: #116b18; }
+.plan { background: #e8f1ff; color: #164f9c; }
+.fail { background: #ffe3e3; color: #9a1111; }
+.okText { color: #116b18; font-weight: 700; }
+.failText { color: #9a1111; font-weight: 700; }
+table { border-collapse: collapse; width: 100%; margin: 12px 0 24px; }
+th, td { border: 1px solid #ccc; text-align: left; padding: 7px; vertical-align: top; }
+th { background: #f2f2f2; }
+.small { font-size: 12px; }
+pre { white-space: pre-wrap; background: #f7f7f7; padding: 12px; border: 1px solid #ddd; }
+</style>
+</head>
+<body>
+<h1>Backup Hyper-V por exportacao e 7-Zip</h1>
+<p><span class="badge ok">SUCCESS</span></p>
+<h2>Resumo</h2>
+<table>
+<tr><th>Servidor</th><td>SRV-HOST01</td></tr>
+<tr><th>RunId</th><td>a4db1babc34049cba0683cf2e3a65b7a</td></tr>
+<tr><th>Modo</th><td>EXECUTE</td></tr>
+<tr><th>Inicio</th><td>2026-08-05 13:30:53</td></tr>
+<tr><th>Fim</th><td>2026-08-05 14:54:35</td></tr>
+<tr><th>Duracao</th><td>01:23:42</td></tr>
+<tr><th>Destino</th><td>F:\HyperV-Exports</td></tr>
+<tr><th>Ponto publicado</th><td>F:\HyperV-Exports\2026-08-05_13-30-53-a4db1bab</td></tr>
+<tr><th>VMs</th><td>5</td></tr>
+<tr><th>Sucessos</th><td>5</td></tr>
+<tr><th>Falhas</th><td>0</td></tr>
+<tr><th>Livre antes</th><td>1518.94 GB</td></tr>
+<tr><th>Livre depois</th><td>1418.54 GB</td></tr>
+<tr><th>Retencao</th><td>9 pontos completos</td></tr>
+<tr><th>Pontos removidos</th><td>0</td></tr>
+</table>
+<h2>Resultado por VM</h2>
+<table>
+<tr><th>VM</th><th>VMId</th><th>Status</th><th>Tentativas</th><th>Exportacao</th><th>Compactacao</th><th>Teste 7z</th><th>Estrutura 7z</th><th>Exportado</th><th>Arquivo</th><th>Reducao</th><th>Erro</th></tr>
+<tr>
+<td>SRV-AD</td>
+<td>75ab35e5-d84b-4487-8b30-de0762a7156a</td>
+<td><span class="okText">SUCESSO</span></td>
+<td>1</td>
+<td>00:00:56</td>
+<td>00:18:23</td>
+<td>00:00:36</td>
+<td>4 arquivo(s) | 1 disco(s) | 1 VMCX | 42,85 GB</td>
+<td>42,85 GB</td>
+<td>24,87 GB</td>
+<td>42,0%</td>
+<td class='small'></td>
+</tr>
+<tr>
+<td>SRV-AD-TRS</td>
+<td>7fbb551d-1d4a-40cf-8fc7-9e48c217c8c7</td>
+<td><span class="okText">SUCESSO</span></td>
+<td>1</td>
+<td>00:00:40</td>
+<td>00:11:16</td>
+<td>00:00:22</td>
+<td>4 arquivo(s) | 1 disco(s) | 1 VMCX | 30,38 GB</td>
+<td>30,38 GB</td>
+<td>15,66 GB</td>
+<td>48,5%</td>
+<td class='small'></td>
+</tr>
+<tr>
+<td>SRV-IA</td>
+<td>38d46f5e-c39c-423f-964d-925d7ecabcdb</td>
+<td><span class="okText">SUCESSO</span></td>
+<td>1</td>
+<td>00:00:42</td>
+<td>00:11:10</td>
+<td>00:00:24</td>
+<td>4 arquivo(s) | 1 disco(s) | 1 VMCX | 37,70 GB</td>
+<td>37,70 GB</td>
+<td>15,68 GB</td>
+<td>58,4%</td>
+<td class='small'></td>
+</tr>
+<tr>
+<td>SRV-MN</td>
+<td>c5ae3460-cec1-42c6-8eb2-e94fe7de4ae2</td>
+<td><span class="okText">SUCESSO</span></td>
+<td>1</td>
+<td>00:01:08</td>
+<td>00:23:12</td>
+<td>00:00:46</td>
+<td>4 arquivo(s) | 1 disco(s) | 1 VMCX | 62,88 GB</td>
+<td>62,88 GB</td>
+<td>31,78 GB</td>
+<td>49,5%</td>
+<td class='small'></td>
+</tr>
+<tr>
+<td>SRV-ZABBIX</td>
+<td>3825e3d0-aa0f-4474-b40c-3faa93467d8a</td>
+<td><span class="okText">SUCESSO</span></td>
+<td>1</td>
+<td>00:00:52</td>
+<td>00:09:36</td>
+<td>00:00:24</td>
+<td>4 arquivo(s) | 1 disco(s) | 1 VMCX | 49,01 GB</td>
+<td>49,01 GB</td>
+<td>12,40 GB</td>
+<td>74,7%</td>
+<td class='small'></td>
+</tr>
+
+</table>
+
+
+<p class="small">Log: C:\Scripts\WindowsServerBackup\Logs\VMExportBackup-2026-08-05_13-30-53.log</p>
+<p class="small">JSON: C:\Scripts\WindowsServerBackup\Reports\VMExportBackup-2026-08-05_13-30-53.json</p>
+</body>
+</html>
