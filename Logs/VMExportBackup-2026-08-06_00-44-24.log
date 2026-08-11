@@ -1,0 +1,845 @@
+﻿[2026-08-06 00:44:24] [INFO] ==========================================================================
+[2026-08-06 00:44:24] [INFO] Inicio do Invoke-VMExportBackup.ps1 v1.1.0.
+[2026-08-06 00:44:24] [INFO] RunId: 4c0a9541248842e69debc9a1920be3ff
+[2026-08-06 00:44:24] [INFO] Modo: EXECUTE
+[2026-08-06 00:44:24] [INFO] ==========================================================================
+[2026-08-06 00:44:24] [INFO] Lock criado: C:\Scripts\WindowsServerBackup\Locks\VMExportBackup.lock.json | PID=19796.
+[2026-08-06 00:44:24] [INFO] Config: BackupDrive definido por Settings.json = F:.
+[2026-08-06 00:44:24] [INFO] Config: ExpectedVolumeLabel definido por Settings.json = BACKUP-HYPERV.
+[2026-08-06 00:44:24] [INFO] Config: RepositoryFolder definido por Settings.json = HyperV-Exports.
+[2026-08-06 00:44:24] [INFO] Config: CompressionLevel definido por Settings.json = 3.
+[2026-08-06 00:44:24] [INFO] Config: HeartbeatSeconds definido por Settings.json = 30.
+[2026-08-06 00:44:24] [INFO] Config: ExportTimeoutHours definido por Settings.json = 12.
+[2026-08-06 00:44:24] [INFO] Config: CompressionTimeoutHours definido por Settings.json = 12.
+[2026-08-06 00:44:24] [INFO] Config: IntegrityTimeoutHours definido por Settings.json = 8.
+[2026-08-06 00:44:24] [INFO] Config: MinFreeGB definido por Settings.json = 200.
+[2026-08-06 00:44:24] [INFO] Config: RetryCount definido por Settings.json = 1.
+[2026-08-06 00:44:24] [INFO] Config: FailedRetentionDays definido por Settings.json = 7.
+[2026-08-06 00:44:24] [INFO] Config: SevenZipPath definido por Settings.json = C:\Program Files\7-Zip\7z.exe.
+[2026-08-06 00:44:24] [INFO] Config: SmtpServer definido por Settings.json = 192.168.4.10.
+[2026-08-06 00:44:24] [INFO] Config: SmtpPort definido por Settings.json = 25.
+[2026-08-06 00:44:24] [INFO] Config: MailFrom definido por Settings.json = alertas@assessoriatech.com.
+[2026-08-06 00:44:24] [INFO] Config: MailTo definido por Settings.json = suporte@assessoriatech.com.
+[2026-08-06 00:44:24] [INFO] Config: SkipHash definido por Settings.json = False.
+[2026-08-06 00:44:24] [INFO] Config: KeepRestorePoints definido por Settings.json = 3.
+[2026-08-06 00:44:24] [INFO] Lote: BIG
+[2026-08-06 00:44:24] [INFO] Repositorio: F:\HyperV-Exports
+[2026-08-06 00:44:24] [INFO] ==========================================================================
+[2026-08-06 00:44:24] [INFO] [ETAPA 01/09] Validar host, destino e ferramentas
+[2026-08-06 00:44:24] [INFO] ==========================================================================
+[2026-08-06 00:44:25] [INFO] Destino: F: | Rotulo=BACKUP-HYPERV | Sistema=NTFS | Saude=Healthy | Livre=1247.4GB.
+[2026-08-06 00:44:25] [INFO] ==========================================================================
+[2026-08-06 00:44:25] [INFO] [ETAPA 02/09] Selecionar VMs e registrar inventario
+[2026-08-06 00:44:25] [INFO] ==========================================================================
+[2026-08-06 00:44:28] [INFO] VMs selecionadas: 3.
+[2026-08-06 00:44:28] [INFO] VM=SRV-AMANDA | GUID=18170785-955e-4443-9f98-4152e9a3fd70 | Estado=Running | Lote=BIG | VHDX atuais=192,25 GB.
+[2026-08-06 00:44:28] [INFO] VM=SRV-CONTABIL-ASS | GUID=6692bc21-7587-473c-a7d5-14fc06480eed | Estado=Running | Lote=BIG | VHDX atuais=149,44 GB.
+[2026-08-06 00:44:28] [INFO] VM=SRV-DOM-TRS | GUID=7fbb3c55-77e2-4a64-b1f2-63a3af8c3618 | Estado=Running | Lote=BIG | VHDX atuais=92,04 GB.
+[2026-08-06 00:44:30] [INFO] ==========================================================================
+[2026-08-06 00:44:30] [INFO] [ETAPA 03/09] Exportar, compactar e validar cada VM
+[2026-08-06 00:44:30] [INFO] ==========================================================================
+[2026-08-06 00:44:30] [INFO] --------------------------------------------------------------------------
+[2026-08-06 00:44:30] [INFO] [VM 1/3] SRV-AMANDA | GUID=18170785-955e-4443-9f98-4152e9a3fd70 | Estado=Running.
+[2026-08-06 00:44:30] [INFO] [SRV-AMANDA] Tentativa 1/2: iniciando exportacao consistente.
+[2026-08-06 00:44:30] [INFO] Export-VM SRV-AMANDA iniciado. PID=8540 | Timeout=12:00:00.
+[2026-08-06 00:45:01] [WAIT] Export-VM SRV-AMANDA | decorrido=00:00:30 | PID=8540 | CPU=0.5s | RAM=99,95 MB
+[2026-08-06 00:45:01] [INFO] Export-VM SRV-AMANDA saida: Inicio da exportacao: VM=SRV-AMANDA, VMId=18170785-955e-4443-9f98-4152e9a3fd70, Estado=Running, Destino=F:\HyperV-Exports\_STAGING\2026-08-06_00-44-24_BIG_4c0a9541\Working\SRV-AMANDA
+[2026-08-06 00:45:31] [WAIT] Export-VM SRV-AMANDA | decorrido=00:01:00 | PID=8540 | CPU=0.6s | RAM=100,59 MB
+[2026-08-06 00:46:01] [WAIT] Export-VM SRV-AMANDA | decorrido=00:01:30 | PID=8540 | CPU=0.7s | RAM=101,51 MB
+[2026-08-06 00:46:31] [WAIT] Export-VM SRV-AMANDA | decorrido=00:02:00 | PID=8540 | CPU=0.8s | RAM=102,30 MB
+[2026-08-06 00:47:01] [WAIT] Export-VM SRV-AMANDA | decorrido=00:02:30 | PID=8540 | CPU=0.8s | RAM=103,82 MB
+[2026-08-06 00:47:31] [WAIT] Export-VM SRV-AMANDA | decorrido=00:03:00 | PID=8540 | CPU=0.9s | RAM=104,45 MB
+[2026-08-06 00:48:01] [WAIT] Export-VM SRV-AMANDA | decorrido=00:03:30 | PID=8540 | CPU=1s | RAM=105,33 MB
+[2026-08-06 00:48:31] [WAIT] Export-VM SRV-AMANDA | decorrido=00:04:00 | PID=8540 | CPU=1s | RAM=106,01 MB
+[2026-08-06 00:49:01] [WAIT] Export-VM SRV-AMANDA | decorrido=00:04:30 | PID=8540 | CPU=1.1s | RAM=107,29 MB
+[2026-08-06 00:49:31] [INFO] Export-VM SRV-AMANDA finalizado. Duracao=00:05:00 | ExitCode=indisponivel.
+[2026-08-06 00:49:31] [WARNING] [SRV-AMANDA] ExitCode do worker indisponivel; sucesso confirmado pelo JSON e pelos arquivos exportados.
+[2026-08-06 00:49:31] [SUCCESS] [SRV-AMANDA] Exportacao concluida: 192,26 GB em 00:05:00.
+[2026-08-06 00:49:31] [INFO] [SRV-AMANDA] Iniciando compactacao 7-Zip nivel 3.
+[2026-08-06 00:49:31] [INFO] 7-Zip compactar SRV-AMANDA iniciado. PID=22788 | Timeout=12:00:00.
+[2026-08-06 00:50:01] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=00:00:30 | PID=22788 | CPU=205.5s | RAM=460,18 MB
+[2026-08-06 00:50:32] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=00:01:00 | PID=22788 | CPU=431.2s | RAM=486,92 MB
+[2026-08-06 00:51:02] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=00:01:30 | PID=22788 | CPU=641.3s | RAM=487,37 MB
+[2026-08-06 00:51:32] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=00:02:00 | PID=22788 | CPU=860s | RAM=486,30 MB
+[2026-08-06 00:52:02] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=00:02:30 | PID=22788 | CPU=1058.8s | RAM=491,94 MB
+[2026-08-06 00:52:32] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=00:03:00 | PID=22788 | CPU=1289.6s | RAM=501,75 MB
+[2026-08-06 00:53:02] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=00:03:30 | PID=22788 | CPU=1522.9s | RAM=501,73 MB
+[2026-08-06 00:53:32] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=00:04:00 | PID=22788 | CPU=1738.1s | RAM=498,10 MB
+[2026-08-06 00:54:02] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=00:04:30 | PID=22788 | CPU=1960.5s | RAM=498,72 MB
+[2026-08-06 00:54:32] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=00:05:00 | PID=22788 | CPU=2184.1s | RAM=500,57 MB
+[2026-08-06 00:55:02] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=00:05:30 | PID=22788 | CPU=2412.5s | RAM=499,70 MB
+[2026-08-06 00:55:32] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=00:06:00 | PID=22788 | CPU=2647.2s | RAM=500,44 MB
+[2026-08-06 00:56:02] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=00:06:30 | PID=22788 | CPU=2885.2s | RAM=500,88 MB
+[2026-08-06 00:56:32] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=00:07:00 | PID=22788 | CPU=3121.5s | RAM=500,55 MB
+[2026-08-06 00:57:02] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=00:07:30 | PID=22788 | CPU=3344.9s | RAM=500,57 MB
+[2026-08-06 00:57:32] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=00:08:01 | PID=22788 | CPU=3573.6s | RAM=500,57 MB
+[2026-08-06 00:58:03] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=00:08:31 | PID=22788 | CPU=3808.7s | RAM=500,57 MB
+[2026-08-06 00:58:33] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=00:09:01 | PID=22788 | CPU=4041.7s | RAM=500,06 MB
+[2026-08-06 00:59:03] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=00:09:31 | PID=22788 | CPU=4278.7s | RAM=500,06 MB
+[2026-08-06 00:59:33] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=00:10:01 | PID=22788 | CPU=4509.9s | RAM=500,68 MB
+[2026-08-06 01:00:03] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=00:10:31 | PID=22788 | CPU=4742.1s | RAM=500,68 MB
+[2026-08-06 01:00:33] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=00:11:01 | PID=22788 | CPU=4979.4s | RAM=500,64 MB
+[2026-08-06 01:01:03] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=00:11:31 | PID=22788 | CPU=5216.1s | RAM=500,75 MB
+[2026-08-06 01:01:33] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=00:12:01 | PID=22788 | CPU=5444.9s | RAM=499,39 MB
+[2026-08-06 01:02:03] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=00:12:31 | PID=22788 | CPU=5666.8s | RAM=500,54 MB
+[2026-08-06 01:02:33] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=00:13:01 | PID=22788 | CPU=5891.7s | RAM=500,54 MB
+[2026-08-06 01:03:03] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=00:13:31 | PID=22788 | CPU=6110.3s | RAM=500,54 MB
+[2026-08-06 01:03:33] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=00:14:01 | PID=22788 | CPU=6333s | RAM=499,97 MB
+[2026-08-06 01:04:02] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=00:14:30 | PID=22788 | CPU=6551s | RAM=499,55 MB
+[2026-08-06 01:04:32] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=00:15:00 | PID=22788 | CPU=6786.3s | RAM=498,57 MB
+[2026-08-06 01:05:02] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=00:15:30 | PID=22788 | CPU=7024.7s | RAM=497,36 MB
+[2026-08-06 01:05:32] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=00:16:00 | PID=22788 | CPU=7255.5s | RAM=498,30 MB
+[2026-08-06 01:06:02] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=00:16:30 | PID=22788 | CPU=7486.4s | RAM=498,64 MB
+[2026-08-06 01:06:32] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=00:17:00 | PID=22788 | CPU=7706.2s | RAM=498,94 MB
+[2026-08-06 01:07:02] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=00:17:30 | PID=22788 | CPU=7943.8s | RAM=498,95 MB
+[2026-08-06 01:07:32] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=00:18:00 | PID=22788 | CPU=8180.5s | RAM=499,54 MB
+[2026-08-06 01:08:02] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=00:18:30 | PID=22788 | CPU=8412.4s | RAM=500,42 MB
+[2026-08-06 01:08:32] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=00:19:00 | PID=22788 | CPU=8650.1s | RAM=500,67 MB
+[2026-08-06 01:09:02] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=00:19:30 | PID=22788 | CPU=8879.5s | RAM=500,67 MB
+[2026-08-06 01:09:32] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=00:20:00 | PID=22788 | CPU=9117.3s | RAM=500,80 MB
+[2026-08-06 01:10:02] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=00:20:30 | PID=22788 | CPU=9349.2s | RAM=500,57 MB
+[2026-08-06 01:10:32] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=00:21:00 | PID=22788 | CPU=9572.4s | RAM=500,57 MB
+[2026-08-06 01:11:02] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=00:21:31 | PID=22788 | CPU=9806.8s | RAM=500,51 MB
+[2026-08-06 01:11:32] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=00:22:01 | PID=22788 | CPU=10044.6s | RAM=500,57 MB
+[2026-08-06 01:12:03] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=00:22:31 | PID=22788 | CPU=10272.7s | RAM=500,07 MB
+[2026-08-06 01:12:33] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=00:23:01 | PID=22788 | CPU=10510.5s | RAM=500,07 MB
+[2026-08-06 01:13:03] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=00:23:31 | PID=22788 | CPU=10745.4s | RAM=500,07 MB
+[2026-08-06 01:13:33] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=00:24:01 | PID=22788 | CPU=10964.9s | RAM=500,07 MB
+[2026-08-06 01:14:03] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=00:24:31 | PID=22788 | CPU=11186.5s | RAM=499,91 MB
+[2026-08-06 01:14:33] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=00:25:01 | PID=22788 | CPU=11405.6s | RAM=500,07 MB
+[2026-08-06 01:15:03] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=00:25:31 | PID=22788 | CPU=11638.9s | RAM=500,07 MB
+[2026-08-06 01:15:33] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=00:26:01 | PID=22788 | CPU=11859.6s | RAM=500,07 MB
+[2026-08-06 01:16:03] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=00:26:31 | PID=22788 | CPU=12093.4s | RAM=500,07 MB
+[2026-08-06 01:16:33] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=00:27:01 | PID=22788 | CPU=12321.3s | RAM=499,96 MB
+[2026-08-06 01:17:03] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=00:27:31 | PID=22788 | CPU=12558.2s | RAM=499,62 MB
+[2026-08-06 01:17:33] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=00:28:01 | PID=22788 | CPU=12796.5s | RAM=499,98 MB
+[2026-08-06 01:18:03] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=00:28:32 | PID=22788 | CPU=13028.3s | RAM=499,00 MB
+[2026-08-06 01:18:31] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=00:29:00 | PID=22788 | CPU=13249.2s | RAM=499,55 MB
+[2026-08-06 01:19:02] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=00:29:30 | PID=22788 | CPU=13486.4s | RAM=499,86 MB
+[2026-08-06 01:19:32] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=00:30:00 | PID=22788 | CPU=13722.2s | RAM=499,75 MB
+[2026-08-06 01:20:02] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=00:30:30 | PID=22788 | CPU=13957.4s | RAM=499,55 MB
+[2026-08-06 01:20:32] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=00:31:00 | PID=22788 | CPU=14192.5s | RAM=498,87 MB
+[2026-08-06 01:21:02] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=00:31:30 | PID=22788 | CPU=14428.2s | RAM=499,20 MB
+[2026-08-06 01:21:32] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=00:32:00 | PID=22788 | CPU=14663s | RAM=499,39 MB
+[2026-08-06 01:22:02] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=00:32:30 | PID=22788 | CPU=14895.6s | RAM=499,33 MB
+[2026-08-06 01:22:32] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=00:33:00 | PID=22788 | CPU=15130.1s | RAM=499,86 MB
+[2026-08-06 01:23:02] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=00:33:30 | PID=22788 | CPU=15365.8s | RAM=499,84 MB
+[2026-08-06 01:23:32] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=00:34:00 | PID=22788 | CPU=15599.6s | RAM=499,83 MB
+[2026-08-06 01:24:02] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=00:34:30 | PID=22788 | CPU=15837.5s | RAM=499,88 MB
+[2026-08-06 01:24:32] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=00:35:00 | PID=22788 | CPU=16070.8s | RAM=499,93 MB
+[2026-08-06 01:25:02] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=00:35:30 | PID=22788 | CPU=16307.2s | RAM=500,09 MB
+[2026-08-06 01:25:32] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=00:36:01 | PID=22788 | CPU=16540.3s | RAM=500,09 MB
+[2026-08-06 01:26:02] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=00:36:31 | PID=22788 | CPU=16776.5s | RAM=500,08 MB
+[2026-08-06 01:26:33] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=00:37:01 | PID=22788 | CPU=16996.1s | RAM=500,09 MB
+[2026-08-06 01:27:03] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=00:37:31 | PID=22788 | CPU=17233.1s | RAM=500,05 MB
+[2026-08-06 01:27:33] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=00:38:01 | PID=22788 | CPU=17460.3s | RAM=499,93 MB
+[2026-08-06 01:28:03] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=00:38:31 | PID=22788 | CPU=17680.4s | RAM=499,90 MB
+[2026-08-06 01:28:33] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=00:39:01 | PID=22788 | CPU=17918.8s | RAM=500,04 MB
+[2026-08-06 01:29:03] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=00:39:31 | PID=22788 | CPU=18133.7s | RAM=500,07 MB
+[2026-08-06 01:29:33] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=00:40:01 | PID=22788 | CPU=18332.6s | RAM=500,07 MB
+[2026-08-06 01:30:03] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=00:40:31 | PID=22788 | CPU=18564.5s | RAM=500,07 MB
+[2026-08-06 01:30:33] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=00:41:01 | PID=22788 | CPU=18786.1s | RAM=500,07 MB
+[2026-08-06 01:31:03] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=00:41:31 | PID=22788 | CPU=19024.7s | RAM=500,07 MB
+[2026-08-06 01:31:33] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=00:42:01 | PID=22788 | CPU=19263.2s | RAM=500,07 MB
+[2026-08-06 01:32:03] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=00:42:31 | PID=22788 | CPU=19501.1s | RAM=500,07 MB
+[2026-08-06 01:32:31] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=00:43:00 | PID=22788 | CPU=19723.5s | RAM=500,07 MB
+[2026-08-06 01:33:01] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=00:43:30 | PID=22788 | CPU=19961.8s | RAM=484,07 MB
+[2026-08-06 01:33:32] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=00:44:00 | PID=22788 | CPU=20200.3s | RAM=484,07 MB
+[2026-08-06 01:34:02] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=00:44:30 | PID=22788 | CPU=20438.8s | RAM=499,62 MB
+[2026-08-06 01:34:32] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=00:45:00 | PID=22788 | CPU=20677.2s | RAM=500,07 MB
+[2026-08-06 01:35:02] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=00:45:30 | PID=22788 | CPU=20915.4s | RAM=500,07 MB
+[2026-08-06 01:35:32] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=00:46:00 | PID=22788 | CPU=21153.4s | RAM=500,07 MB
+[2026-08-06 01:36:02] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=00:46:30 | PID=22788 | CPU=21391.5s | RAM=500,07 MB
+[2026-08-06 01:36:32] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=00:47:00 | PID=22788 | CPU=21629.9s | RAM=500,07 MB
+[2026-08-06 01:37:02] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=00:47:30 | PID=22788 | CPU=21868.7s | RAM=469,58 MB
+[2026-08-06 01:37:32] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=00:48:00 | PID=22788 | CPU=22106.9s | RAM=475,05 MB
+[2026-08-06 01:38:02] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=00:48:30 | PID=22788 | CPU=22345.4s | RAM=484,07 MB
+[2026-08-06 01:38:32] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=00:49:00 | PID=22788 | CPU=22584.1s | RAM=484,07 MB
+[2026-08-06 01:39:02] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=00:49:30 | PID=22788 | CPU=22822.8s | RAM=484,07 MB
+[2026-08-06 01:39:32] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=00:50:01 | PID=22788 | CPU=23061s | RAM=484,07 MB
+[2026-08-06 01:40:03] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=00:50:31 | PID=22788 | CPU=23295.5s | RAM=499,98 MB
+[2026-08-06 01:40:33] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=00:51:01 | PID=22788 | CPU=23533.4s | RAM=500,07 MB
+[2026-08-06 01:41:03] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=00:51:31 | PID=22788 | CPU=23771.4s | RAM=500,07 MB
+[2026-08-06 01:41:33] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=00:52:01 | PID=22788 | CPU=24009.9s | RAM=500,07 MB
+[2026-08-06 01:42:03] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=00:52:31 | PID=22788 | CPU=24248.2s | RAM=500,07 MB
+[2026-08-06 01:42:33] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=00:53:01 | PID=22788 | CPU=24478.5s | RAM=500,07 MB
+[2026-08-06 01:43:03] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=00:53:31 | PID=22788 | CPU=24716.6s | RAM=500,07 MB
+[2026-08-06 01:43:33] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=00:54:01 | PID=22788 | CPU=24955.1s | RAM=500,07 MB
+[2026-08-06 01:44:03] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=00:54:31 | PID=22788 | CPU=25188.4s | RAM=495,72 MB
+[2026-08-06 01:44:33] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=00:55:01 | PID=22788 | CPU=25426.3s | RAM=500,07 MB
+[2026-08-06 01:45:03] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=00:55:31 | PID=22788 | CPU=25664.6s | RAM=500,07 MB
+[2026-08-06 01:45:33] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=00:56:01 | PID=22788 | CPU=25902.9s | RAM=500,07 MB
+[2026-08-06 01:46:03] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=00:56:31 | PID=22788 | CPU=26141.5s | RAM=500,07 MB
+[2026-08-06 01:46:33] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=00:57:01 | PID=22788 | CPU=26379.6s | RAM=500,07 MB
+[2026-08-06 01:47:03] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=00:57:31 | PID=22788 | CPU=26618s | RAM=484,07 MB
+[2026-08-06 01:47:31] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=00:58:00 | PID=22788 | CPU=26840.2s | RAM=484,07 MB
+[2026-08-06 01:48:01] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=00:58:30 | PID=22788 | CPU=27078.4s | RAM=484,07 MB
+[2026-08-06 01:48:32] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=00:59:00 | PID=22788 | CPU=27316.4s | RAM=484,07 MB
+[2026-08-06 01:49:02] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=00:59:30 | PID=22788 | CPU=27518.9s | RAM=499,63 MB
+[2026-08-06 01:49:32] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=01:00:00 | PID=22788 | CPU=27757.3s | RAM=499,63 MB
+[2026-08-06 01:50:02] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=01:00:30 | PID=22788 | CPU=27995.7s | RAM=499,62 MB
+[2026-08-06 01:50:32] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=01:01:00 | PID=22788 | CPU=28233.9s | RAM=500,05 MB
+[2026-08-06 01:51:02] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=01:01:30 | PID=22788 | CPU=28472.1s | RAM=483,77 MB
+[2026-08-06 01:51:32] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=01:02:00 | PID=22788 | CPU=28710s | RAM=483,71 MB
+[2026-08-06 01:52:02] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=01:02:30 | PID=22788 | CPU=28948.3s | RAM=483,79 MB
+[2026-08-06 01:52:32] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=01:03:00 | PID=22788 | CPU=29186.5s | RAM=483,71 MB
+[2026-08-06 01:53:02] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=01:03:30 | PID=22788 | CPU=29424.8s | RAM=483,62 MB
+[2026-08-06 01:53:32] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=01:04:00 | PID=22788 | CPU=29663.2s | RAM=467,52 MB
+[2026-08-06 01:54:02] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=01:04:30 | PID=22788 | CPU=29901.4s | RAM=467,34 MB
+[2026-08-06 01:54:32] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=01:05:01 | PID=22788 | CPU=30139.9s | RAM=467,28 MB
+[2026-08-06 01:55:02] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=01:05:31 | PID=22788 | CPU=30377.9s | RAM=467,28 MB
+[2026-08-06 01:55:33] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=01:06:01 | PID=22788 | CPU=30616.2s | RAM=467,34 MB
+[2026-08-06 01:56:03] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=01:06:31 | PID=22788 | CPU=30853.6s | RAM=498,38 MB
+[2026-08-06 01:56:33] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=01:07:01 | PID=22788 | CPU=31091.5s | RAM=499,38 MB
+[2026-08-06 01:57:03] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=01:07:31 | PID=22788 | CPU=31330s | RAM=499,55 MB
+[2026-08-06 01:57:33] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=01:08:01 | PID=22788 | CPU=31568.5s | RAM=499,45 MB
+[2026-08-06 01:58:03] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=01:08:31 | PID=22788 | CPU=31806.8s | RAM=499,34 MB
+[2026-08-06 01:58:33] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=01:09:01 | PID=22788 | CPU=32045s | RAM=499,23 MB
+[2026-08-06 01:59:03] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=01:09:31 | PID=22788 | CPU=32283.2s | RAM=493,48 MB
+[2026-08-06 01:59:33] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=01:10:01 | PID=22788 | CPU=32521.2s | RAM=482,92 MB
+[2026-08-06 02:00:03] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=01:10:31 | PID=22788 | CPU=32759.5s | RAM=483,03 MB
+[2026-08-06 02:00:33] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=01:11:01 | PID=22788 | CPU=32997.6s | RAM=483,05 MB
+[2026-08-06 02:01:03] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=01:11:31 | PID=22788 | CPU=33236.2s | RAM=483,11 MB
+[2026-08-06 02:01:33] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=01:12:01 | PID=22788 | CPU=33474.2s | RAM=483,12 MB
+[2026-08-06 02:02:03] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=01:12:31 | PID=22788 | CPU=33712.6s | RAM=483,09 MB
+[2026-08-06 02:02:33] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=01:13:02 | PID=22788 | CPU=33950.6s | RAM=482,97 MB
+[2026-08-06 02:03:01] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=01:13:30 | PID=22788 | CPU=34173s | RAM=482,96 MB
+[2026-08-06 02:03:32] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=01:14:00 | PID=22788 | CPU=34410.9s | RAM=482,75 MB
+[2026-08-06 02:04:02] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=01:14:30 | PID=22788 | CPU=34649.3s | RAM=466,72 MB
+[2026-08-06 02:04:32] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=01:15:00 | PID=22788 | CPU=34887.2s | RAM=466,91 MB
+[2026-08-06 02:05:02] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=01:15:30 | PID=22788 | CPU=35122s | RAM=494,89 MB
+[2026-08-06 02:05:32] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=01:16:00 | PID=22788 | CPU=35331.5s | RAM=498,83 MB
+[2026-08-06 02:06:02] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=01:16:30 | PID=22788 | CPU=35558.1s | RAM=498,94 MB
+[2026-08-06 02:06:32] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=01:17:00 | PID=22788 | CPU=35796.2s | RAM=499,84 MB
+[2026-08-06 02:07:02] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=01:17:30 | PID=22788 | CPU=36025.6s | RAM=499,78 MB
+[2026-08-06 02:07:32] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=01:18:00 | PID=22788 | CPU=36214.5s | RAM=499,78 MB
+[2026-08-06 02:08:02] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=01:18:30 | PID=22788 | CPU=36420.7s | RAM=499,21 MB
+[2026-08-06 02:08:32] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=01:19:00 | PID=22788 | CPU=36652.2s | RAM=500,04 MB
+[2026-08-06 02:09:02] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=01:19:30 | PID=22788 | CPU=36835.3s | RAM=500,04 MB
+[2026-08-06 02:09:32] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=01:20:00 | PID=22788 | CPU=37029s | RAM=500,03 MB
+[2026-08-06 02:10:02] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=01:20:30 | PID=22788 | CPU=37239s | RAM=499,63 MB
+[2026-08-06 02:10:32] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=01:21:01 | PID=22788 | CPU=37414.9s | RAM=499,77 MB
+[2026-08-06 02:11:03] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=01:21:31 | PID=22788 | CPU=37609.5s | RAM=498,96 MB
+[2026-08-06 02:11:33] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=01:22:01 | PID=22788 | CPU=37807.7s | RAM=498,93 MB
+[2026-08-06 02:12:03] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=01:22:31 | PID=22788 | CPU=37985.5s | RAM=499,08 MB
+[2026-08-06 02:12:33] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=01:23:01 | PID=22788 | CPU=38185.5s | RAM=499,05 MB
+[2026-08-06 02:13:03] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=01:23:31 | PID=22788 | CPU=38413.1s | RAM=500,07 MB
+[2026-08-06 02:13:33] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=01:24:01 | PID=22788 | CPU=38622.8s | RAM=500,07 MB
+[2026-08-06 02:14:03] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=01:24:31 | PID=22788 | CPU=38833.8s | RAM=500,07 MB
+[2026-08-06 02:14:33] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=01:25:01 | PID=22788 | CPU=39041.5s | RAM=500,07 MB
+[2026-08-06 02:15:03] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=01:25:31 | PID=22788 | CPU=39247.7s | RAM=500,07 MB
+[2026-08-06 02:15:33] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=01:26:01 | PID=22788 | CPU=39471.8s | RAM=500,07 MB
+[2026-08-06 02:16:03] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=01:26:31 | PID=22788 | CPU=39703.9s | RAM=500,05 MB
+[2026-08-06 02:16:31] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=01:27:00 | PID=22788 | CPU=39821.9s | RAM=500,07 MB
+[2026-08-06 02:17:02] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=01:27:30 | PID=22788 | CPU=39921.6s | RAM=500,07 MB
+[2026-08-06 02:17:32] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=01:28:00 | PID=22788 | CPU=40100.6s | RAM=500,06 MB
+[2026-08-06 02:18:02] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=01:28:30 | PID=22788 | CPU=40331.4s | RAM=499,81 MB
+[2026-08-06 02:18:32] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=01:29:00 | PID=22788 | CPU=40569.9s | RAM=499,85 MB
+[2026-08-06 02:19:02] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=01:29:30 | PID=22788 | CPU=40788.4s | RAM=499,68 MB
+[2026-08-06 02:19:32] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=01:30:00 | PID=22788 | CPU=41018.3s | RAM=499,38 MB
+[2026-08-06 02:20:02] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=01:30:30 | PID=22788 | CPU=41256.3s | RAM=499,36 MB
+[2026-08-06 02:20:32] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=01:31:00 | PID=22788 | CPU=41491.6s | RAM=499,50 MB
+[2026-08-06 02:21:02] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=01:31:30 | PID=22788 | CPU=41729.5s | RAM=499,32 MB
+[2026-08-06 02:21:32] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=01:32:00 | PID=22788 | CPU=41954.4s | RAM=499,59 MB
+[2026-08-06 02:22:02] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=01:32:30 | PID=22788 | CPU=42159s | RAM=499,66 MB
+[2026-08-06 02:22:32] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=01:33:00 | PID=22788 | CPU=42393.5s | RAM=499,79 MB
+[2026-08-06 02:23:02] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=01:33:30 | PID=22788 | CPU=42610.2s | RAM=499,82 MB
+[2026-08-06 02:23:32] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=01:34:01 | PID=22788 | CPU=42848.1s | RAM=499,82 MB
+[2026-08-06 02:24:03] [WAIT] 7-Zip compactar SRV-AMANDA | decorrido=01:34:31 | PID=22788 | CPU=43081.2s | RAM=499,86 MB
+[2026-08-06 02:24:13] [INFO] 7-Zip compactar SRV-AMANDA finalizado. Duracao=01:34:41 | ExitCode=indisponivel.
+[2026-08-06 02:24:13] [WARNING] [SRV-AMANDA] ExitCode do 7-Zip indisponivel; conclusao confirmada pela saida 'Everything is Ok'.
+[2026-08-06 02:24:13] [SUCCESS] [SRV-AMANDA] Compactacao concluida: 124,62 GB em 01:34:41.
+[2026-08-06 02:24:13] [INFO] [SRV-AMANDA] Testando integralmente o arquivo 7z.
+[2026-08-06 02:24:13] [INFO] 7-Zip testar SRV-AMANDA iniciado. PID=18960 | Timeout=08:00:00.
+[2026-08-06 02:24:43] [WAIT] 7-Zip testar SRV-AMANDA | decorrido=00:00:30 | PID=18960 | CPU=271.3s | RAM=1,02 GB
+[2026-08-06 02:24:43] [INFO] 7-Zip testar SRV-AMANDA saida: 1 file, 133810472684 bytes (125 GiB) |  | Testing archive: F:\HyperV-Exports\_STAGING\2026-08-06_00-44-24_BIG_4c0a9541\Archives\SRV-AMANDA.partial.7z
+[2026-08-06 02:25:13] [WAIT] 7-Zip testar SRV-AMANDA | decorrido=00:01:00 | PID=18960 | CPU=533.4s | RAM=1,02 GB
+[2026-08-06 02:25:43] [WAIT] 7-Zip testar SRV-AMANDA | decorrido=00:01:30 | PID=18960 | CPU=753s | RAM=1,02 GB
+[2026-08-06 02:26:13] [WAIT] 7-Zip testar SRV-AMANDA | decorrido=00:02:00 | PID=18960 | CPU=822s | RAM=1,02 GB
+[2026-08-06 02:26:43] [WAIT] 7-Zip testar SRV-AMANDA | decorrido=00:02:30 | PID=18960 | CPU=867.9s | RAM=1,02 GB
+[2026-08-06 02:27:13] [WAIT] 7-Zip testar SRV-AMANDA | decorrido=00:03:00 | PID=18960 | CPU=1082s | RAM=1,02 GB
+[2026-08-06 02:27:43] [WAIT] 7-Zip testar SRV-AMANDA | decorrido=00:03:30 | PID=18960 | CPU=1369s | RAM=1,01 GB
+[2026-08-06 02:28:09] [INFO] 7-Zip testar SRV-AMANDA finalizado. Duracao=00:03:56 | ExitCode=indisponivel.
+[2026-08-06 02:28:09] [WARNING] [SRV-AMANDA] ExitCode do teste 7-Zip indisponivel; integridade confirmada pela saida 'Everything is Ok'.
+[2026-08-06 02:28:09] [SUCCESS] [SRV-AMANDA] Arquivo aprovado no teste integral do 7-Zip em 00:03:56.
+[2026-08-06 02:28:09] [INFO] [SRV-AMANDA] Validando estrutura e tamanho descompactado do arquivo 7z.
+[2026-08-06 02:28:09] [INFO] 7-Zip listar SRV-AMANDA iniciado. PID=3200 | Timeout=08:00:00.
+[2026-08-06 02:28:11] [INFO] 7-Zip listar SRV-AMANDA finalizado. Duracao=00:00:02 | ExitCode=indisponivel.
+[2026-08-06 02:28:11] [WARNING] [SRV-AMANDA] ExitCode da listagem 7-Zip indisponivel; formato confirmado pela saida tecnica.
+[2026-08-06 02:28:11] [SUCCESS] [SRV-AMANDA] Estrutura aprovada: arquivos=4 | pastas=4 | discos=1 | VMCX=1 | listado=192,26 GB, igual ao exportado.
+[2026-08-06 02:28:11] [INFO] [SRV-AMANDA] Calculando SHA-256.
+[2026-08-06 02:28:11] [INFO] SHA-256 SRV-AMANDA iniciado. PID=22356 | Timeout=08:00:00.
+[2026-08-06 02:28:41] [WAIT] SHA-256 SRV-AMANDA | decorrido=00:00:30 | PID=22356 | CPU=8s | RAM=75,96 MB
+[2026-08-06 02:29:11] [WAIT] SHA-256 SRV-AMANDA | decorrido=00:01:00 | PID=22356 | CPU=16.5s | RAM=75,90 MB
+[2026-08-06 02:29:42] [WAIT] SHA-256 SRV-AMANDA | decorrido=00:01:30 | PID=22356 | CPU=24.2s | RAM=75,91 MB
+[2026-08-06 02:30:12] [WAIT] SHA-256 SRV-AMANDA | decorrido=00:02:00 | PID=22356 | CPU=32.2s | RAM=75,91 MB
+[2026-08-06 02:30:42] [WAIT] SHA-256 SRV-AMANDA | decorrido=00:02:30 | PID=22356 | CPU=40.5s | RAM=75,89 MB
+[2026-08-06 02:31:12] [WAIT] SHA-256 SRV-AMANDA | decorrido=00:03:00 | PID=22356 | CPU=49s | RAM=75,91 MB
+[2026-08-06 02:31:42] [WAIT] SHA-256 SRV-AMANDA | decorrido=00:03:30 | PID=22356 | CPU=57.4s | RAM=75,91 MB
+[2026-08-06 02:32:12] [WAIT] SHA-256 SRV-AMANDA | decorrido=00:04:00 | PID=22356 | CPU=65.7s | RAM=75,91 MB
+[2026-08-06 02:32:42] [WAIT] SHA-256 SRV-AMANDA | decorrido=00:04:31 | PID=22356 | CPU=73.7s | RAM=75,72 MB
+[2026-08-06 02:33:12] [WAIT] SHA-256 SRV-AMANDA | decorrido=00:05:01 | PID=22356 | CPU=81.7s | RAM=75,87 MB
+[2026-08-06 02:33:42] [WAIT] SHA-256 SRV-AMANDA | decorrido=00:05:31 | PID=22356 | CPU=90s | RAM=75,87 MB
+[2026-08-06 02:34:13] [WAIT] SHA-256 SRV-AMANDA | decorrido=00:06:01 | PID=22356 | CPU=98.2s | RAM=75,93 MB
+[2026-08-06 02:34:43] [WAIT] SHA-256 SRV-AMANDA | decorrido=00:06:31 | PID=22356 | CPU=106.5s | RAM=75,93 MB
+[2026-08-06 02:35:13] [WAIT] SHA-256 SRV-AMANDA | decorrido=00:07:01 | PID=22356 | CPU=114.8s | RAM=75,55 MB
+[2026-08-06 02:35:43] [WAIT] SHA-256 SRV-AMANDA | decorrido=00:07:31 | PID=22356 | CPU=123.1s | RAM=75,55 MB
+[2026-08-06 02:36:13] [WAIT] SHA-256 SRV-AMANDA | decorrido=00:08:01 | PID=22356 | CPU=131.1s | RAM=75,51 MB
+[2026-08-06 02:36:43] [WAIT] SHA-256 SRV-AMANDA | decorrido=00:08:31 | PID=22356 | CPU=139.6s | RAM=75,51 MB
+[2026-08-06 02:37:11] [WAIT] SHA-256 SRV-AMANDA | decorrido=00:09:00 | PID=22356 | CPU=147.5s | RAM=75,51 MB
+[2026-08-06 02:37:41] [WAIT] SHA-256 SRV-AMANDA | decorrido=00:09:30 | PID=22356 | CPU=155.8s | RAM=75,51 MB
+[2026-08-06 02:38:11] [WAIT] SHA-256 SRV-AMANDA | decorrido=00:10:00 | PID=22356 | CPU=163.5s | RAM=75,56 MB
+[2026-08-06 02:38:42] [WAIT] SHA-256 SRV-AMANDA | decorrido=00:10:30 | PID=22356 | CPU=171.6s | RAM=75,56 MB
+[2026-08-06 02:39:12] [WAIT] SHA-256 SRV-AMANDA | decorrido=00:11:00 | PID=22356 | CPU=179.7s | RAM=75,56 MB
+[2026-08-06 02:39:42] [WAIT] SHA-256 SRV-AMANDA | decorrido=00:11:30 | PID=22356 | CPU=188.1s | RAM=75,55 MB
+[2026-08-06 02:40:12] [WAIT] SHA-256 SRV-AMANDA | decorrido=00:12:00 | PID=22356 | CPU=196s | RAM=75,55 MB
+[2026-08-06 02:40:42] [WAIT] SHA-256 SRV-AMANDA | decorrido=00:12:30 | PID=22356 | CPU=204s | RAM=75,53 MB
+[2026-08-06 02:41:12] [WAIT] SHA-256 SRV-AMANDA | decorrido=00:13:01 | PID=22356 | CPU=212.4s | RAM=75,53 MB
+[2026-08-06 02:41:42] [WAIT] SHA-256 SRV-AMANDA | decorrido=00:13:31 | PID=22356 | CPU=221s | RAM=75,53 MB
+[2026-08-06 02:42:12] [WAIT] SHA-256 SRV-AMANDA | decorrido=00:14:01 | PID=22356 | CPU=229.1s | RAM=75,53 MB
+[2026-08-06 02:42:43] [WAIT] SHA-256 SRV-AMANDA | decorrido=00:14:31 | PID=22356 | CPU=237s | RAM=75,53 MB
+[2026-08-06 02:43:13] [WAIT] SHA-256 SRV-AMANDA | decorrido=00:15:01 | PID=22356 | CPU=245.4s | RAM=75,53 MB
+[2026-08-06 02:43:43] [WAIT] SHA-256 SRV-AMANDA | decorrido=00:15:31 | PID=22356 | CPU=252.8s | RAM=75,53 MB
+[2026-08-06 02:44:13] [WAIT] SHA-256 SRV-AMANDA | decorrido=00:16:01 | PID=22356 | CPU=261s | RAM=75,53 MB
+[2026-08-06 02:44:43] [WAIT] SHA-256 SRV-AMANDA | decorrido=00:16:31 | PID=22356 | CPU=269s | RAM=75,55 MB
+[2026-08-06 02:45:13] [WAIT] SHA-256 SRV-AMANDA | decorrido=00:17:01 | PID=22356 | CPU=277.1s | RAM=75,55 MB
+[2026-08-06 02:45:41] [WAIT] SHA-256 SRV-AMANDA | decorrido=00:17:30 | PID=22356 | CPU=284.6s | RAM=75,55 MB
+[2026-08-06 02:46:11] [WAIT] SHA-256 SRV-AMANDA | decorrido=00:18:00 | PID=22356 | CPU=292.4s | RAM=75,53 MB
+[2026-08-06 02:46:41] [WAIT] SHA-256 SRV-AMANDA | decorrido=00:18:30 | PID=22356 | CPU=300.9s | RAM=75,53 MB
+[2026-08-06 02:47:12] [WAIT] SHA-256 SRV-AMANDA | decorrido=00:19:00 | PID=22356 | CPU=309.6s | RAM=75,53 MB
+[2026-08-06 02:47:42] [WAIT] SHA-256 SRV-AMANDA | decorrido=00:19:30 | PID=22356 | CPU=317.7s | RAM=75,53 MB
+[2026-08-06 02:48:12] [WAIT] SHA-256 SRV-AMANDA | decorrido=00:20:00 | PID=22356 | CPU=325.6s | RAM=75,53 MB
+[2026-08-06 02:48:42] [WAIT] SHA-256 SRV-AMANDA | decorrido=00:20:30 | PID=22356 | CPU=333.5s | RAM=75,53 MB
+[2026-08-06 02:49:12] [WAIT] SHA-256 SRV-AMANDA | decorrido=00:21:00 | PID=22356 | CPU=342.3s | RAM=75,53 MB
+[2026-08-06 02:49:42] [WAIT] SHA-256 SRV-AMANDA | decorrido=00:21:30 | PID=22356 | CPU=350.8s | RAM=75,53 MB
+[2026-08-06 02:50:12] [WAIT] SHA-256 SRV-AMANDA | decorrido=00:22:01 | PID=22356 | CPU=358.9s | RAM=75,52 MB
+[2026-08-06 02:50:42] [WAIT] SHA-256 SRV-AMANDA | decorrido=00:22:31 | PID=22356 | CPU=366.9s | RAM=75,52 MB
+[2026-08-06 02:51:13] [WAIT] SHA-256 SRV-AMANDA | decorrido=00:23:01 | PID=22356 | CPU=374.5s | RAM=75,52 MB
+[2026-08-06 02:51:43] [WAIT] SHA-256 SRV-AMANDA | decorrido=00:23:31 | PID=22356 | CPU=382.3s | RAM=75,52 MB
+[2026-08-06 02:52:13] [WAIT] SHA-256 SRV-AMANDA | decorrido=00:24:01 | PID=22356 | CPU=390.5s | RAM=75,52 MB
+[2026-08-06 02:52:43] [WAIT] SHA-256 SRV-AMANDA | decorrido=00:24:31 | PID=22356 | CPU=399.1s | RAM=75,52 MB
+[2026-08-06 02:53:13] [WAIT] SHA-256 SRV-AMANDA | decorrido=00:25:01 | PID=22356 | CPU=406.9s | RAM=75,52 MB
+[2026-08-06 02:53:43] [WAIT] SHA-256 SRV-AMANDA | decorrido=00:25:31 | PID=22356 | CPU=415s | RAM=75,52 MB
+[2026-08-06 02:54:11] [WAIT] SHA-256 SRV-AMANDA | decorrido=00:26:00 | PID=22356 | CPU=423.6s | RAM=75,52 MB
+[2026-08-06 02:54:41] [WAIT] SHA-256 SRV-AMANDA | decorrido=00:26:30 | PID=22356 | CPU=431.4s | RAM=75,52 MB
+[2026-08-06 02:55:12] [WAIT] SHA-256 SRV-AMANDA | decorrido=00:27:00 | PID=22356 | CPU=440s | RAM=75,52 MB
+[2026-08-06 02:55:42] [WAIT] SHA-256 SRV-AMANDA | decorrido=00:27:30 | PID=22356 | CPU=448.1s | RAM=75,52 MB
+[2026-08-06 02:56:12] [WAIT] SHA-256 SRV-AMANDA | decorrido=00:28:00 | PID=22356 | CPU=455.9s | RAM=75,52 MB
+[2026-08-06 02:56:42] [WAIT] SHA-256 SRV-AMANDA | decorrido=00:28:30 | PID=22356 | CPU=464.1s | RAM=75,52 MB
+[2026-08-06 02:57:12] [WAIT] SHA-256 SRV-AMANDA | decorrido=00:29:00 | PID=22356 | CPU=472.2s | RAM=75,52 MB
+[2026-08-06 02:57:42] [WAIT] SHA-256 SRV-AMANDA | decorrido=00:29:30 | PID=22356 | CPU=480.4s | RAM=75,52 MB
+[2026-08-06 02:58:12] [WAIT] SHA-256 SRV-AMANDA | decorrido=00:30:01 | PID=22356 | CPU=488.5s | RAM=75,52 MB
+[2026-08-06 02:58:42] [WAIT] SHA-256 SRV-AMANDA | decorrido=00:30:31 | PID=22356 | CPU=496.6s | RAM=75,52 MB
+[2026-08-06 02:59:12] [WAIT] SHA-256 SRV-AMANDA | decorrido=00:31:01 | PID=22356 | CPU=504.8s | RAM=75,52 MB
+[2026-08-06 02:59:43] [WAIT] SHA-256 SRV-AMANDA | decorrido=00:31:31 | PID=22356 | CPU=513.3s | RAM=75,52 MB
+[2026-08-06 03:00:13] [WAIT] SHA-256 SRV-AMANDA | decorrido=00:32:01 | PID=22356 | CPU=521.2s | RAM=75,52 MB
+[2026-08-06 03:00:43] [WAIT] SHA-256 SRV-AMANDA | decorrido=00:32:31 | PID=22356 | CPU=529.1s | RAM=75,52 MB
+[2026-08-06 03:01:13] [WAIT] SHA-256 SRV-AMANDA | decorrido=00:33:01 | PID=22356 | CPU=537.1s | RAM=75,52 MB
+[2026-08-06 03:01:43] [WAIT] SHA-256 SRV-AMANDA | decorrido=00:33:31 | PID=22356 | CPU=545.6s | RAM=75,52 MB
+[2026-08-06 03:02:13] [WAIT] SHA-256 SRV-AMANDA | decorrido=00:34:01 | PID=22356 | CPU=553.6s | RAM=75,52 MB
+[2026-08-06 03:02:41] [WAIT] SHA-256 SRV-AMANDA | decorrido=00:34:30 | PID=22356 | CPU=561.3s | RAM=75,52 MB
+[2026-08-06 03:03:11] [WAIT] SHA-256 SRV-AMANDA | decorrido=00:35:00 | PID=22356 | CPU=569.9s | RAM=75,55 MB
+[2026-08-06 03:03:42] [WAIT] SHA-256 SRV-AMANDA | decorrido=00:35:30 | PID=22356 | CPU=577.8s | RAM=75,55 MB
+[2026-08-06 03:04:12] [WAIT] SHA-256 SRV-AMANDA | decorrido=00:36:00 | PID=22356 | CPU=586s | RAM=75,55 MB
+[2026-08-06 03:04:42] [WAIT] SHA-256 SRV-AMANDA | decorrido=00:36:30 | PID=22356 | CPU=594s | RAM=75,55 MB
+[2026-08-06 03:05:12] [WAIT] SHA-256 SRV-AMANDA | decorrido=00:37:00 | PID=22356 | CPU=602.1s | RAM=75,53 MB
+[2026-08-06 03:05:42] [WAIT] SHA-256 SRV-AMANDA | decorrido=00:37:30 | PID=22356 | CPU=610.5s | RAM=75,53 MB
+[2026-08-06 03:06:12] [WAIT] SHA-256 SRV-AMANDA | decorrido=00:38:00 | PID=22356 | CPU=618.7s | RAM=75,53 MB
+[2026-08-06 03:06:42] [WAIT] SHA-256 SRV-AMANDA | decorrido=00:38:31 | PID=22356 | CPU=626.6s | RAM=75,53 MB
+[2026-08-06 03:07:12] [WAIT] SHA-256 SRV-AMANDA | decorrido=00:39:01 | PID=22356 | CPU=634.6s | RAM=75,53 MB
+[2026-08-06 03:07:42] [WAIT] SHA-256 SRV-AMANDA | decorrido=00:39:31 | PID=22356 | CPU=642.2s | RAM=75,53 MB
+[2026-08-06 03:08:13] [WAIT] SHA-256 SRV-AMANDA | decorrido=00:40:01 | PID=22356 | CPU=650.7s | RAM=75,53 MB
+[2026-08-06 03:08:43] [WAIT] SHA-256 SRV-AMANDA | decorrido=00:40:31 | PID=22356 | CPU=658.8s | RAM=75,53 MB
+[2026-08-06 03:09:13] [WAIT] SHA-256 SRV-AMANDA | decorrido=00:41:01 | PID=22356 | CPU=667s | RAM=75,53 MB
+[2026-08-06 03:09:43] [WAIT] SHA-256 SRV-AMANDA | decorrido=00:41:31 | PID=22356 | CPU=674.8s | RAM=75,53 MB
+[2026-08-06 03:10:13] [WAIT] SHA-256 SRV-AMANDA | decorrido=00:42:01 | PID=22356 | CPU=682.3s | RAM=75,53 MB
+[2026-08-06 03:10:43] [WAIT] SHA-256 SRV-AMANDA | decorrido=00:42:31 | PID=22356 | CPU=690.5s | RAM=75,53 MB
+[2026-08-06 03:11:11] [WAIT] SHA-256 SRV-AMANDA | decorrido=00:43:00 | PID=22356 | CPU=698.2s | RAM=75,53 MB
+[2026-08-06 03:11:41] [WAIT] SHA-256 SRV-AMANDA | decorrido=00:43:30 | PID=22356 | CPU=706.3s | RAM=75,53 MB
+[2026-08-06 03:12:12] [WAIT] SHA-256 SRV-AMANDA | decorrido=00:44:00 | PID=22356 | CPU=714.9s | RAM=75,53 MB
+[2026-08-06 03:12:42] [WAIT] SHA-256 SRV-AMANDA | decorrido=00:44:30 | PID=22356 | CPU=722.9s | RAM=75,53 MB
+[2026-08-06 03:13:12] [WAIT] SHA-256 SRV-AMANDA | decorrido=00:45:00 | PID=22356 | CPU=731.2s | RAM=75,53 MB
+[2026-08-06 03:13:42] [WAIT] SHA-256 SRV-AMANDA | decorrido=00:45:30 | PID=22356 | CPU=739.5s | RAM=75,53 MB
+[2026-08-06 03:14:12] [WAIT] SHA-256 SRV-AMANDA | decorrido=00:46:00 | PID=22356 | CPU=747.3s | RAM=75,53 MB
+[2026-08-06 03:14:42] [WAIT] SHA-256 SRV-AMANDA | decorrido=00:46:30 | PID=22356 | CPU=756s | RAM=75,53 MB
+[2026-08-06 03:15:12] [WAIT] SHA-256 SRV-AMANDA | decorrido=00:47:01 | PID=22356 | CPU=764s | RAM=75,53 MB
+[2026-08-06 03:15:42] [WAIT] SHA-256 SRV-AMANDA | decorrido=00:47:31 | PID=22356 | CPU=772s | RAM=75,53 MB
+[2026-08-06 03:16:12] [WAIT] SHA-256 SRV-AMANDA | decorrido=00:48:01 | PID=22356 | CPU=779.5s | RAM=75,53 MB
+[2026-08-06 03:16:43] [WAIT] SHA-256 SRV-AMANDA | decorrido=00:48:31 | PID=22356 | CPU=788.1s | RAM=75,53 MB
+[2026-08-06 03:17:13] [WAIT] SHA-256 SRV-AMANDA | decorrido=00:49:01 | PID=22356 | CPU=796.6s | RAM=75,53 MB
+[2026-08-06 03:17:43] [WAIT] SHA-256 SRV-AMANDA | decorrido=00:49:31 | PID=22356 | CPU=805s | RAM=75,53 MB
+[2026-08-06 03:18:13] [WAIT] SHA-256 SRV-AMANDA | decorrido=00:50:01 | PID=22356 | CPU=813.1s | RAM=75,53 MB
+[2026-08-06 03:18:43] [WAIT] SHA-256 SRV-AMANDA | decorrido=00:50:31 | PID=22356 | CPU=820.9s | RAM=75,53 MB
+[2026-08-06 03:19:13] [WAIT] SHA-256 SRV-AMANDA | decorrido=00:51:01 | PID=22356 | CPU=829.3s | RAM=75,53 MB
+[2026-08-06 03:19:41] [WAIT] SHA-256 SRV-AMANDA | decorrido=00:51:30 | PID=22356 | CPU=836.9s | RAM=75,53 MB
+[2026-08-06 03:20:11] [WAIT] SHA-256 SRV-AMANDA | decorrido=00:52:00 | PID=22356 | CPU=845.6s | RAM=75,53 MB
+[2026-08-06 03:20:42] [WAIT] SHA-256 SRV-AMANDA | decorrido=00:52:30 | PID=22356 | CPU=854s | RAM=75,53 MB
+[2026-08-06 03:21:12] [WAIT] SHA-256 SRV-AMANDA | decorrido=00:53:00 | PID=22356 | CPU=862.1s | RAM=75,53 MB
+[2026-08-06 03:21:42] [WAIT] SHA-256 SRV-AMANDA | decorrido=00:53:30 | PID=22356 | CPU=870.6s | RAM=75,58 MB
+[2026-08-06 03:22:12] [WAIT] SHA-256 SRV-AMANDA | decorrido=00:54:00 | PID=22356 | CPU=878.2s | RAM=75,58 MB
+[2026-08-06 03:22:42] [WAIT] SHA-256 SRV-AMANDA | decorrido=00:54:30 | PID=22356 | CPU=886.8s | RAM=75,58 MB
+[2026-08-06 03:23:12] [WAIT] SHA-256 SRV-AMANDA | decorrido=00:55:00 | PID=22356 | CPU=894.8s | RAM=75,55 MB
+[2026-08-06 03:23:42] [WAIT] SHA-256 SRV-AMANDA | decorrido=00:55:31 | PID=22356 | CPU=902.8s | RAM=75,55 MB
+[2026-08-06 03:24:12] [WAIT] SHA-256 SRV-AMANDA | decorrido=00:56:01 | PID=22356 | CPU=910.8s | RAM=75,55 MB
+[2026-08-06 03:24:43] [WAIT] SHA-256 SRV-AMANDA | decorrido=00:56:31 | PID=22356 | CPU=919.2s | RAM=75,55 MB
+[2026-08-06 03:25:13] [WAIT] SHA-256 SRV-AMANDA | decorrido=00:57:01 | PID=22356 | CPU=927.5s | RAM=75,55 MB
+[2026-08-06 03:25:43] [WAIT] SHA-256 SRV-AMANDA | decorrido=00:57:31 | PID=22356 | CPU=935.8s | RAM=75,55 MB
+[2026-08-06 03:26:13] [WAIT] SHA-256 SRV-AMANDA | decorrido=00:58:01 | PID=22356 | CPU=943.8s | RAM=75,55 MB
+[2026-08-06 03:26:43] [WAIT] SHA-256 SRV-AMANDA | decorrido=00:58:31 | PID=22356 | CPU=951.7s | RAM=75,55 MB
+[2026-08-06 03:27:13] [WAIT] SHA-256 SRV-AMANDA | decorrido=00:59:01 | PID=22356 | CPU=959.5s | RAM=75,55 MB
+[2026-08-06 03:27:21] [INFO] SHA-256 SRV-AMANDA finalizado. Duracao=00:59:09 | ExitCode=indisponivel.
+[2026-08-06 03:27:21] [WARNING] [SRV-AMANDA] ExitCode do worker SHA-256 indisponivel; sucesso confirmado pelo JSON.
+[2026-08-06 03:27:21] [SUCCESS] [SRV-AMANDA] SHA-256=F009F92D9C5413741177C04784ABE503031CFDEC759A863B0E9886B33D495AE4
+[2026-08-06 03:27:21] [SUCCESS] [SRV-AMANDA] Exportacao temporaria removida; arquivo final publicado no staging.
+[2026-08-06 03:27:21] [INFO] --------------------------------------------------------------------------
+[2026-08-06 03:27:21] [INFO] [VM 2/3] SRV-CONTABIL-ASS | GUID=6692bc21-7587-473c-a7d5-14fc06480eed | Estado=Running.
+[2026-08-06 03:27:21] [INFO] [SRV-CONTABIL-ASS] Tentativa 1/2: iniciando exportacao consistente.
+[2026-08-06 03:27:21] [INFO] Export-VM SRV-CONTABIL-ASS iniciado. PID=28372 | Timeout=12:00:00.
+[2026-08-06 03:27:51] [WAIT] Export-VM SRV-CONTABIL-ASS | decorrido=00:00:30 | PID=28372 | CPU=0.5s | RAM=99,91 MB
+[2026-08-06 03:27:51] [INFO] Export-VM SRV-CONTABIL-ASS saida: Inicio da exportacao: VM=SRV-CONTABIL-ASS, VMId=6692bc21-7587-473c-a7d5-14fc06480eed, Estado=Running, Destino=F:\HyperV-Exports\_STAGING\2026-08-06_00-44-24_BIG_4c0a9541\Working\SRV-CONTABIL-ASS
+[2026-08-06 03:28:22] [WAIT] Export-VM SRV-CONTABIL-ASS | decorrido=00:01:00 | PID=28372 | CPU=0.6s | RAM=100,80 MB
+[2026-08-06 03:28:52] [WAIT] Export-VM SRV-CONTABIL-ASS | decorrido=00:01:30 | PID=28372 | CPU=0.8s | RAM=101,81 MB
+[2026-08-06 03:29:22] [WAIT] Export-VM SRV-CONTABIL-ASS | decorrido=00:02:00 | PID=28372 | CPU=0.8s | RAM=102,50 MB
+[2026-08-06 03:29:52] [WAIT] Export-VM SRV-CONTABIL-ASS | decorrido=00:02:30 | PID=28372 | CPU=0.9s | RAM=103,97 MB
+[2026-08-06 03:30:22] [WAIT] Export-VM SRV-CONTABIL-ASS | decorrido=00:03:00 | PID=28372 | CPU=1.1s | RAM=104,72 MB
+[2026-08-06 03:30:52] [WAIT] Export-VM SRV-CONTABIL-ASS | decorrido=00:03:30 | PID=28372 | CPU=1.2s | RAM=105,60 MB
+[2026-08-06 03:31:14] [INFO] Export-VM SRV-CONTABIL-ASS finalizado. Duracao=00:03:52 | ExitCode=indisponivel.
+[2026-08-06 03:31:14] [WARNING] [SRV-CONTABIL-ASS] ExitCode do worker indisponivel; sucesso confirmado pelo JSON e pelos arquivos exportados.
+[2026-08-06 03:31:14] [SUCCESS] [SRV-CONTABIL-ASS] Exportacao concluida: 149,45 GB em 00:03:52.
+[2026-08-06 03:31:14] [INFO] [SRV-CONTABIL-ASS] Iniciando compactacao 7-Zip nivel 3.
+[2026-08-06 03:31:14] [INFO] 7-Zip compactar SRV-CONTABIL-ASS iniciado. PID=25104 | Timeout=12:00:00.
+[2026-08-06 03:31:44] [WAIT] 7-Zip compactar SRV-CONTABIL-ASS | decorrido=00:00:30 | PID=25104 | CPU=215.6s | RAM=483,06 MB
+[2026-08-06 03:32:14] [WAIT] 7-Zip compactar SRV-CONTABIL-ASS | decorrido=00:01:00 | PID=25104 | CPU=431.9s | RAM=483,91 MB
+[2026-08-06 03:32:44] [WAIT] 7-Zip compactar SRV-CONTABIL-ASS | decorrido=00:01:30 | PID=25104 | CPU=663s | RAM=487,25 MB
+[2026-08-06 03:33:14] [WAIT] 7-Zip compactar SRV-CONTABIL-ASS | decorrido=00:02:00 | PID=25104 | CPU=894.5s | RAM=488,02 MB
+[2026-08-06 03:33:44] [WAIT] 7-Zip compactar SRV-CONTABIL-ASS | decorrido=00:02:30 | PID=25104 | CPU=1118.5s | RAM=487,06 MB
+[2026-08-06 03:34:15] [WAIT] 7-Zip compactar SRV-CONTABIL-ASS | decorrido=00:03:00 | PID=25104 | CPU=1343.7s | RAM=464,87 MB
+[2026-08-06 03:34:45] [WAIT] 7-Zip compactar SRV-CONTABIL-ASS | decorrido=00:03:30 | PID=25104 | CPU=1575.3s | RAM=459,08 MB
+[2026-08-06 03:35:15] [WAIT] 7-Zip compactar SRV-CONTABIL-ASS | decorrido=00:04:00 | PID=25104 | CPU=1794s | RAM=458,77 MB
+[2026-08-06 03:35:45] [WAIT] 7-Zip compactar SRV-CONTABIL-ASS | decorrido=00:04:30 | PID=25104 | CPU=2010.8s | RAM=490,91 MB
+[2026-08-06 03:36:15] [WAIT] 7-Zip compactar SRV-CONTABIL-ASS | decorrido=00:05:00 | PID=25104 | CPU=2216.8s | RAM=491,65 MB
+[2026-08-06 03:36:45] [WAIT] 7-Zip compactar SRV-CONTABIL-ASS | decorrido=00:05:30 | PID=25104 | CPU=2436.8s | RAM=487,80 MB
+[2026-08-06 03:37:15] [WAIT] 7-Zip compactar SRV-CONTABIL-ASS | decorrido=00:06:00 | PID=25104 | CPU=2655.8s | RAM=489,12 MB
+[2026-08-06 03:37:45] [WAIT] 7-Zip compactar SRV-CONTABIL-ASS | decorrido=00:06:30 | PID=25104 | CPU=2875.9s | RAM=484,01 MB
+[2026-08-06 03:38:15] [WAIT] 7-Zip compactar SRV-CONTABIL-ASS | decorrido=00:07:01 | PID=25104 | CPU=3094.8s | RAM=498,82 MB
+[2026-08-06 03:38:45] [WAIT] 7-Zip compactar SRV-CONTABIL-ASS | decorrido=00:07:31 | PID=25104 | CPU=3305.6s | RAM=500,13 MB
+[2026-08-06 03:39:15] [WAIT] 7-Zip compactar SRV-CONTABIL-ASS | decorrido=00:08:01 | PID=25104 | CPU=3535.1s | RAM=500,11 MB
+[2026-08-06 03:39:45] [WAIT] 7-Zip compactar SRV-CONTABIL-ASS | decorrido=00:08:31 | PID=25104 | CPU=3760.5s | RAM=500,49 MB
+[2026-08-06 03:40:15] [WAIT] 7-Zip compactar SRV-CONTABIL-ASS | decorrido=00:09:01 | PID=25104 | CPU=3981s | RAM=500,07 MB
+[2026-08-06 03:40:46] [WAIT] 7-Zip compactar SRV-CONTABIL-ASS | decorrido=00:09:31 | PID=25104 | CPU=4189.7s | RAM=500,07 MB
+[2026-08-06 03:41:16] [WAIT] 7-Zip compactar SRV-CONTABIL-ASS | decorrido=00:10:01 | PID=25104 | CPU=4409.2s | RAM=500,59 MB
+[2026-08-06 03:41:46] [WAIT] 7-Zip compactar SRV-CONTABIL-ASS | decorrido=00:10:31 | PID=25104 | CPU=4630.6s | RAM=500,59 MB
+[2026-08-06 03:42:16] [WAIT] 7-Zip compactar SRV-CONTABIL-ASS | decorrido=00:11:01 | PID=25104 | CPU=4854.1s | RAM=495,82 MB
+[2026-08-06 03:42:46] [WAIT] 7-Zip compactar SRV-CONTABIL-ASS | decorrido=00:11:31 | PID=25104 | CPU=5071.8s | RAM=495,91 MB
+[2026-08-06 03:43:16] [WAIT] 7-Zip compactar SRV-CONTABIL-ASS | decorrido=00:12:01 | PID=25104 | CPU=5284.7s | RAM=486,79 MB
+[2026-08-06 03:43:46] [WAIT] 7-Zip compactar SRV-CONTABIL-ASS | decorrido=00:12:31 | PID=25104 | CPU=5444.8s | RAM=490,04 MB
+[2026-08-06 03:44:16] [WAIT] 7-Zip compactar SRV-CONTABIL-ASS | decorrido=00:13:01 | PID=25104 | CPU=5668.6s | RAM=483,95 MB
+[2026-08-06 03:44:44] [WAIT] 7-Zip compactar SRV-CONTABIL-ASS | decorrido=00:13:30 | PID=25104 | CPU=5873.5s | RAM=483,37 MB
+[2026-08-06 03:45:14] [WAIT] 7-Zip compactar SRV-CONTABIL-ASS | decorrido=00:14:00 | PID=25104 | CPU=6072.2s | RAM=488,98 MB
+[2026-08-06 03:45:44] [WAIT] 7-Zip compactar SRV-CONTABIL-ASS | decorrido=00:14:30 | PID=25104 | CPU=6283.7s | RAM=495,98 MB
+[2026-08-06 03:46:14] [WAIT] 7-Zip compactar SRV-CONTABIL-ASS | decorrido=00:15:00 | PID=25104 | CPU=6475.8s | RAM=496,52 MB
+[2026-08-06 03:46:44] [WAIT] 7-Zip compactar SRV-CONTABIL-ASS | decorrido=00:15:30 | PID=25104 | CPU=6688.6s | RAM=496,56 MB
+[2026-08-06 03:47:15] [WAIT] 7-Zip compactar SRV-CONTABIL-ASS | decorrido=00:16:00 | PID=25104 | CPU=6897.4s | RAM=497,62 MB
+[2026-08-06 03:47:45] [WAIT] 7-Zip compactar SRV-CONTABIL-ASS | decorrido=00:16:30 | PID=25104 | CPU=7078.5s | RAM=496,13 MB
+[2026-08-06 03:48:15] [WAIT] 7-Zip compactar SRV-CONTABIL-ASS | decorrido=00:17:00 | PID=25104 | CPU=7296s | RAM=499,96 MB
+[2026-08-06 03:48:45] [WAIT] 7-Zip compactar SRV-CONTABIL-ASS | decorrido=00:17:30 | PID=25104 | CPU=7499.9s | RAM=498,70 MB
+[2026-08-06 03:49:15] [WAIT] 7-Zip compactar SRV-CONTABIL-ASS | decorrido=00:18:00 | PID=25104 | CPU=7709.4s | RAM=497,41 MB
+[2026-08-06 03:49:45] [WAIT] 7-Zip compactar SRV-CONTABIL-ASS | decorrido=00:18:30 | PID=25104 | CPU=7905.1s | RAM=497,27 MB
+[2026-08-06 03:50:15] [WAIT] 7-Zip compactar SRV-CONTABIL-ASS | decorrido=00:19:00 | PID=25104 | CPU=8087.4s | RAM=497,81 MB
+[2026-08-06 03:50:45] [WAIT] 7-Zip compactar SRV-CONTABIL-ASS | decorrido=00:19:31 | PID=25104 | CPU=8283.5s | RAM=499,96 MB
+[2026-08-06 03:51:15] [WAIT] 7-Zip compactar SRV-CONTABIL-ASS | decorrido=00:20:01 | PID=25104 | CPU=8475.5s | RAM=499,96 MB
+[2026-08-06 03:51:45] [WAIT] 7-Zip compactar SRV-CONTABIL-ASS | decorrido=00:20:31 | PID=25104 | CPU=8668.4s | RAM=499,08 MB
+[2026-08-06 03:52:15] [WAIT] 7-Zip compactar SRV-CONTABIL-ASS | decorrido=00:21:01 | PID=25104 | CPU=8870.7s | RAM=498,53 MB
+[2026-08-06 03:52:45] [WAIT] 7-Zip compactar SRV-CONTABIL-ASS | decorrido=00:21:31 | PID=25104 | CPU=9064.3s | RAM=499,01 MB
+[2026-08-06 03:53:16] [WAIT] 7-Zip compactar SRV-CONTABIL-ASS | decorrido=00:22:01 | PID=25104 | CPU=9283.8s | RAM=498,00 MB
+[2026-08-06 03:53:46] [WAIT] 7-Zip compactar SRV-CONTABIL-ASS | decorrido=00:22:31 | PID=25104 | CPU=9517.3s | RAM=497,77 MB
+[2026-08-06 03:54:16] [WAIT] 7-Zip compactar SRV-CONTABIL-ASS | decorrido=00:23:01 | PID=25104 | CPU=9726.7s | RAM=498,29 MB
+[2026-08-06 03:54:46] [WAIT] 7-Zip compactar SRV-CONTABIL-ASS | decorrido=00:23:31 | PID=25104 | CPU=9927s | RAM=499,14 MB
+[2026-08-06 03:55:16] [WAIT] 7-Zip compactar SRV-CONTABIL-ASS | decorrido=00:24:01 | PID=25104 | CPU=10149.5s | RAM=499,90 MB
+[2026-08-06 03:55:46] [WAIT] 7-Zip compactar SRV-CONTABIL-ASS | decorrido=00:24:31 | PID=25104 | CPU=10345.5s | RAM=499,95 MB
+[2026-08-06 03:56:16] [WAIT] 7-Zip compactar SRV-CONTABIL-ASS | decorrido=00:25:01 | PID=25104 | CPU=10576.5s | RAM=499,96 MB
+[2026-08-06 03:56:46] [WAIT] 7-Zip compactar SRV-CONTABIL-ASS | decorrido=00:25:31 | PID=25104 | CPU=10785.1s | RAM=499,96 MB
+[2026-08-06 03:57:14] [WAIT] 7-Zip compactar SRV-CONTABIL-ASS | decorrido=00:26:00 | PID=25104 | CPU=10995.7s | RAM=499,96 MB
+[2026-08-06 03:57:44] [WAIT] 7-Zip compactar SRV-CONTABIL-ASS | decorrido=00:26:30 | PID=25104 | CPU=11182.3s | RAM=499,96 MB
+[2026-08-06 03:58:14] [WAIT] 7-Zip compactar SRV-CONTABIL-ASS | decorrido=00:27:00 | PID=25104 | CPU=11377.8s | RAM=499,96 MB
+[2026-08-06 03:58:44] [WAIT] 7-Zip compactar SRV-CONTABIL-ASS | decorrido=00:27:30 | PID=25104 | CPU=11604.3s | RAM=499,96 MB
+[2026-08-06 03:59:15] [WAIT] 7-Zip compactar SRV-CONTABIL-ASS | decorrido=00:28:00 | PID=25104 | CPU=11842.8s | RAM=499,96 MB
+[2026-08-06 03:59:45] [WAIT] 7-Zip compactar SRV-CONTABIL-ASS | decorrido=00:28:30 | PID=25104 | CPU=12081.2s | RAM=499,96 MB
+[2026-08-06 04:00:15] [WAIT] 7-Zip compactar SRV-CONTABIL-ASS | decorrido=00:29:00 | PID=25104 | CPU=12307.2s | RAM=499,96 MB
+[2026-08-06 04:00:45] [WAIT] 7-Zip compactar SRV-CONTABIL-ASS | decorrido=00:29:30 | PID=25104 | CPU=12541.8s | RAM=499,96 MB
+[2026-08-06 04:01:15] [WAIT] 7-Zip compactar SRV-CONTABIL-ASS | decorrido=00:30:00 | PID=25104 | CPU=12773.3s | RAM=499,96 MB
+[2026-08-06 04:01:45] [WAIT] 7-Zip compactar SRV-CONTABIL-ASS | decorrido=00:30:30 | PID=25104 | CPU=12980.3s | RAM=499,96 MB
+[2026-08-06 04:02:15] [WAIT] 7-Zip compactar SRV-CONTABIL-ASS | decorrido=00:31:00 | PID=25104 | CPU=13218s | RAM=499,96 MB
+[2026-08-06 04:02:45] [WAIT] 7-Zip compactar SRV-CONTABIL-ASS | decorrido=00:31:30 | PID=25104 | CPU=13449.1s | RAM=499,96 MB
+[2026-08-06 04:03:15] [WAIT] 7-Zip compactar SRV-CONTABIL-ASS | decorrido=00:32:01 | PID=25104 | CPU=13686.4s | RAM=499,96 MB
+[2026-08-06 04:03:45] [WAIT] 7-Zip compactar SRV-CONTABIL-ASS | decorrido=00:32:31 | PID=25104 | CPU=13890.6s | RAM=499,96 MB
+[2026-08-06 04:04:15] [WAIT] 7-Zip compactar SRV-CONTABIL-ASS | decorrido=00:33:01 | PID=25104 | CPU=14108.9s | RAM=499,96 MB
+[2026-08-06 04:04:45] [WAIT] 7-Zip compactar SRV-CONTABIL-ASS | decorrido=00:33:31 | PID=25104 | CPU=14313.3s | RAM=499,96 MB
+[2026-08-06 04:05:15] [WAIT] 7-Zip compactar SRV-CONTABIL-ASS | decorrido=00:34:01 | PID=25104 | CPU=14549.1s | RAM=500,04 MB
+[2026-08-06 04:05:45] [WAIT] 7-Zip compactar SRV-CONTABIL-ASS | decorrido=00:34:31 | PID=25104 | CPU=14756.8s | RAM=500,04 MB
+[2026-08-06 04:06:16] [WAIT] 7-Zip compactar SRV-CONTABIL-ASS | decorrido=00:35:01 | PID=25104 | CPU=14982s | RAM=500,04 MB
+[2026-08-06 04:06:46] [WAIT] 7-Zip compactar SRV-CONTABIL-ASS | decorrido=00:35:31 | PID=25104 | CPU=15220.5s | RAM=500,04 MB
+[2026-08-06 04:07:16] [WAIT] 7-Zip compactar SRV-CONTABIL-ASS | decorrido=00:36:01 | PID=25104 | CPU=15458.9s | RAM=500,04 MB
+[2026-08-06 04:07:46] [WAIT] 7-Zip compactar SRV-CONTABIL-ASS | decorrido=00:36:31 | PID=25104 | CPU=15685.1s | RAM=500,04 MB
+[2026-08-06 04:08:16] [WAIT] 7-Zip compactar SRV-CONTABIL-ASS | decorrido=00:37:01 | PID=25104 | CPU=15906s | RAM=500,04 MB
+[2026-08-06 04:08:46] [WAIT] 7-Zip compactar SRV-CONTABIL-ASS | decorrido=00:37:31 | PID=25104 | CPU=16140.8s | RAM=500,04 MB
+[2026-08-06 04:09:16] [WAIT] 7-Zip compactar SRV-CONTABIL-ASS | decorrido=00:38:01 | PID=25104 | CPU=16379.2s | RAM=500,04 MB
+[2026-08-06 04:09:46] [WAIT] 7-Zip compactar SRV-CONTABIL-ASS | decorrido=00:38:31 | PID=25104 | CPU=16617.9s | RAM=500,04 MB
+[2026-08-06 04:10:14] [WAIT] 7-Zip compactar SRV-CONTABIL-ASS | decorrido=00:39:00 | PID=25104 | CPU=16822.8s | RAM=500,04 MB
+[2026-08-06 04:10:44] [WAIT] 7-Zip compactar SRV-CONTABIL-ASS | decorrido=00:39:30 | PID=25104 | CPU=17047.8s | RAM=500,04 MB
+[2026-08-06 04:11:14] [WAIT] 7-Zip compactar SRV-CONTABIL-ASS | decorrido=00:40:00 | PID=25104 | CPU=17273.7s | RAM=500,04 MB
+[2026-08-06 04:11:44] [WAIT] 7-Zip compactar SRV-CONTABIL-ASS | decorrido=00:40:30 | PID=25104 | CPU=17472.5s | RAM=500,04 MB
+[2026-08-06 04:12:15] [WAIT] 7-Zip compactar SRV-CONTABIL-ASS | decorrido=00:41:00 | PID=25104 | CPU=17685.2s | RAM=500,04 MB
+[2026-08-06 04:12:45] [WAIT] 7-Zip compactar SRV-CONTABIL-ASS | decorrido=00:41:30 | PID=25104 | CPU=17923.7s | RAM=499,18 MB
+[2026-08-06 04:13:15] [WAIT] 7-Zip compactar SRV-CONTABIL-ASS | decorrido=00:42:00 | PID=25104 | CPU=18117.6s | RAM=500,04 MB
+[2026-08-06 04:13:45] [WAIT] 7-Zip compactar SRV-CONTABIL-ASS | decorrido=00:42:30 | PID=25104 | CPU=18356s | RAM=500,04 MB
+[2026-08-06 04:14:15] [WAIT] 7-Zip compactar SRV-CONTABIL-ASS | decorrido=00:43:00 | PID=25104 | CPU=18565.9s | RAM=500,04 MB
+[2026-08-06 04:14:45] [WAIT] 7-Zip compactar SRV-CONTABIL-ASS | decorrido=00:43:30 | PID=25104 | CPU=18795s | RAM=500,04 MB
+[2026-08-06 04:15:15] [WAIT] 7-Zip compactar SRV-CONTABIL-ASS | decorrido=00:44:00 | PID=25104 | CPU=19025.4s | RAM=500,04 MB
+[2026-08-06 04:15:45] [WAIT] 7-Zip compactar SRV-CONTABIL-ASS | decorrido=00:44:30 | PID=25104 | CPU=19254.3s | RAM=500,04 MB
+[2026-08-06 04:16:15] [WAIT] 7-Zip compactar SRV-CONTABIL-ASS | decorrido=00:45:01 | PID=25104 | CPU=19492.3s | RAM=500,04 MB
+[2026-08-06 04:16:45] [WAIT] 7-Zip compactar SRV-CONTABIL-ASS | decorrido=00:45:31 | PID=25104 | CPU=19730.3s | RAM=500,04 MB
+[2026-08-06 04:17:15] [WAIT] 7-Zip compactar SRV-CONTABIL-ASS | decorrido=00:46:01 | PID=25104 | CPU=19968.7s | RAM=484,04 MB
+[2026-08-06 04:17:45] [WAIT] 7-Zip compactar SRV-CONTABIL-ASS | decorrido=00:46:31 | PID=25104 | CPU=20195.4s | RAM=500,04 MB
+[2026-08-06 04:18:16] [WAIT] 7-Zip compactar SRV-CONTABIL-ASS | decorrido=00:47:01 | PID=25104 | CPU=20429.8s | RAM=500,04 MB
+[2026-08-06 04:18:46] [WAIT] 7-Zip compactar SRV-CONTABIL-ASS | decorrido=00:47:31 | PID=25104 | CPU=20636.5s | RAM=500,04 MB
+[2026-08-06 04:19:16] [WAIT] 7-Zip compactar SRV-CONTABIL-ASS | decorrido=00:48:01 | PID=25104 | CPU=20864.9s | RAM=500,04 MB
+[2026-08-06 04:19:46] [WAIT] 7-Zip compactar SRV-CONTABIL-ASS | decorrido=00:48:31 | PID=25104 | CPU=21077.5s | RAM=500,04 MB
+[2026-08-06 04:20:16] [WAIT] 7-Zip compactar SRV-CONTABIL-ASS | decorrido=00:49:01 | PID=25104 | CPU=21315.7s | RAM=500,04 MB
+[2026-08-06 04:20:46] [WAIT] 7-Zip compactar SRV-CONTABIL-ASS | decorrido=00:49:31 | PID=25104 | CPU=21553.8s | RAM=500,03 MB
+[2026-08-06 04:21:16] [WAIT] 7-Zip compactar SRV-CONTABIL-ASS | decorrido=00:50:01 | PID=25104 | CPU=21791.8s | RAM=500,04 MB
+[2026-08-06 04:21:46] [WAIT] 7-Zip compactar SRV-CONTABIL-ASS | decorrido=00:50:32 | PID=25104 | CPU=22029.9s | RAM=500,04 MB
+[2026-08-06 04:22:14] [WAIT] 7-Zip compactar SRV-CONTABIL-ASS | decorrido=00:51:00 | PID=25104 | CPU=22252.2s | RAM=500,04 MB
+[2026-08-06 04:22:44] [WAIT] 7-Zip compactar SRV-CONTABIL-ASS | decorrido=00:51:30 | PID=25104 | CPU=22490.8s | RAM=500,04 MB
+[2026-08-06 04:23:14] [WAIT] 7-Zip compactar SRV-CONTABIL-ASS | decorrido=00:52:00 | PID=25104 | CPU=22728.5s | RAM=500,04 MB
+[2026-08-06 04:23:44] [WAIT] 7-Zip compactar SRV-CONTABIL-ASS | decorrido=00:52:30 | PID=25104 | CPU=22966.8s | RAM=500,04 MB
+[2026-08-06 04:24:14] [WAIT] 7-Zip compactar SRV-CONTABIL-ASS | decorrido=00:53:00 | PID=25104 | CPU=23191.7s | RAM=500,04 MB
+[2026-08-06 04:24:44] [WAIT] 7-Zip compactar SRV-CONTABIL-ASS | decorrido=00:53:30 | PID=25104 | CPU=23429.9s | RAM=500,04 MB
+[2026-08-06 04:25:15] [WAIT] 7-Zip compactar SRV-CONTABIL-ASS | decorrido=00:54:00 | PID=25104 | CPU=23668.3s | RAM=492,07 MB
+[2026-08-06 04:25:45] [WAIT] 7-Zip compactar SRV-CONTABIL-ASS | decorrido=00:54:30 | PID=25104 | CPU=23906.7s | RAM=492,07 MB
+[2026-08-06 04:26:15] [WAIT] 7-Zip compactar SRV-CONTABIL-ASS | decorrido=00:55:00 | PID=25104 | CPU=24145.2s | RAM=492,07 MB
+[2026-08-06 04:26:45] [WAIT] 7-Zip compactar SRV-CONTABIL-ASS | decorrido=00:55:30 | PID=25104 | CPU=24373.5s | RAM=500,04 MB
+[2026-08-06 04:27:15] [WAIT] 7-Zip compactar SRV-CONTABIL-ASS | decorrido=00:56:00 | PID=25104 | CPU=24601.1s | RAM=500,04 MB
+[2026-08-06 04:27:45] [WAIT] 7-Zip compactar SRV-CONTABIL-ASS | decorrido=00:56:30 | PID=25104 | CPU=24839.1s | RAM=500,04 MB
+[2026-08-06 04:28:15] [WAIT] 7-Zip compactar SRV-CONTABIL-ASS | decorrido=00:57:00 | PID=25104 | CPU=25050.6s | RAM=500,04 MB
+[2026-08-06 04:28:45] [WAIT] 7-Zip compactar SRV-CONTABIL-ASS | decorrido=00:57:30 | PID=25104 | CPU=25283.7s | RAM=500,04 MB
+[2026-08-06 04:29:15] [WAIT] 7-Zip compactar SRV-CONTABIL-ASS | decorrido=00:58:01 | PID=25104 | CPU=25492.4s | RAM=500,04 MB
+[2026-08-06 04:29:19] [INFO] 7-Zip compactar SRV-CONTABIL-ASS finalizado. Duracao=00:58:05 | ExitCode=indisponivel.
+[2026-08-06 04:29:19] [WARNING] [SRV-CONTABIL-ASS] ExitCode do 7-Zip indisponivel; conclusao confirmada pela saida 'Everything is Ok'.
+[2026-08-06 04:29:19] [SUCCESS] [SRV-CONTABIL-ASS] Compactacao concluida: 74,81 GB em 00:58:05.
+[2026-08-06 04:29:19] [INFO] [SRV-CONTABIL-ASS] Testando integralmente o arquivo 7z.
+[2026-08-06 04:29:19] [INFO] 7-Zip testar SRV-CONTABIL-ASS iniciado. PID=20776 | Timeout=08:00:00.
+[2026-08-06 04:29:49] [WAIT] 7-Zip testar SRV-CONTABIL-ASS | decorrido=00:00:30 | PID=20776 | CPU=345.9s | RAM=1,02 GB
+[2026-08-06 04:29:49] [INFO] 7-Zip testar SRV-CONTABIL-ASS saida: 1 file, 80325858613 bytes (75 GiB) |  | Testing archive: F:\HyperV-Exports\_STAGING\2026-08-06_00-44-24_BIG_4c0a9541\Archives\SRV-CONTABIL-ASS.partial.7z
+[2026-08-06 04:30:19] [WAIT] 7-Zip testar SRV-CONTABIL-ASS | decorrido=00:01:00 | PID=20776 | CPU=663s | RAM=1,02 GB
+[2026-08-06 04:30:49] [WAIT] 7-Zip testar SRV-CONTABIL-ASS | decorrido=00:01:30 | PID=20776 | CPU=806.8s | RAM=1,02 GB
+[2026-08-06 04:31:19] [WAIT] 7-Zip testar SRV-CONTABIL-ASS | decorrido=00:02:00 | PID=20776 | CPU=892.1s | RAM=1,02 GB
+[2026-08-06 04:31:39] [INFO] 7-Zip testar SRV-CONTABIL-ASS finalizado. Duracao=00:02:20 | ExitCode=indisponivel.
+[2026-08-06 04:31:40] [WARNING] [SRV-CONTABIL-ASS] ExitCode do teste 7-Zip indisponivel; integridade confirmada pela saida 'Everything is Ok'.
+[2026-08-06 04:31:40] [SUCCESS] [SRV-CONTABIL-ASS] Arquivo aprovado no teste integral do 7-Zip em 00:02:20.
+[2026-08-06 04:31:40] [INFO] [SRV-CONTABIL-ASS] Validando estrutura e tamanho descompactado do arquivo 7z.
+[2026-08-06 04:31:40] [INFO] 7-Zip listar SRV-CONTABIL-ASS iniciado. PID=22596 | Timeout=08:00:00.
+[2026-08-06 04:31:42] [INFO] 7-Zip listar SRV-CONTABIL-ASS finalizado. Duracao=00:00:02 | ExitCode=indisponivel.
+[2026-08-06 04:31:42] [WARNING] [SRV-CONTABIL-ASS] ExitCode da listagem 7-Zip indisponivel; formato confirmado pela saida tecnica.
+[2026-08-06 04:31:42] [SUCCESS] [SRV-CONTABIL-ASS] Estrutura aprovada: arquivos=4 | pastas=4 | discos=1 | VMCX=1 | listado=149,45 GB, igual ao exportado.
+[2026-08-06 04:31:42] [INFO] [SRV-CONTABIL-ASS] Calculando SHA-256.
+[2026-08-06 04:31:42] [INFO] SHA-256 SRV-CONTABIL-ASS iniciado. PID=30292 | Timeout=08:00:00.
+[2026-08-06 04:32:12] [WAIT] SHA-256 SRV-CONTABIL-ASS | decorrido=00:00:30 | PID=30292 | CPU=8.6s | RAM=76,37 MB
+[2026-08-06 04:32:42] [WAIT] SHA-256 SRV-CONTABIL-ASS | decorrido=00:01:00 | PID=30292 | CPU=17.3s | RAM=76,13 MB
+[2026-08-06 04:33:12] [WAIT] SHA-256 SRV-CONTABIL-ASS | decorrido=00:01:30 | PID=30292 | CPU=25.6s | RAM=76,13 MB
+[2026-08-06 04:33:42] [WAIT] SHA-256 SRV-CONTABIL-ASS | decorrido=00:02:00 | PID=30292 | CPU=33.7s | RAM=76,13 MB
+[2026-08-06 04:34:12] [WAIT] SHA-256 SRV-CONTABIL-ASS | decorrido=00:02:30 | PID=30292 | CPU=41.5s | RAM=76,11 MB
+[2026-08-06 04:34:42] [WAIT] SHA-256 SRV-CONTABIL-ASS | decorrido=00:03:00 | PID=30292 | CPU=49.8s | RAM=76,13 MB
+[2026-08-06 04:35:12] [WAIT] SHA-256 SRV-CONTABIL-ASS | decorrido=00:03:30 | PID=30292 | CPU=58.2s | RAM=75,84 MB
+[2026-08-06 04:35:43] [WAIT] SHA-256 SRV-CONTABIL-ASS | decorrido=00:04:00 | PID=30292 | CPU=66.7s | RAM=75,84 MB
+[2026-08-06 04:36:13] [WAIT] SHA-256 SRV-CONTABIL-ASS | decorrido=00:04:31 | PID=30292 | CPU=75.3s | RAM=75,84 MB
+[2026-08-06 04:36:43] [WAIT] SHA-256 SRV-CONTABIL-ASS | decorrido=00:05:01 | PID=30292 | CPU=83.2s | RAM=75,98 MB
+[2026-08-06 04:37:13] [WAIT] SHA-256 SRV-CONTABIL-ASS | decorrido=00:05:31 | PID=30292 | CPU=91.1s | RAM=75,98 MB
+[2026-08-06 04:37:43] [WAIT] SHA-256 SRV-CONTABIL-ASS | decorrido=00:06:01 | PID=30292 | CPU=99.2s | RAM=76,05 MB
+[2026-08-06 04:38:13] [WAIT] SHA-256 SRV-CONTABIL-ASS | decorrido=00:06:31 | PID=30292 | CPU=107s | RAM=76,05 MB
+[2026-08-06 04:38:43] [WAIT] SHA-256 SRV-CONTABIL-ASS | decorrido=00:07:01 | PID=30292 | CPU=114.8s | RAM=76,05 MB
+[2026-08-06 04:39:13] [WAIT] SHA-256 SRV-CONTABIL-ASS | decorrido=00:07:31 | PID=30292 | CPU=122.5s | RAM=76,05 MB
+[2026-08-06 04:39:43] [WAIT] SHA-256 SRV-CONTABIL-ASS | decorrido=00:08:01 | PID=30292 | CPU=130.5s | RAM=75,99 MB
+[2026-08-06 04:40:12] [WAIT] SHA-256 SRV-CONTABIL-ASS | decorrido=00:08:30 | PID=30292 | CPU=137.8s | RAM=75,99 MB
+[2026-08-06 04:40:42] [WAIT] SHA-256 SRV-CONTABIL-ASS | decorrido=00:09:00 | PID=30292 | CPU=145.4s | RAM=75,99 MB
+[2026-08-06 04:41:12] [WAIT] SHA-256 SRV-CONTABIL-ASS | decorrido=00:09:30 | PID=30292 | CPU=153.5s | RAM=75,99 MB
+[2026-08-06 04:41:42] [WAIT] SHA-256 SRV-CONTABIL-ASS | decorrido=00:10:00 | PID=30292 | CPU=162s | RAM=76,04 MB
+[2026-08-06 04:42:12] [WAIT] SHA-256 SRV-CONTABIL-ASS | decorrido=00:10:30 | PID=30292 | CPU=169.9s | RAM=76,04 MB
+[2026-08-06 04:42:42] [WAIT] SHA-256 SRV-CONTABIL-ASS | decorrido=00:11:00 | PID=30292 | CPU=177s | RAM=76,04 MB
+[2026-08-06 04:43:12] [WAIT] SHA-256 SRV-CONTABIL-ASS | decorrido=00:11:30 | PID=30292 | CPU=184.8s | RAM=76,03 MB
+[2026-08-06 04:43:42] [WAIT] SHA-256 SRV-CONTABIL-ASS | decorrido=00:12:00 | PID=30292 | CPU=192.5s | RAM=76,03 MB
+[2026-08-06 04:44:12] [WAIT] SHA-256 SRV-CONTABIL-ASS | decorrido=00:12:30 | PID=30292 | CPU=200.4s | RAM=76,01 MB
+[2026-08-06 04:44:43] [WAIT] SHA-256 SRV-CONTABIL-ASS | decorrido=00:13:00 | PID=30292 | CPU=208.9s | RAM=76,01 MB
+[2026-08-06 04:45:13] [WAIT] SHA-256 SRV-CONTABIL-ASS | decorrido=00:13:31 | PID=30292 | CPU=217.1s | RAM=76,01 MB
+[2026-08-06 04:45:43] [WAIT] SHA-256 SRV-CONTABIL-ASS | decorrido=00:14:01 | PID=30292 | CPU=224.6s | RAM=76,01 MB
+[2026-08-06 04:46:13] [WAIT] SHA-256 SRV-CONTABIL-ASS | decorrido=00:14:31 | PID=30292 | CPU=233.2s | RAM=76,01 MB
+[2026-08-06 04:46:43] [WAIT] SHA-256 SRV-CONTABIL-ASS | decorrido=00:15:01 | PID=30292 | CPU=241.5s | RAM=76,01 MB
+[2026-08-06 04:47:13] [WAIT] SHA-256 SRV-CONTABIL-ASS | decorrido=00:15:31 | PID=30292 | CPU=249.5s | RAM=76,03 MB
+[2026-08-06 04:47:43] [WAIT] SHA-256 SRV-CONTABIL-ASS | decorrido=00:16:01 | PID=30292 | CPU=257.8s | RAM=76,03 MB
+[2026-08-06 04:48:13] [WAIT] SHA-256 SRV-CONTABIL-ASS | decorrido=00:16:31 | PID=30292 | CPU=266s | RAM=76,03 MB
+[2026-08-06 04:48:43] [WAIT] SHA-256 SRV-CONTABIL-ASS | decorrido=00:17:01 | PID=30292 | CPU=273.7s | RAM=76,01 MB
+[2026-08-06 04:49:14] [WAIT] SHA-256 SRV-CONTABIL-ASS | decorrido=00:17:31 | PID=30292 | CPU=282.8s | RAM=76,01 MB
+[2026-08-06 04:49:42] [WAIT] SHA-256 SRV-CONTABIL-ASS | decorrido=00:18:00 | PID=30292 | CPU=290.5s | RAM=76,01 MB
+[2026-08-06 04:50:12] [WAIT] SHA-256 SRV-CONTABIL-ASS | decorrido=00:18:30 | PID=30292 | CPU=298.7s | RAM=76,00 MB
+[2026-08-06 04:50:42] [WAIT] SHA-256 SRV-CONTABIL-ASS | decorrido=00:19:00 | PID=30292 | CPU=306.8s | RAM=75,99 MB
+[2026-08-06 04:51:12] [WAIT] SHA-256 SRV-CONTABIL-ASS | decorrido=00:19:30 | PID=30292 | CPU=314.8s | RAM=75,99 MB
+[2026-08-06 04:51:42] [WAIT] SHA-256 SRV-CONTABIL-ASS | decorrido=00:20:00 | PID=30292 | CPU=322.7s | RAM=75,99 MB
+[2026-08-06 04:52:12] [WAIT] SHA-256 SRV-CONTABIL-ASS | decorrido=00:20:30 | PID=30292 | CPU=330.9s | RAM=75,99 MB
+[2026-08-06 04:52:42] [WAIT] SHA-256 SRV-CONTABIL-ASS | decorrido=00:21:00 | PID=30292 | CPU=338.6s | RAM=75,99 MB
+[2026-08-06 04:53:12] [WAIT] SHA-256 SRV-CONTABIL-ASS | decorrido=00:21:30 | PID=30292 | CPU=346.6s | RAM=75,99 MB
+[2026-08-06 04:53:43] [WAIT] SHA-256 SRV-CONTABIL-ASS | decorrido=00:22:00 | PID=30292 | CPU=354.9s | RAM=75,99 MB
+[2026-08-06 04:54:13] [WAIT] SHA-256 SRV-CONTABIL-ASS | decorrido=00:22:31 | PID=30292 | CPU=363.4s | RAM=75,99 MB
+[2026-08-06 04:54:43] [WAIT] SHA-256 SRV-CONTABIL-ASS | decorrido=00:23:01 | PID=30292 | CPU=371.9s | RAM=75,99 MB
+[2026-08-06 04:55:13] [WAIT] SHA-256 SRV-CONTABIL-ASS | decorrido=00:23:31 | PID=30292 | CPU=380s | RAM=75,99 MB
+[2026-08-06 04:55:43] [WAIT] SHA-256 SRV-CONTABIL-ASS | decorrido=00:24:01 | PID=30292 | CPU=388.2s | RAM=75,99 MB
+[2026-08-06 04:56:13] [WAIT] SHA-256 SRV-CONTABIL-ASS | decorrido=00:24:31 | PID=30292 | CPU=396.5s | RAM=75,99 MB
+[2026-08-06 04:56:43] [WAIT] SHA-256 SRV-CONTABIL-ASS | decorrido=00:25:01 | PID=30292 | CPU=404.8s | RAM=75,99 MB
+[2026-08-06 04:57:13] [WAIT] SHA-256 SRV-CONTABIL-ASS | decorrido=00:25:31 | PID=30292 | CPU=412.9s | RAM=75,99 MB
+[2026-08-06 04:57:43] [WAIT] SHA-256 SRV-CONTABIL-ASS | decorrido=00:26:01 | PID=30292 | CPU=421.2s | RAM=75,99 MB
+[2026-08-06 04:58:14] [WAIT] SHA-256 SRV-CONTABIL-ASS | decorrido=00:26:32 | PID=30292 | CPU=429.4s | RAM=75,99 MB
+[2026-08-06 04:58:42] [WAIT] SHA-256 SRV-CONTABIL-ASS | decorrido=00:27:00 | PID=30292 | CPU=437.7s | RAM=75,99 MB
+[2026-08-06 04:59:12] [WAIT] SHA-256 SRV-CONTABIL-ASS | decorrido=00:27:30 | PID=30292 | CPU=446.1s | RAM=75,99 MB
+[2026-08-06 04:59:42] [WAIT] SHA-256 SRV-CONTABIL-ASS | decorrido=00:28:00 | PID=30292 | CPU=454.3s | RAM=75,99 MB
+[2026-08-06 05:00:12] [WAIT] SHA-256 SRV-CONTABIL-ASS | decorrido=00:28:30 | PID=30292 | CPU=462.6s | RAM=75,99 MB
+[2026-08-06 05:00:42] [WAIT] SHA-256 SRV-CONTABIL-ASS | decorrido=00:29:00 | PID=30292 | CPU=471.3s | RAM=75,99 MB
+[2026-08-06 05:01:12] [WAIT] SHA-256 SRV-CONTABIL-ASS | decorrido=00:29:30 | PID=30292 | CPU=479.5s | RAM=75,99 MB
+[2026-08-06 05:01:42] [WAIT] SHA-256 SRV-CONTABIL-ASS | decorrido=00:30:00 | PID=30292 | CPU=487.6s | RAM=75,99 MB
+[2026-08-06 05:02:12] [WAIT] SHA-256 SRV-CONTABIL-ASS | decorrido=00:30:30 | PID=30292 | CPU=494.9s | RAM=75,99 MB
+[2026-08-06 05:02:43] [WAIT] SHA-256 SRV-CONTABIL-ASS | decorrido=00:31:01 | PID=30292 | CPU=503.2s | RAM=75,99 MB
+[2026-08-06 05:03:13] [WAIT] SHA-256 SRV-CONTABIL-ASS | decorrido=00:31:31 | PID=30292 | CPU=511.4s | RAM=75,99 MB
+[2026-08-06 05:03:43] [WAIT] SHA-256 SRV-CONTABIL-ASS | decorrido=00:32:01 | PID=30292 | CPU=519.6s | RAM=75,99 MB
+[2026-08-06 05:04:13] [WAIT] SHA-256 SRV-CONTABIL-ASS | decorrido=00:32:31 | PID=30292 | CPU=527.8s | RAM=75,99 MB
+[2026-08-06 05:04:43] [WAIT] SHA-256 SRV-CONTABIL-ASS | decorrido=00:33:01 | PID=30292 | CPU=536.1s | RAM=75,99 MB
+[2026-08-06 05:05:13] [WAIT] SHA-256 SRV-CONTABIL-ASS | decorrido=00:33:31 | PID=30292 | CPU=543.9s | RAM=75,99 MB
+[2026-08-06 05:05:43] [WAIT] SHA-256 SRV-CONTABIL-ASS | decorrido=00:34:01 | PID=30292 | CPU=552.6s | RAM=75,99 MB
+[2026-08-06 05:06:13] [WAIT] SHA-256 SRV-CONTABIL-ASS | decorrido=00:34:31 | PID=30292 | CPU=560.2s | RAM=75,99 MB
+[2026-08-06 05:06:43] [WAIT] SHA-256 SRV-CONTABIL-ASS | decorrido=00:35:01 | PID=30292 | CPU=568.7s | RAM=76,02 MB
+[2026-08-06 05:07:02] [INFO] SHA-256 SRV-CONTABIL-ASS finalizado. Duracao=00:35:19 | ExitCode=indisponivel.
+[2026-08-06 05:07:02] [WARNING] [SRV-CONTABIL-ASS] ExitCode do worker SHA-256 indisponivel; sucesso confirmado pelo JSON.
+[2026-08-06 05:07:02] [SUCCESS] [SRV-CONTABIL-ASS] SHA-256=D4D8E8B439FDCCF1CA0802B769BCC0D4EF193E34B6670A8103FE4112143F4848
+[2026-08-06 05:07:02] [SUCCESS] [SRV-CONTABIL-ASS] Exportacao temporaria removida; arquivo final publicado no staging.
+[2026-08-06 05:07:02] [INFO] --------------------------------------------------------------------------
+[2026-08-06 05:07:02] [INFO] [VM 3/3] SRV-DOM-TRS | GUID=7fbb3c55-77e2-4a64-b1f2-63a3af8c3618 | Estado=Running.
+[2026-08-06 05:07:02] [INFO] [SRV-DOM-TRS] Tentativa 1/2: iniciando exportacao consistente.
+[2026-08-06 05:07:02] [INFO] Export-VM SRV-DOM-TRS iniciado. PID=12776 | Timeout=12:00:00.
+[2026-08-06 05:07:32] [WAIT] Export-VM SRV-DOM-TRS | decorrido=00:00:30 | PID=12776 | CPU=0.4s | RAM=100,57 MB
+[2026-08-06 05:07:32] [INFO] Export-VM SRV-DOM-TRS saida: Inicio da exportacao: VM=SRV-DOM-TRS, VMId=7fbb3c55-77e2-4a64-b1f2-63a3af8c3618, Estado=Running, Destino=F:\HyperV-Exports\_STAGING\2026-08-06_00-44-24_BIG_4c0a9541\Working\SRV-DOM-TRS
+[2026-08-06 05:08:02] [WAIT] Export-VM SRV-DOM-TRS | decorrido=00:01:00 | PID=12776 | CPU=0.5s | RAM=101,94 MB
+[2026-08-06 05:08:32] [WAIT] Export-VM SRV-DOM-TRS | decorrido=00:01:30 | PID=12776 | CPU=0.6s | RAM=103,12 MB
+[2026-08-06 05:09:02] [INFO] Export-VM SRV-DOM-TRS finalizado. Duracao=00:02:00 | ExitCode=indisponivel.
+[2026-08-06 05:09:02] [WARNING] [SRV-DOM-TRS] ExitCode do worker indisponivel; sucesso confirmado pelo JSON e pelos arquivos exportados.
+[2026-08-06 05:09:02] [SUCCESS] [SRV-DOM-TRS] Exportacao concluida: 92,04 GB em 00:02:00.
+[2026-08-06 05:09:02] [INFO] [SRV-DOM-TRS] Iniciando compactacao 7-Zip nivel 3.
+[2026-08-06 05:09:02] [INFO] 7-Zip compactar SRV-DOM-TRS iniciado. PID=26320 | Timeout=12:00:00.
+[2026-08-06 05:09:32] [WAIT] 7-Zip compactar SRV-DOM-TRS | decorrido=00:00:30 | PID=26320 | CPU=225.6s | RAM=491,55 MB
+[2026-08-06 05:10:02] [WAIT] 7-Zip compactar SRV-DOM-TRS | decorrido=00:01:00 | PID=26320 | CPU=458.5s | RAM=495,75 MB
+[2026-08-06 05:10:33] [WAIT] 7-Zip compactar SRV-DOM-TRS | decorrido=00:01:30 | PID=26320 | CPU=686.1s | RAM=498,66 MB
+[2026-08-06 05:11:03] [WAIT] 7-Zip compactar SRV-DOM-TRS | decorrido=00:02:00 | PID=26320 | CPU=917.3s | RAM=498,12 MB
+[2026-08-06 05:11:33] [WAIT] 7-Zip compactar SRV-DOM-TRS | decorrido=00:02:30 | PID=26320 | CPU=1155.2s | RAM=497,64 MB
+[2026-08-06 05:12:03] [WAIT] 7-Zip compactar SRV-DOM-TRS | decorrido=00:03:00 | PID=26320 | CPU=1392.9s | RAM=495,83 MB
+[2026-08-06 05:12:33] [WAIT] 7-Zip compactar SRV-DOM-TRS | decorrido=00:03:30 | PID=26320 | CPU=1630.2s | RAM=494,27 MB
+[2026-08-06 05:13:03] [WAIT] 7-Zip compactar SRV-DOM-TRS | decorrido=00:04:00 | PID=26320 | CPU=1867.9s | RAM=492,20 MB
+[2026-08-06 05:13:33] [WAIT] 7-Zip compactar SRV-DOM-TRS | decorrido=00:04:30 | PID=26320 | CPU=2106.1s | RAM=493,83 MB
+[2026-08-06 05:14:03] [WAIT] 7-Zip compactar SRV-DOM-TRS | decorrido=00:05:00 | PID=26320 | CPU=2344s | RAM=494,48 MB
+[2026-08-06 05:14:33] [WAIT] 7-Zip compactar SRV-DOM-TRS | decorrido=00:05:30 | PID=26320 | CPU=2581.6s | RAM=494,60 MB
+[2026-08-06 05:15:03] [WAIT] 7-Zip compactar SRV-DOM-TRS | decorrido=00:06:00 | PID=26320 | CPU=2819.6s | RAM=493,43 MB
+[2026-08-06 05:15:33] [WAIT] 7-Zip compactar SRV-DOM-TRS | decorrido=00:06:30 | PID=26320 | CPU=3057.7s | RAM=495,24 MB
+[2026-08-06 05:16:03] [WAIT] 7-Zip compactar SRV-DOM-TRS | decorrido=00:07:01 | PID=26320 | CPU=3295.3s | RAM=495,23 MB
+[2026-08-06 05:16:33] [WAIT] 7-Zip compactar SRV-DOM-TRS | decorrido=00:07:31 | PID=26320 | CPU=3533.6s | RAM=495,95 MB
+[2026-08-06 05:17:03] [WAIT] 7-Zip compactar SRV-DOM-TRS | decorrido=00:08:01 | PID=26320 | CPU=3771.7s | RAM=495,65 MB
+[2026-08-06 05:17:34] [WAIT] 7-Zip compactar SRV-DOM-TRS | decorrido=00:08:31 | PID=26320 | CPU=4010s | RAM=496,18 MB
+[2026-08-06 05:18:04] [WAIT] 7-Zip compactar SRV-DOM-TRS | decorrido=00:09:01 | PID=26320 | CPU=4248.3s | RAM=495,30 MB
+[2026-08-06 05:18:34] [WAIT] 7-Zip compactar SRV-DOM-TRS | decorrido=00:09:31 | PID=26320 | CPU=4483.1s | RAM=498,17 MB
+[2026-08-06 05:19:04] [WAIT] 7-Zip compactar SRV-DOM-TRS | decorrido=00:10:01 | PID=26320 | CPU=4719.9s | RAM=499,09 MB
+[2026-08-06 05:19:34] [WAIT] 7-Zip compactar SRV-DOM-TRS | decorrido=00:10:31 | PID=26320 | CPU=4955.2s | RAM=499,09 MB
+[2026-08-06 05:20:04] [WAIT] 7-Zip compactar SRV-DOM-TRS | decorrido=00:11:01 | PID=26320 | CPU=5185.5s | RAM=499,13 MB
+[2026-08-06 05:20:34] [WAIT] 7-Zip compactar SRV-DOM-TRS | decorrido=00:11:31 | PID=26320 | CPU=5416.8s | RAM=499,24 MB
+[2026-08-06 05:21:04] [WAIT] 7-Zip compactar SRV-DOM-TRS | decorrido=00:12:01 | PID=26320 | CPU=5646s | RAM=497,51 MB
+[2026-08-06 05:21:34] [WAIT] 7-Zip compactar SRV-DOM-TRS | decorrido=00:12:31 | PID=26320 | CPU=5870.4s | RAM=499,15 MB
+[2026-08-06 05:22:04] [WAIT] 7-Zip compactar SRV-DOM-TRS | decorrido=00:13:01 | PID=26320 | CPU=6087.6s | RAM=499,96 MB
+[2026-08-06 05:22:32] [WAIT] 7-Zip compactar SRV-DOM-TRS | decorrido=00:13:30 | PID=26320 | CPU=6294.8s | RAM=500,02 MB
+[2026-08-06 05:23:02] [WAIT] 7-Zip compactar SRV-DOM-TRS | decorrido=00:14:00 | PID=26320 | CPU=6514.4s | RAM=499,55 MB
+[2026-08-06 05:23:32] [WAIT] 7-Zip compactar SRV-DOM-TRS | decorrido=00:14:30 | PID=26320 | CPU=6745s | RAM=499,83 MB
+[2026-08-06 05:24:03] [WAIT] 7-Zip compactar SRV-DOM-TRS | decorrido=00:15:00 | PID=26320 | CPU=6980s | RAM=499,96 MB
+[2026-08-06 05:24:33] [WAIT] 7-Zip compactar SRV-DOM-TRS | decorrido=00:15:30 | PID=26320 | CPU=7216.2s | RAM=499,96 MB
+[2026-08-06 05:25:03] [WAIT] 7-Zip compactar SRV-DOM-TRS | decorrido=00:16:00 | PID=26320 | CPU=7454.7s | RAM=499,96 MB
+[2026-08-06 05:25:33] [WAIT] 7-Zip compactar SRV-DOM-TRS | decorrido=00:16:30 | PID=26320 | CPU=7692.6s | RAM=499,96 MB
+[2026-08-06 05:26:03] [WAIT] 7-Zip compactar SRV-DOM-TRS | decorrido=00:17:00 | PID=26320 | CPU=7916.6s | RAM=499,96 MB
+[2026-08-06 05:26:33] [WAIT] 7-Zip compactar SRV-DOM-TRS | decorrido=00:17:30 | PID=26320 | CPU=8151.7s | RAM=499,85 MB
+[2026-08-06 05:27:03] [WAIT] 7-Zip compactar SRV-DOM-TRS | decorrido=00:18:00 | PID=26320 | CPU=8383.9s | RAM=499,84 MB
+[2026-08-06 05:27:33] [WAIT] 7-Zip compactar SRV-DOM-TRS | decorrido=00:18:30 | PID=26320 | CPU=8619.1s | RAM=499,95 MB
+[2026-08-06 05:28:03] [WAIT] 7-Zip compactar SRV-DOM-TRS | decorrido=00:19:00 | PID=26320 | CPU=8849.7s | RAM=499,96 MB
+[2026-08-06 05:28:33] [WAIT] 7-Zip compactar SRV-DOM-TRS | decorrido=00:19:31 | PID=26320 | CPU=9080.5s | RAM=499,96 MB
+[2026-08-06 05:29:03] [WAIT] 7-Zip compactar SRV-DOM-TRS | decorrido=00:20:01 | PID=26320 | CPU=9317.5s | RAM=499,96 MB
+[2026-08-06 05:29:34] [WAIT] 7-Zip compactar SRV-DOM-TRS | decorrido=00:20:31 | PID=26320 | CPU=9545.2s | RAM=499,96 MB
+[2026-08-06 05:30:04] [WAIT] 7-Zip compactar SRV-DOM-TRS | decorrido=00:21:01 | PID=26320 | CPU=9778.9s | RAM=499,96 MB
+[2026-08-06 05:30:34] [WAIT] 7-Zip compactar SRV-DOM-TRS | decorrido=00:21:31 | PID=26320 | CPU=10015.8s | RAM=499,96 MB
+[2026-08-06 05:31:04] [WAIT] 7-Zip compactar SRV-DOM-TRS | decorrido=00:22:01 | PID=26320 | CPU=10245.1s | RAM=499,96 MB
+[2026-08-06 05:31:34] [WAIT] 7-Zip compactar SRV-DOM-TRS | decorrido=00:22:31 | PID=26320 | CPU=10473.8s | RAM=499,96 MB
+[2026-08-06 05:32:04] [WAIT] 7-Zip compactar SRV-DOM-TRS | decorrido=00:23:01 | PID=26320 | CPU=10709.9s | RAM=499,96 MB
+[2026-08-06 05:32:34] [WAIT] 7-Zip compactar SRV-DOM-TRS | decorrido=00:23:31 | PID=26320 | CPU=10947.5s | RAM=499,96 MB
+[2026-08-06 05:33:04] [WAIT] 7-Zip compactar SRV-DOM-TRS | decorrido=00:24:01 | PID=26320 | CPU=11184.5s | RAM=499,96 MB
+[2026-08-06 05:33:34] [WAIT] 7-Zip compactar SRV-DOM-TRS | decorrido=00:24:31 | PID=26320 | CPU=11417.4s | RAM=499,96 MB
+[2026-08-06 05:34:04] [WAIT] 7-Zip compactar SRV-DOM-TRS | decorrido=00:25:01 | PID=26320 | CPU=11655.5s | RAM=500,01 MB
+[2026-08-06 05:34:34] [WAIT] 7-Zip compactar SRV-DOM-TRS | decorrido=00:25:31 | PID=26320 | CPU=11894s | RAM=500,01 MB
+[2026-08-06 05:35:02] [WAIT] 7-Zip compactar SRV-DOM-TRS | decorrido=00:26:00 | PID=26320 | CPU=12108.6s | RAM=500,01 MB
+[2026-08-06 05:35:32] [WAIT] 7-Zip compactar SRV-DOM-TRS | decorrido=00:26:30 | PID=26320 | CPU=12338.8s | RAM=500,01 MB
+[2026-08-06 05:36:02] [WAIT] 7-Zip compactar SRV-DOM-TRS | decorrido=00:27:00 | PID=26320 | CPU=12575.3s | RAM=500,01 MB
+[2026-08-06 05:36:33] [WAIT] 7-Zip compactar SRV-DOM-TRS | decorrido=00:27:30 | PID=26320 | CPU=12812.4s | RAM=499,96 MB
+[2026-08-06 05:37:03] [WAIT] 7-Zip compactar SRV-DOM-TRS | decorrido=00:28:00 | PID=26320 | CPU=13044.7s | RAM=499,96 MB
+[2026-08-06 05:37:33] [WAIT] 7-Zip compactar SRV-DOM-TRS | decorrido=00:28:30 | PID=26320 | CPU=13278.9s | RAM=499,96 MB
+[2026-08-06 05:38:03] [WAIT] 7-Zip compactar SRV-DOM-TRS | decorrido=00:29:00 | PID=26320 | CPU=13516.1s | RAM=499,96 MB
+[2026-08-06 05:38:33] [WAIT] 7-Zip compactar SRV-DOM-TRS | decorrido=00:29:30 | PID=26320 | CPU=13754.6s | RAM=499,96 MB
+[2026-08-06 05:39:03] [WAIT] 7-Zip compactar SRV-DOM-TRS | decorrido=00:30:00 | PID=26320 | CPU=13992.6s | RAM=499,96 MB
+[2026-08-06 05:39:33] [WAIT] 7-Zip compactar SRV-DOM-TRS | decorrido=00:30:30 | PID=26320 | CPU=14231.2s | RAM=499,96 MB
+[2026-08-06 05:40:03] [WAIT] 7-Zip compactar SRV-DOM-TRS | decorrido=00:31:00 | PID=26320 | CPU=14469.8s | RAM=483,96 MB
+[2026-08-06 05:40:33] [WAIT] 7-Zip compactar SRV-DOM-TRS | decorrido=00:31:30 | PID=26320 | CPU=14708.4s | RAM=467,96 MB
+[2026-08-06 05:41:03] [WAIT] 7-Zip compactar SRV-DOM-TRS | decorrido=00:32:01 | PID=26320 | CPU=14946.9s | RAM=467,96 MB
+[2026-08-06 05:41:33] [WAIT] 7-Zip compactar SRV-DOM-TRS | decorrido=00:32:31 | PID=26320 | CPU=15185.4s | RAM=482,96 MB
+[2026-08-06 05:42:03] [WAIT] 7-Zip compactar SRV-DOM-TRS | decorrido=00:33:01 | PID=26320 | CPU=15424.2s | RAM=499,96 MB
+[2026-08-06 05:42:34] [WAIT] 7-Zip compactar SRV-DOM-TRS | decorrido=00:33:31 | PID=26320 | CPU=15662.8s | RAM=499,96 MB
+[2026-08-06 05:43:04] [WAIT] 7-Zip compactar SRV-DOM-TRS | decorrido=00:34:01 | PID=26320 | CPU=15890.7s | RAM=499,96 MB
+[2026-08-06 05:43:34] [WAIT] 7-Zip compactar SRV-DOM-TRS | decorrido=00:34:31 | PID=26320 | CPU=16127.6s | RAM=499,96 MB
+[2026-08-06 05:44:04] [WAIT] 7-Zip compactar SRV-DOM-TRS | decorrido=00:35:01 | PID=26320 | CPU=16365.7s | RAM=499,96 MB
+[2026-08-06 05:44:34] [WAIT] 7-Zip compactar SRV-DOM-TRS | decorrido=00:35:31 | PID=26320 | CPU=16604.2s | RAM=499,96 MB
+[2026-08-06 05:45:04] [WAIT] 7-Zip compactar SRV-DOM-TRS | decorrido=00:36:01 | PID=26320 | CPU=16839.3s | RAM=499,96 MB
+[2026-08-06 05:45:34] [WAIT] 7-Zip compactar SRV-DOM-TRS | decorrido=00:36:31 | PID=26320 | CPU=17045.5s | RAM=499,96 MB
+[2026-08-06 05:46:04] [WAIT] 7-Zip compactar SRV-DOM-TRS | decorrido=00:37:01 | PID=26320 | CPU=17283.5s | RAM=499,96 MB
+[2026-08-06 05:46:34] [WAIT] 7-Zip compactar SRV-DOM-TRS | decorrido=00:37:31 | PID=26320 | CPU=17516.1s | RAM=499,77 MB
+[2026-08-06 05:47:04] [WAIT] 7-Zip compactar SRV-DOM-TRS | decorrido=00:38:01 | PID=26320 | CPU=17753.9s | RAM=499,77 MB
+[2026-08-06 05:47:32] [WAIT] 7-Zip compactar SRV-DOM-TRS | decorrido=00:38:30 | PID=26320 | CPU=17976.3s | RAM=499,96 MB
+[2026-08-06 05:48:02] [WAIT] 7-Zip compactar SRV-DOM-TRS | decorrido=00:39:00 | PID=26320 | CPU=18214.5s | RAM=499,96 MB
+[2026-08-06 05:48:33] [WAIT] 7-Zip compactar SRV-DOM-TRS | decorrido=00:39:30 | PID=26320 | CPU=18451.2s | RAM=499,64 MB
+[2026-08-06 05:49:03] [WAIT] 7-Zip compactar SRV-DOM-TRS | decorrido=00:40:00 | PID=26320 | CPU=18686s | RAM=499,64 MB
+[2026-08-06 05:49:33] [WAIT] 7-Zip compactar SRV-DOM-TRS | decorrido=00:40:30 | PID=26320 | CPU=18920.6s | RAM=499,96 MB
+[2026-08-06 05:50:03] [WAIT] 7-Zip compactar SRV-DOM-TRS | decorrido=00:41:00 | PID=26320 | CPU=19147.9s | RAM=499,96 MB
+[2026-08-06 05:50:33] [WAIT] 7-Zip compactar SRV-DOM-TRS | decorrido=00:41:30 | PID=26320 | CPU=19375.2s | RAM=499,96 MB
+[2026-08-06 05:51:03] [WAIT] 7-Zip compactar SRV-DOM-TRS | decorrido=00:42:00 | PID=26320 | CPU=19613.7s | RAM=499,96 MB
+[2026-08-06 05:51:33] [WAIT] 7-Zip compactar SRV-DOM-TRS | decorrido=00:42:30 | PID=26320 | CPU=19850s | RAM=499,96 MB
+[2026-08-06 05:52:03] [WAIT] 7-Zip compactar SRV-DOM-TRS | decorrido=00:43:00 | PID=26320 | CPU=20088.4s | RAM=499,96 MB
+[2026-08-06 05:52:33] [WAIT] 7-Zip compactar SRV-DOM-TRS | decorrido=00:43:30 | PID=26320 | CPU=20326.5s | RAM=499,96 MB
+[2026-08-06 05:53:03] [WAIT] 7-Zip compactar SRV-DOM-TRS | decorrido=00:44:00 | PID=26320 | CPU=20564.4s | RAM=499,96 MB
+[2026-08-06 05:53:33] [WAIT] 7-Zip compactar SRV-DOM-TRS | decorrido=00:44:31 | PID=26320 | CPU=20752.8s | RAM=499,96 MB
+[2026-08-06 05:54:03] [WAIT] 7-Zip compactar SRV-DOM-TRS | decorrido=00:45:01 | PID=26320 | CPU=20989.7s | RAM=499,96 MB
+[2026-08-06 05:54:33] [WAIT] 7-Zip compactar SRV-DOM-TRS | decorrido=00:45:31 | PID=26320 | CPU=21179.7s | RAM=499,96 MB
+[2026-08-06 05:55:04] [WAIT] 7-Zip compactar SRV-DOM-TRS | decorrido=00:46:01 | PID=26320 | CPU=21350.8s | RAM=499,96 MB
+[2026-08-06 05:55:34] [WAIT] 7-Zip compactar SRV-DOM-TRS | decorrido=00:46:31 | PID=26320 | CPU=21531.5s | RAM=499,96 MB
+[2026-08-06 05:56:04] [WAIT] 7-Zip compactar SRV-DOM-TRS | decorrido=00:47:01 | PID=26320 | CPU=21767.4s | RAM=499,87 MB
+[2026-08-06 05:56:34] [WAIT] 7-Zip compactar SRV-DOM-TRS | decorrido=00:47:31 | PID=26320 | CPU=22005.1s | RAM=499,96 MB
+[2026-08-06 05:57:04] [WAIT] 7-Zip compactar SRV-DOM-TRS | decorrido=00:48:01 | PID=26320 | CPU=22232s | RAM=499,96 MB
+[2026-08-06 05:57:34] [WAIT] 7-Zip compactar SRV-DOM-TRS | decorrido=00:48:31 | PID=26320 | CPU=22387.7s | RAM=499,96 MB
+[2026-08-06 05:57:50] [INFO] 7-Zip compactar SRV-DOM-TRS finalizado. Duracao=00:48:47 | ExitCode=indisponivel.
+[2026-08-06 05:57:50] [WARNING] [SRV-DOM-TRS] ExitCode do 7-Zip indisponivel; conclusao confirmada pela saida 'Everything is Ok'.
+[2026-08-06 05:57:50] [SUCCESS] [SRV-DOM-TRS] Compactacao concluida: 65,03 GB em 00:48:47.
+[2026-08-06 05:57:50] [INFO] [SRV-DOM-TRS] Testando integralmente o arquivo 7z.
+[2026-08-06 05:57:50] [INFO] 7-Zip testar SRV-DOM-TRS iniciado. PID=11544 | Timeout=08:00:00.
+[2026-08-06 05:58:20] [WAIT] 7-Zip testar SRV-DOM-TRS | decorrido=00:00:30 | PID=11544 | CPU=281.8s | RAM=1,01 GB
+[2026-08-06 05:58:20] [INFO] 7-Zip testar SRV-DOM-TRS saida: 1 file, 69822479825 bytes (66 GiB) |  | Testing archive: F:\HyperV-Exports\_STAGING\2026-08-06_00-44-24_BIG_4c0a9541\Archives\SRV-DOM-TRS.partial.7z
+[2026-08-06 05:58:50] [WAIT] 7-Zip testar SRV-DOM-TRS | decorrido=00:01:00 | PID=11544 | CPU=476s | RAM=1,02 GB
+[2026-08-06 05:59:20] [WAIT] 7-Zip testar SRV-DOM-TRS | decorrido=00:01:30 | PID=11544 | CPU=566.7s | RAM=1,02 GB
+[2026-08-06 05:59:50] [WAIT] 7-Zip testar SRV-DOM-TRS | decorrido=00:02:00 | PID=11544 | CPU=700.3s | RAM=1,02 GB
+[2026-08-06 05:59:52] [INFO] 7-Zip testar SRV-DOM-TRS finalizado. Duracao=00:02:02 | ExitCode=indisponivel.
+[2026-08-06 05:59:52] [WARNING] [SRV-DOM-TRS] ExitCode do teste 7-Zip indisponivel; integridade confirmada pela saida 'Everything is Ok'.
+[2026-08-06 05:59:52] [SUCCESS] [SRV-DOM-TRS] Arquivo aprovado no teste integral do 7-Zip em 00:02:02.
+[2026-08-06 05:59:52] [INFO] [SRV-DOM-TRS] Validando estrutura e tamanho descompactado do arquivo 7z.
+[2026-08-06 05:59:52] [INFO] 7-Zip listar SRV-DOM-TRS iniciado. PID=28648 | Timeout=08:00:00.
+[2026-08-06 05:59:54] [INFO] 7-Zip listar SRV-DOM-TRS finalizado. Duracao=00:00:02 | ExitCode=indisponivel.
+[2026-08-06 05:59:54] [WARNING] [SRV-DOM-TRS] ExitCode da listagem 7-Zip indisponivel; formato confirmado pela saida tecnica.
+[2026-08-06 05:59:54] [SUCCESS] [SRV-DOM-TRS] Estrutura aprovada: arquivos=4 | pastas=4 | discos=1 | VMCX=1 | listado=92,04 GB, igual ao exportado.
+[2026-08-06 05:59:54] [INFO] [SRV-DOM-TRS] Calculando SHA-256.
+[2026-08-06 05:59:54] [INFO] SHA-256 SRV-DOM-TRS iniciado. PID=2372 | Timeout=08:00:00.
+[2026-08-06 06:00:24] [WAIT] SHA-256 SRV-DOM-TRS | decorrido=00:00:30 | PID=2372 | CPU=8.2s | RAM=76,16 MB
+[2026-08-06 06:00:55] [WAIT] SHA-256 SRV-DOM-TRS | decorrido=00:01:00 | PID=2372 | CPU=16.6s | RAM=76,04 MB
+[2026-08-06 06:01:25] [WAIT] SHA-256 SRV-DOM-TRS | decorrido=00:01:30 | PID=2372 | CPU=24s | RAM=76,05 MB
+[2026-08-06 06:01:55] [WAIT] SHA-256 SRV-DOM-TRS | decorrido=00:02:00 | PID=2372 | CPU=32s | RAM=76,05 MB
+[2026-08-06 06:02:25] [WAIT] SHA-256 SRV-DOM-TRS | decorrido=00:02:30 | PID=2372 | CPU=40.3s | RAM=76,09 MB
+[2026-08-06 06:02:55] [WAIT] SHA-256 SRV-DOM-TRS | decorrido=00:03:00 | PID=2372 | CPU=48.6s | RAM=76,10 MB
+[2026-08-06 06:03:25] [WAIT] SHA-256 SRV-DOM-TRS | decorrido=00:03:30 | PID=2372 | CPU=56.5s | RAM=76,10 MB
+[2026-08-06 06:03:55] [WAIT] SHA-256 SRV-DOM-TRS | decorrido=00:04:00 | PID=2372 | CPU=64.3s | RAM=76,10 MB
+[2026-08-06 06:04:25] [WAIT] SHA-256 SRV-DOM-TRS | decorrido=00:04:30 | PID=2372 | CPU=72.4s | RAM=76,09 MB
+[2026-08-06 06:04:55] [WAIT] SHA-256 SRV-DOM-TRS | decorrido=00:05:00 | PID=2372 | CPU=80.2s | RAM=76,23 MB
+[2026-08-06 06:05:25] [WAIT] SHA-256 SRV-DOM-TRS | decorrido=00:05:31 | PID=2372 | CPU=88.3s | RAM=75,93 MB
+[2026-08-06 06:05:56] [WAIT] SHA-256 SRV-DOM-TRS | decorrido=00:06:01 | PID=2372 | CPU=96s | RAM=76,00 MB
+[2026-08-06 06:06:26] [WAIT] SHA-256 SRV-DOM-TRS | decorrido=00:06:31 | PID=2372 | CPU=104.2s | RAM=76,00 MB
+[2026-08-06 06:06:56] [WAIT] SHA-256 SRV-DOM-TRS | decorrido=00:07:01 | PID=2372 | CPU=111.8s | RAM=76,00 MB
+[2026-08-06 06:07:26] [WAIT] SHA-256 SRV-DOM-TRS | decorrido=00:07:31 | PID=2372 | CPU=119.8s | RAM=76,00 MB
+[2026-08-06 06:07:56] [WAIT] SHA-256 SRV-DOM-TRS | decorrido=00:08:01 | PID=2372 | CPU=127.8s | RAM=75,95 MB
+[2026-08-06 06:08:26] [WAIT] SHA-256 SRV-DOM-TRS | decorrido=00:08:31 | PID=2372 | CPU=135.1s | RAM=75,95 MB
+[2026-08-06 06:08:56] [WAIT] SHA-256 SRV-DOM-TRS | decorrido=00:09:01 | PID=2372 | CPU=143.8s | RAM=75,95 MB
+[2026-08-06 06:09:26] [WAIT] SHA-256 SRV-DOM-TRS | decorrido=00:09:31 | PID=2372 | CPU=151.8s | RAM=75,95 MB
+[2026-08-06 06:09:56] [WAIT] SHA-256 SRV-DOM-TRS | decorrido=00:10:01 | PID=2372 | CPU=160.4s | RAM=76,00 MB
+[2026-08-06 06:10:26] [WAIT] SHA-256 SRV-DOM-TRS | decorrido=00:10:31 | PID=2372 | CPU=168.9s | RAM=76,00 MB
+[2026-08-06 06:10:54] [WAIT] SHA-256 SRV-DOM-TRS | decorrido=00:11:00 | PID=2372 | CPU=176.8s | RAM=76,00 MB
+[2026-08-06 06:11:25] [WAIT] SHA-256 SRV-DOM-TRS | decorrido=00:11:30 | PID=2372 | CPU=185.3s | RAM=75,99 MB
+[2026-08-06 06:11:55] [WAIT] SHA-256 SRV-DOM-TRS | decorrido=00:12:00 | PID=2372 | CPU=192.7s | RAM=75,99 MB
+[2026-08-06 06:12:25] [WAIT] SHA-256 SRV-DOM-TRS | decorrido=00:12:30 | PID=2372 | CPU=201.6s | RAM=75,97 MB
+[2026-08-06 06:12:55] [WAIT] SHA-256 SRV-DOM-TRS | decorrido=00:13:00 | PID=2372 | CPU=209.4s | RAM=75,99 MB
+[2026-08-06 06:13:25] [WAIT] SHA-256 SRV-DOM-TRS | decorrido=00:13:30 | PID=2372 | CPU=217.1s | RAM=75,99 MB
+[2026-08-06 06:13:55] [WAIT] SHA-256 SRV-DOM-TRS | decorrido=00:14:00 | PID=2372 | CPU=225.4s | RAM=75,99 MB
+[2026-08-06 06:14:25] [WAIT] SHA-256 SRV-DOM-TRS | decorrido=00:14:30 | PID=2372 | CPU=233.6s | RAM=75,99 MB
+[2026-08-06 06:14:55] [WAIT] SHA-256 SRV-DOM-TRS | decorrido=00:15:00 | PID=2372 | CPU=241.9s | RAM=75,97 MB
+[2026-08-06 06:15:25] [WAIT] SHA-256 SRV-DOM-TRS | decorrido=00:15:31 | PID=2372 | CPU=250.6s | RAM=75,97 MB
+[2026-08-06 06:15:56] [WAIT] SHA-256 SRV-DOM-TRS | decorrido=00:16:01 | PID=2372 | CPU=259.6s | RAM=75,97 MB
+[2026-08-06 06:16:26] [WAIT] SHA-256 SRV-DOM-TRS | decorrido=00:16:31 | PID=2372 | CPU=268.1s | RAM=75,97 MB
+[2026-08-06 06:16:56] [WAIT] SHA-256 SRV-DOM-TRS | decorrido=00:17:01 | PID=2372 | CPU=276.1s | RAM=75,97 MB
+[2026-08-06 06:17:26] [WAIT] SHA-256 SRV-DOM-TRS | decorrido=00:17:31 | PID=2372 | CPU=284.2s | RAM=75,97 MB
+[2026-08-06 06:17:56] [WAIT] SHA-256 SRV-DOM-TRS | decorrido=00:18:01 | PID=2372 | CPU=292.8s | RAM=75,97 MB
+[2026-08-06 06:18:26] [WAIT] SHA-256 SRV-DOM-TRS | decorrido=00:18:31 | PID=2372 | CPU=300.6s | RAM=75,97 MB
+[2026-08-06 06:18:56] [WAIT] SHA-256 SRV-DOM-TRS | decorrido=00:19:01 | PID=2372 | CPU=308.7s | RAM=75,97 MB
+[2026-08-06 06:19:26] [WAIT] SHA-256 SRV-DOM-TRS | decorrido=00:19:31 | PID=2372 | CPU=316.1s | RAM=75,97 MB
+[2026-08-06 06:19:56] [WAIT] SHA-256 SRV-DOM-TRS | decorrido=00:20:01 | PID=2372 | CPU=324.1s | RAM=75,97 MB
+[2026-08-06 06:20:24] [WAIT] SHA-256 SRV-DOM-TRS | decorrido=00:20:30 | PID=2372 | CPU=331.7s | RAM=75,95 MB
+[2026-08-06 06:20:55] [WAIT] SHA-256 SRV-DOM-TRS | decorrido=00:21:00 | PID=2372 | CPU=339.6s | RAM=75,95 MB
+[2026-08-06 06:21:25] [WAIT] SHA-256 SRV-DOM-TRS | decorrido=00:21:30 | PID=2372 | CPU=347.5s | RAM=75,95 MB
+[2026-08-06 06:21:55] [WAIT] SHA-256 SRV-DOM-TRS | decorrido=00:22:00 | PID=2372 | CPU=355.9s | RAM=76,00 MB
+[2026-08-06 06:22:25] [WAIT] SHA-256 SRV-DOM-TRS | decorrido=00:22:30 | PID=2372 | CPU=363.9s | RAM=76,00 MB
+[2026-08-06 06:22:55] [WAIT] SHA-256 SRV-DOM-TRS | decorrido=00:23:00 | PID=2372 | CPU=372s | RAM=76,00 MB
+[2026-08-06 06:23:25] [WAIT] SHA-256 SRV-DOM-TRS | decorrido=00:23:30 | PID=2372 | CPU=380.3s | RAM=75,97 MB
+[2026-08-06 06:23:55] [WAIT] SHA-256 SRV-DOM-TRS | decorrido=00:24:00 | PID=2372 | CPU=388.8s | RAM=75,97 MB
+[2026-08-06 06:24:25] [WAIT] SHA-256 SRV-DOM-TRS | decorrido=00:24:31 | PID=2372 | CPU=396.8s | RAM=75,97 MB
+[2026-08-06 06:24:55] [WAIT] SHA-256 SRV-DOM-TRS | decorrido=00:25:01 | PID=2372 | CPU=405.2s | RAM=75,97 MB
+[2026-08-06 06:25:26] [WAIT] SHA-256 SRV-DOM-TRS | decorrido=00:25:31 | PID=2372 | CPU=412.9s | RAM=75,97 MB
+[2026-08-06 06:25:56] [WAIT] SHA-256 SRV-DOM-TRS | decorrido=00:26:01 | PID=2372 | CPU=421.2s | RAM=75,97 MB
+[2026-08-06 06:26:26] [WAIT] SHA-256 SRV-DOM-TRS | decorrido=00:26:31 | PID=2372 | CPU=429.6s | RAM=75,97 MB
+[2026-08-06 06:26:56] [WAIT] SHA-256 SRV-DOM-TRS | decorrido=00:27:01 | PID=2372 | CPU=437.6s | RAM=75,97 MB
+[2026-08-06 06:27:26] [WAIT] SHA-256 SRV-DOM-TRS | decorrido=00:27:31 | PID=2372 | CPU=445.9s | RAM=75,97 MB
+[2026-08-06 06:27:56] [WAIT] SHA-256 SRV-DOM-TRS | decorrido=00:28:01 | PID=2372 | CPU=454.1s | RAM=75,97 MB
+[2026-08-06 06:28:26] [WAIT] SHA-256 SRV-DOM-TRS | decorrido=00:28:31 | PID=2372 | CPU=461.8s | RAM=75,97 MB
+[2026-08-06 06:28:56] [WAIT] SHA-256 SRV-DOM-TRS | decorrido=00:29:01 | PID=2372 | CPU=469.9s | RAM=75,97 MB
+[2026-08-06 06:29:24] [WAIT] SHA-256 SRV-DOM-TRS | decorrido=00:29:30 | PID=2372 | CPU=477.7s | RAM=75,97 MB
+[2026-08-06 06:29:55] [WAIT] SHA-256 SRV-DOM-TRS | decorrido=00:30:00 | PID=2372 | CPU=486.3s | RAM=75,97 MB
+[2026-08-06 06:30:25] [WAIT] SHA-256 SRV-DOM-TRS | decorrido=00:30:30 | PID=2372 | CPU=494.9s | RAM=75,97 MB
+[2026-08-06 06:30:33] [INFO] SHA-256 SRV-DOM-TRS finalizado. Duracao=00:30:38 | ExitCode=indisponivel.
+[2026-08-06 06:30:33] [WARNING] [SRV-DOM-TRS] ExitCode do worker SHA-256 indisponivel; sucesso confirmado pelo JSON.
+[2026-08-06 06:30:33] [SUCCESS] [SRV-DOM-TRS] SHA-256=3D615C860C389899DB5D8C7B66ECF83F209627CBA330F160E24DC1F811C81F25
+[2026-08-06 06:30:33] [SUCCESS] [SRV-DOM-TRS] Exportacao temporaria removida; arquivo final publicado no staging.
+[2026-08-06 06:30:33] [INFO] ==========================================================================
+[2026-08-06 06:30:33] [INFO] [ETAPA 04/09] Avaliar o conjunto completo
+[2026-08-06 06:30:33] [INFO] ==========================================================================
+[2026-08-06 06:30:33] [INFO] ==========================================================================
+[2026-08-06 06:30:33] [INFO] [ETAPA 05/09] Publicar ponto de restauracao atomico
+[2026-08-06 06:30:33] [INFO] ==========================================================================
+[2026-08-06 06:30:33] [SUCCESS] Ponto de restauracao publicado: F:\HyperV-Exports\2026-08-06_00-44-24_BIG_4c0a9541
+[2026-08-06 06:30:33] [INFO] ==========================================================================
+[2026-08-06 06:30:33] [INFO] [ETAPA 06/09] Aplicar retencao somente apos sucesso
+[2026-08-06 06:30:33] [INFO] ==========================================================================
+[2026-08-06 06:30:33] [INFO] Aplicando retencao do lote 'SMALL': manter 3 ponto(s) completo(s) de 1 encontrado(s).
+[2026-08-06 06:30:33] [INFO] Aplicando retencao do lote 'MEDIUM': manter 3 ponto(s) completo(s) de 1 encontrado(s).
+[2026-08-06 06:30:33] [INFO] Aplicando retencao do lote 'BIG': manter 3 ponto(s) completo(s) de 1 encontrado(s).
+[2026-08-06 06:30:33] [SUCCESS] Retencao concluida. Pontos completos encontrados=3, removidos=0.
+[2026-08-06 06:30:33] [INFO] ==========================================================================
+[2026-08-06 06:30:33] [INFO] [ETAPA 07/09] Confirmar arquivos publicados
+[2026-08-06 06:30:33] [INFO] ==========================================================================
+[2026-08-06 06:30:33] [SUCCESS] Confirmacao final: 3 arquivos 7z presentes.
+[2026-08-06 06:30:33] [INFO] ==========================================================================
+[2026-08-06 06:30:33] [INFO] [ETAPA 08/09] Finalizar execucao
+[2026-08-06 06:30:33] [INFO] ==========================================================================
+[2026-08-06 06:30:33] [INFO] ==========================================================================
+[2026-08-06 06:30:33] [INFO] [ETAPA 09/09] Gerar relatorios e enviar e-mail
+[2026-08-06 06:30:33] [INFO] ==========================================================================
+[2026-08-06 06:30:33] [INFO] Resultado JSON: C:\Scripts\WindowsServerBackup\Reports\VMExportBackup-2026-08-06_00-44-24.json
+[2026-08-06 06:30:33] [INFO] Relatorio HTML: C:\Scripts\WindowsServerBackup\Reports\VMExportBackup-2026-08-06_00-44-24.html
+[2026-08-06 06:30:33] [INFO] E-mail nao enviado (Status=SUCCESS, SkipEmail=False).
+[2026-08-06 06:30:33] [INFO] Lock removido: C:\Scripts\WindowsServerBackup\Locks\VMExportBackup.lock.json.
+[2026-08-06 06:30:33] [INFO] Fim da rotina. Status=SUCCESS | ExitCode=0 | Duracao=05:46:08.
+[2026-08-06 06:30:33] [INFO] ==========================================================================

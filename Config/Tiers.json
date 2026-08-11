@@ -1,0 +1,30 @@
+{
+    "SchemaVersion": 1,
+    "Tiers": [
+        {
+            "Name": "SMALL",
+            "MinSizeGB": 0,
+            "MaxSizeGB": 25,
+            "KeepRestorePoints": 3,
+            "ScheduleTime": "00:30",
+            "ExecutionTimeLimitHours": 2
+        },
+        {
+            "Name": "MEDIUM",
+            "MinSizeGB": 25,
+            "MaxSizeGB": 75,
+            "KeepRestorePoints": 3,
+            "ScheduleTime": "06:00",
+            "ExecutionTimeLimitHours": 5
+        },
+        {
+            "Name": "BIG",
+            "MinSizeGB": 75,
+            "MaxSizeGB": null,
+            "KeepRestorePoints": 3,
+            "ScheduleTime": "12:00",
+            "ExecutionTimeLimitHours": 12
+        }
+    ],
+    "DefaultTier": "SMALL"
+}

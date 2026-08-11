@@ -12,6 +12,8 @@ param(
 
     [string[]]$VMName,
 
+    [string]$BatchName,
+
     [ValidateRange(1, 30)]
     [int]$KeepRestorePoints = 3,
 
@@ -50,6 +52,9 @@ param(
 
     [string[]]$MailTo = @('suporte@assessoriatech.com'),
 
+    # A partir da v1.1.0 o e-mail so dispara em FAILED/PARTIAL_FAILED (SUCCESS/PLAN
+    # ficam silenciosos por padrao). -SkipEmail passou a significar "forcar silencio
+    # mesmo em falha", util para testes manuais onde uma falha e esperada.
     [switch]$SkipEmail,
 
     [switch]$SkipHash,
@@ -61,7 +66,7 @@ Set-StrictMode -Version 2.0
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
 
-$ScriptVersion = '1.0.5'
+$ScriptVersion = '1.1.0'
 $RunId = [guid]::NewGuid().ToString('N')
 $RunStart = Get-Date
 $Mode = if ($Execute) { 'EXECUTE' } else { 'PLAN' }
@@ -74,17 +79,26 @@ $LockDir = Join-Path $ScriptRoot 'Locks'
 $ConfigDir = Join-Path $ScriptRoot 'Config'
 $WorkerPath = Join-Path $ScriptRoot 'Export-VMWorker.ps1'
 $HashWorkerPath = Join-Path $ScriptRoot 'Get-FileHashWorker.ps1'
+$TierHelpersPath = Join-Path $ScriptRoot 'TierHelpers.ps1'
+$SettingsConfigPath = Join-Path $ConfigDir 'Settings.json'
+$TiersConfigPath = Join-Path $ConfigDir 'Tiers.json'
 $Timestamp = $RunStart.ToString('yyyy-MM-dd_HH-mm-ss')
 $LogPath = Join-Path $LogDir "VMExportBackup-$Timestamp.log"
 $JsonPath = Join-Path $ReportDir "VMExportBackup-$Timestamp.json"
 $HtmlPath = Join-Path $ReportDir "VMExportBackup-$Timestamp.html"
 $LockPath = Join-Path $LockDir 'VMExportBackup.lock.json'
-$RepositoryRoot = Join-Path ($BackupDrive + '\') $RepositoryFolder
-$StagingRoot = Join-Path $RepositoryRoot '_STAGING'
-$FailedRoot = Join-Path $RepositoryRoot '_FAILED'
-$RestorePointName = "$Timestamp-$($RunId.Substring(0, 8))"
-$StagingPoint = Join-Path $StagingRoot $RestorePointName
-$FinalPoint = Join-Path $RepositoryRoot $RestorePointName
+# RepositoryRoot/StagingRoot/FailedRoot/RestorePointName/StagingPoint/FinalPoint sao
+# calculados mais adiante, depois do merge de Config\Settings.json e da resolucao do
+# lote (BatchName), pois RestorePointName agora incorpora o nome do lote. Inicializados
+# como $null aqui (em vez de deixar indefinidos) porque Set-StrictMode -Version 2.0
+# barraria a leitura dessas variaveis no bloco finally caso o script falhe antes de
+# resolve-las (ex.: TierHelpers.ps1 ausente, Tiers.json invalido, lock ja ativo).
+$RepositoryRoot = $null
+$StagingRoot = $null
+$FailedRoot = $null
+$RestorePointName = $null
+$StagingPoint = $null
+$FinalPoint = $null
 $CurrentStage = 'Inicializacao'
 $ExitCode = 1
 $LockAcquired = $false
@@ -99,6 +113,8 @@ $InitialFreeGB = $null
 $FinalFreeGB = $null
 $RepositoryPublished = $false
 $OverallStatus = 'FAILED'
+$TierDefinitions = $null
+$EffectiveBatchName = $null
 
 foreach ($dir in @($LogDir, $ReportDir, $LockDir, $ConfigDir)) {
     if (-not (Test-Path -LiteralPath $dir)) {
@@ -473,32 +489,35 @@ function Get-SelectedVMs {
     $all = @(Get-VM -ErrorAction Stop | Sort-Object Name)
     if ($all.Count -eq 0) { throw 'Nenhuma VM encontrada no host.' }
 
-    if ($null -eq $VMName -or $VMName.Count -eq 0) {
+    # Tamanho e lote sao calculados para TODA VM do host, independente do modo de
+    # selecao, para que o inventario (HostInventory.json/VMResults) sempre reflita a
+    # classificacao natural de cada VM, mesmo quando -VMName escolhe um subconjunto.
+    foreach ($vm in $all) {
+        $sizeBytes = Get-VMSourceSize -Name $vm.Name
+        $tierName = if ($null -ne $TierDefinitions) { Resolve-VMTier -SizeBytes $sizeBytes -TierDefinitions $TierDefinitions } else { $null }
+        Add-Member -InputObject $vm -NotePropertyName 'SourceBytes' -NotePropertyValue $sizeBytes -Force
+        Add-Member -InputObject $vm -NotePropertyName 'Tier' -NotePropertyValue $tierName -Force
+    }
+
+    if ($null -ne $VMName -and $VMName.Count -gt 0) {
+        $selected = New-Object System.Collections.Generic.List[object]
+        foreach ($name in $VMName) {
+            $vm = $all | Where-Object { $_.Name -ieq $name } | Select-Object -First 1
+            if ($null -eq $vm) { throw "VM solicitada nao encontrada: $name" }
+            $selected.Add($vm)
+        }
+        return @($selected | Sort-Object Name)
+    }
+
+    if ($EffectiveBatchName -eq 'ALL') {
         return $all
     }
 
-    $selected = New-Object System.Collections.Generic.List[object]
-    foreach ($name in $VMName) {
-        $vm = $all | Where-Object { $_.Name -ieq $name } | Select-Object -First 1
-        if ($null -eq $vm) { throw "VM solicitada nao encontrada: $name" }
-        $selected.Add($vm)
+    $matched = @($all | Where-Object { $_.Tier -eq $EffectiveBatchName })
+    if ($matched.Count -eq 0) {
+        throw "Nenhuma VM do host se enquadra no lote '$EffectiveBatchName' com os limiares atuais de $TiersConfigPath."
     }
-    return @($selected | Sort-Object Name)
-}
-
-function Get-VMSourceSize {
-    param([string]$Name)
-
-    $paths = @(Get-VMHardDiskDrive -VMName $Name -ErrorAction SilentlyContinue |
-        Where-Object { -not [string]::IsNullOrWhiteSpace($_.Path) } |
-        Select-Object -ExpandProperty Path -Unique)
-
-    $total = 0L
-    foreach ($path in $paths) {
-        $item = Get-Item -LiteralPath $path -ErrorAction SilentlyContinue
-        if ($null -ne $item) { $total += [long]$item.Length }
-    }
-    return $total
+    return @($matched | Sort-Object Name)
 }
 
 function Write-HostInventory {
@@ -524,6 +543,8 @@ function Write-HostInventory {
             Name = $vm.Name
             VMId = [string]$vm.VMId
             State = [string]$vm.State
+            Tier = $vm.Tier
+            SourceBytes = $vm.SourceBytes
             Generation = $vm.Generation
             Version = [string]$vm.Version
             ConfigurationLocation = $vm.ConfigurationLocation
@@ -597,6 +618,7 @@ function Write-RestorePointMarker {
     $marker = [ordered]@{
         RunId = $RunId
         Status = $Status
+        TierName = $EffectiveBatchName
         ComputerName = $ComputerName
         CreatedAt = $RunStart.ToString('o')
         FinishedAt = (Get-Date).ToString('o')
@@ -611,13 +633,25 @@ function Write-RestorePointMarker {
     $marker | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $Path -Encoding UTF8
 }
 
-function Invoke-Retention {
-    Write-Log "Aplicando retencao: manter $KeepRestorePoints pontos completos."
+function Get-EffectiveKeepRestorePoints {
+    # A retencao propria de um tier (definida em Tiers.json) sempre tem prioridade,
+    # mesmo quando o tier resolvido nao e o do run atual. Nomes que nao correspondem a
+    # nenhum tier configurado (LEGACY, ADHOC, ou um tier ja removido do config) usam o
+    # KeepRestorePoints global resolvido para esta execucao (CLI > Settings.json > default).
+    param([Parameter(Mandatory = $true)][string]$TierNameToResolve)
 
-    $complete = New-Object System.Collections.Generic.List[object]
+    if ($null -ne $TierDefinitions) {
+        $match = $TierDefinitions.Tiers | Where-Object { $_.Name -eq $TierNameToResolve } | Select-Object -First 1
+        if ($null -ne $match) { return [int]$match.KeepRestorePoints }
+    }
+    return $KeepRestorePoints
+}
+
+function Invoke-Retention {
     $directories = @(Get-ChildItem -LiteralPath $RepositoryRoot -Directory -ErrorAction SilentlyContinue |
         Where-Object { $_.Name -notin @('_STAGING', '_FAILED') })
 
+    $complete = New-Object System.Collections.Generic.List[object]
     foreach ($directory in $directories) {
         $markerPath = Join-Path $directory.FullName 'COMPLETE.marker.json'
         if (-not (Test-Path -LiteralPath $markerPath)) { continue }
@@ -625,9 +659,17 @@ function Invoke-Retention {
         try {
             $marker = Get-Content -LiteralPath $markerPath -Raw | ConvertFrom-Json
             if ($marker.Status -eq 'COMPLETE') {
+                # Pontos publicados por versoes anteriores do script nao tem TierName;
+                # caem num grupo LEGACY proprio em vez de serem contados junto de um
+                # tier real (o que poderia apagar pontos de um lote por engano).
+                $tierName = 'LEGACY'
+                if ($marker.PSObject.Properties.Name -contains 'TierName' -and -not [string]::IsNullOrWhiteSpace([string]$marker.TierName)) {
+                    $tierName = [string]$marker.TierName
+                }
                 $complete.Add([pscustomobject]@{
                     Directory = $directory
                     CreatedAt = [datetime]$marker.CreatedAt
+                    TierName = $tierName
                 })
             }
         }
@@ -636,16 +678,31 @@ function Invoke-Retention {
         }
     }
 
-    $ordered = @($complete | Sort-Object CreatedAt -Descending)
-    $toDelete = @($ordered | Select-Object -Skip $KeepRestorePoints)
-
-    foreach ($item in $toDelete) {
-        Write-Log "Retencao: removendo ponto antigo completo: $($item.Directory.FullName)." 'WARNING'
-        Remove-Item -LiteralPath $item.Directory.FullName -Recurse -Force -ErrorAction Stop
-        $DeletedRestorePoints.Add($item.Directory.FullName)
+    $groups = @($complete | Group-Object TierName)
+    if ($groups.Count -eq 0) {
+        Write-Log 'Retencao: nenhum ponto completo encontrado para avaliar.' 'SUCCESS'
+        return
     }
 
-    Write-Log "Retencao concluida. Pontos completos encontrados=$($ordered.Count), removidos=$($toDelete.Count)." 'SUCCESS'
+    $totalFound = 0
+    $totalDeleted = 0
+    foreach ($group in $groups) {
+        $keep = Get-EffectiveKeepRestorePoints -TierNameToResolve $group.Name
+        Write-Log "Aplicando retencao do lote '$($group.Name)': manter $keep ponto(s) completo(s) de $($group.Count) encontrado(s)."
+        $totalFound += $group.Count
+
+        $ordered = @($group.Group | Sort-Object CreatedAt -Descending)
+        $toDelete = @($ordered | Select-Object -Skip $keep)
+
+        foreach ($item in $toDelete) {
+            Write-Log "Retencao [$($group.Name)]: removendo ponto antigo completo: $($item.Directory.FullName)." 'WARNING'
+            Remove-Item -LiteralPath $item.Directory.FullName -Recurse -Force -ErrorAction Stop
+            $DeletedRestorePoints.Add($item.Directory.FullName)
+            $totalDeleted++
+        }
+    }
+
+    Write-Log "Retencao concluida. Pontos completos encontrados=$totalFound, removidos=$totalDeleted." 'SUCCESS'
 }
 
 function Remove-ExpiredFailedPoints {
@@ -662,6 +719,57 @@ function Remove-ExpiredFailedPoints {
         }
         catch {
             $Warnings.Add("Nao foi possivel remover tentativa falha: $($item.FullName): $($_.Exception.Message)")
+        }
+    }
+}
+
+function Remove-OrphanedStagingDirectories {
+    if (-not (Test-Path -LiteralPath $StagingRoot)) { return }
+
+    # Acquire-Lock ja garante uma unica execucao ativa por vez: qualquer diretorio
+    # pre-existente aqui, no momento desta checagem, nao pertence a nenhum processo vivo.
+    # So pode ter sobrado de uma execucao anterior morta abruptamente (kill do Task
+    # Scheduler por estouro de ExecutionTimeLimit, queda de energia, Stop-Process manual).
+    $orphans = @(Get-ChildItem -LiteralPath $StagingRoot -Directory -ErrorAction SilentlyContinue)
+    if ($orphans.Count -eq 0) { return }
+
+    if (-not (Test-Path -LiteralPath $FailedRoot)) {
+        New-Item -ItemType Directory -Path $FailedRoot -Force | Out-Null
+    }
+
+    foreach ($orphan in $orphans) {
+        $runningMarkerPath = Join-Path $orphan.FullName 'RUNNING.marker.json'
+        $context = 'sem RUNNING.marker.json (a execucao anterior pode ter morrido antes de grava-lo).'
+        if (Test-Path -LiteralPath $runningMarkerPath) {
+            try {
+                $running = Get-Content -LiteralPath $runningMarkerPath -Raw | ConvertFrom-Json
+                $context = "RunId=$($running.RunId), Lote=$($running.TierName), PID=$($running.Pid), inicio=$($running.StartTime)."
+            }
+            catch {
+                $context = "RUNNING.marker.json ilegivel: $($_.Exception.Message)"
+            }
+        }
+
+        $destination = Join-Path $FailedRoot $orphan.Name
+        Write-Log "Staging orfao encontrado: $($orphan.FullName) | $context" 'WARNING'
+        $Warnings.Add("Staging orfao movido para _FAILED: $($orphan.Name) ($context)")
+
+        try {
+            if (Test-Path -LiteralPath $destination) {
+                Remove-Item -LiteralPath $destination -Recurse -Force -ErrorAction Stop
+            }
+            [ordered]@{
+                Status = 'ORPHANED'
+                DetectedAt = (Get-Date).ToString('o')
+                DetectedByRunId = $RunId
+                Detail = $context
+            } | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $orphan.FullName 'ORPHANED.marker.json') -Encoding UTF8
+
+            Move-Item -LiteralPath $orphan.FullName -Destination $destination -Force
+            Write-Log "Staging orfao movido para: $destination" 'WARNING'
+        }
+        catch {
+            $Warnings.Add("Falha ao mover staging orfao '$($orphan.FullName)' para _FAILED: $($_.Exception.Message)")
         }
     }
 }
@@ -698,16 +806,49 @@ function New-HtmlReport {
         '<h2>Avisos</h2><ul>' + (($Warnings | ForEach-Object { '<li>' + (ConvertTo-HtmlText $_) + '</li>' }) -join '') + '</ul>'
     } else { '' }
 
-    $errorHtml = if (-not [string]::IsNullOrWhiteSpace($GlobalError)) {
-        '<h2>Erro geral</h2><pre>' + (ConvertTo-HtmlText $GlobalError) + '</pre>'
-    } else { '' }
+    # Bloco de falha montado a parte e inserido logo apos o badge de status, antes do
+    # Resumo - agora que o e-mail so dispara em FAILED/PARTIAL_FAILED, quem abre o
+    # ticket precisa ver o motivo sem rolar a pagina inteira primeiro.
+    $failedVMs = @($VMResults | Where-Object { -not $_.Success })
+    $failureSummaryHtml = ''
+    if (-not [string]::IsNullOrWhiteSpace($GlobalError) -or $failedVMs.Count -gt 0) {
+        $failureRows = New-Object System.Text.StringBuilder
+        foreach ($item in $failedVMs) {
+            [void]$failureRows.AppendLine('<tr>')
+            [void]$failureRows.AppendLine("<td>$(ConvertTo-HtmlText $item.Name)</td>")
+            [void]$failureRows.AppendLine("<td>$(ConvertTo-HtmlText $item.Attempts)</td>")
+            [void]$failureRows.AppendLine("<td>$(ConvertTo-HtmlText $item.Error)</td>")
+            [void]$failureRows.AppendLine('</tr>')
+        }
+
+        $globalErrorHtml = if (-not [string]::IsNullOrWhiteSpace($GlobalError)) {
+            '<pre>' + (ConvertTo-HtmlText $GlobalError) + '</pre>'
+        } else { '' }
+
+        $failedTableHtml = if ($failedVMs.Count -gt 0) {
+            @"
+<table>
+<tr><th>VM</th><th>Tentativas</th><th>Erro</th></tr>
+$($failureRows.ToString())
+</table>
+"@
+        } else { '' }
+
+        $failureSummaryHtml = @"
+<div class="failureBox">
+<h2>Motivo da falha</h2>
+$globalErrorHtml
+$failedTableHtml
+</div>
+"@
+    }
 
     return @"
 <!doctype html>
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
-<title>Backup Hyper-V por exportacao - $ComputerName</title>
+<title>Backup Hyper-V por exportacao - $ComputerName - Lote $(ConvertTo-HtmlText $Summary.BatchName)</title>
 <style>
 body { font-family: Segoe UI, Arial, sans-serif; margin: 24px; color: #222; }
 h1, h2 { margin-bottom: 8px; }
@@ -717,6 +858,7 @@ h1, h2 { margin-bottom: 8px; }
 .fail { background: #ffe3e3; color: #9a1111; }
 .okText { color: #116b18; font-weight: 700; }
 .failText { color: #9a1111; font-weight: 700; }
+.failureBox { background: #fff5f5; border: 1px solid #f0b4b4; border-radius: 6px; padding: 4px 16px 12px; margin: 12px 0 24px; }
 table { border-collapse: collapse; width: 100%; margin: 12px 0 24px; }
 th, td { border: 1px solid #ccc; text-align: left; padding: 7px; vertical-align: top; }
 th { background: #f2f2f2; }
@@ -726,10 +868,12 @@ pre { white-space: pre-wrap; background: #f7f7f7; padding: 12px; border: 1px sol
 </head>
 <body>
 <h1>Backup Hyper-V por exportacao e 7-Zip</h1>
-<p><span class="badge $statusClass">$(ConvertTo-HtmlText $Summary.Status)</span></p>
+<p><span class="badge $statusClass">$(ConvertTo-HtmlText $Summary.Status)</span> Lote: <strong>$(ConvertTo-HtmlText $Summary.BatchName)</strong></p>
+$failureSummaryHtml
 <h2>Resumo</h2>
 <table>
 <tr><th>Servidor</th><td>$(ConvertTo-HtmlText $ComputerName)</td></tr>
+<tr><th>Lote</th><td>$(ConvertTo-HtmlText $Summary.BatchName)</td></tr>
 <tr><th>RunId</th><td>$(ConvertTo-HtmlText $RunId)</td></tr>
 <tr><th>Modo</th><td>$(ConvertTo-HtmlText $Mode)</td></tr>
 <tr><th>Inicio</th><td>$(ConvertTo-HtmlText $Summary.StartTime)</td></tr>
@@ -751,7 +895,6 @@ pre { white-space: pre-wrap; background: #f7f7f7; padding: 12px; border: 1px sol
 $($rows.ToString())
 </table>
 $warningHtml
-$errorHtml
 <p class="small">Log: $(ConvertTo-HtmlText $LogPath)</p>
 <p class="small">JSON: $(ConvertTo-HtmlText $JsonPath)</p>
 </body>
@@ -766,7 +909,7 @@ function Send-ReportEmail {
     )
 
     if ($SkipEmail) {
-        Write-Log 'Envio de e-mail desativado por -SkipEmail.'
+        Write-Log 'Envio de e-mail suprimido por -SkipEmail (mesmo em falha).'
         return
     }
 
@@ -815,15 +958,96 @@ function Send-ReportEmail {
     }
 }
 
+# Nomes de parametro elegiveis para receber valor default de Config\Settings.json
+# quando nao informados explicitamente na linha de comando. Switches de escopo/seguranca
+# (-Execute, -VMName, -BatchName, -SkipEmail) ficam de fora de proposito: um JSON nao deve
+# poder ligar execucao real, mudar quais VMs sao processadas ou resuprimir e-mail de falha.
+$ConfigurableSettingNames = @(
+    'BackupDrive', 'ExpectedVolumeLabel', 'RepositoryFolder', 'CompressionLevel',
+    'HeartbeatSeconds', 'ExportTimeoutHours', 'CompressionTimeoutHours', 'IntegrityTimeoutHours',
+    'MinFreeGB', 'RetryCount', 'FailedRetentionDays', 'SevenZipPath',
+    'SmtpServer', 'SmtpPort', 'MailFrom', 'MailTo', 'SkipHash', 'KeepRestorePoints'
+)
+
+function Merge-ConfiguredDefaults {
+    param(
+        [Parameter(Mandatory = $true)]
+        [System.Collections.IDictionary]$BoundParameters,
+
+        [AllowNull()]
+        [object]$ConfigObject,
+
+        [Parameter(Mandatory = $true)]
+        [string[]]$Names
+    )
+
+    if ($null -eq $ConfigObject) { return }
+
+    foreach ($name in $Names) {
+        if ($BoundParameters.ContainsKey($name)) { continue }
+        if ($ConfigObject.PSObject.Properties.Name -notcontains $name) { continue }
+
+        Set-Variable -Name $name -Scope Script -Value $ConfigObject.$name
+        Write-Log "Config: $name definido por Settings.json = $($ConfigObject.$name)."
+    }
+}
+
 Write-Log ('=' * 74)
 Write-Log "Inicio do Invoke-VMExportBackup.ps1 v$ScriptVersion."
 Write-Log "RunId: $RunId"
 Write-Log "Modo: $Mode"
-Write-Log "Repositorio: $RepositoryRoot"
 Write-Log ('=' * 74)
 
 try {
     Acquire-Lock
+
+    if (-not (Test-Path -LiteralPath $TierHelpersPath -PathType Leaf)) {
+        throw "Modulo de lotes nao encontrado: $TierHelpersPath"
+    }
+    . $TierHelpersPath
+
+    $SettingsConfig = Import-JsonConfigFile -Path $SettingsConfigPath -WarningList $Warnings
+    Merge-ConfiguredDefaults -BoundParameters $PSBoundParameters -ConfigObject $SettingsConfig -Names $ConfigurableSettingNames
+
+    try {
+        $TierDefinitions = Get-TierDefinitions -Path $TiersConfigPath
+    }
+    catch {
+        throw "Falha ao carregar $TiersConfigPath : $($_.Exception.Message)"
+    }
+
+    $explicitBatchName = $PSBoundParameters.ContainsKey('BatchName')
+    $explicitVMName = $PSBoundParameters.ContainsKey('VMName') -and $VMName.Count -gt 0
+
+    if ($explicitBatchName) {
+        $validBatchNames = @('ALL')
+        if ($null -ne $TierDefinitions) {
+            $validBatchNames += @($TierDefinitions.Tiers | Select-Object -ExpandProperty Name)
+        }
+        if ($validBatchNames -notcontains $BatchName) {
+            throw "BatchName '$BatchName' invalido. Valores aceitos: $($validBatchNames -join ', ')."
+        }
+        $EffectiveBatchName = $BatchName
+    }
+    elseif ($explicitVMName) {
+        $EffectiveBatchName = 'ADHOC'
+    }
+    elseif ($null -eq $TierDefinitions) {
+        $EffectiveBatchName = 'ALL'
+    }
+    else {
+        throw "$TiersConfigPath esta presente. Informe -BatchName <nome> ou -VMName <lista> explicitamente antes de rodar o backup."
+    }
+
+    $RepositoryRoot = Join-Path ($BackupDrive + '\') $RepositoryFolder
+    $StagingRoot = Join-Path $RepositoryRoot '_STAGING'
+    $FailedRoot = Join-Path $RepositoryRoot '_FAILED'
+    $RestorePointName = "{0}_{1}_{2}" -f $Timestamp, (Get-SafeName $EffectiveBatchName), $RunId.Substring(0, 8)
+    $StagingPoint = Join-Path $StagingRoot $RestorePointName
+    $FinalPoint = Join-Path $RepositoryRoot $RestorePointName
+
+    Write-Log "Lote: $EffectiveBatchName"
+    Write-Log "Repositorio: $RepositoryRoot"
 
     Write-Stage -Number 1 -Total 9 -Title 'Validar host, destino e ferramentas'
 
@@ -860,8 +1084,7 @@ try {
     Write-Log "VMs selecionadas: $($SelectedVMs.Count)."
 
     foreach ($vm in $SelectedVMs) {
-        $sourceBytes = Get-VMSourceSize -Name $vm.Name
-        Write-Log "VM=$($vm.Name) | GUID=$($vm.VMId) | Estado=$($vm.State) | VHDX atuais=$(Format-Bytes $sourceBytes)."
+        Write-Log "VM=$($vm.Name) | GUID=$($vm.VMId) | Estado=$($vm.State) | Lote=$($vm.Tier) | VHDX atuais=$(Format-Bytes $vm.SourceBytes)."
     }
 
     if (-not $Execute) {
@@ -877,6 +1100,7 @@ try {
         }
 
         Remove-ExpiredFailedPoints
+        Remove-OrphanedStagingDirectories
 
         if (Test-Path -LiteralPath $StagingPoint) {
             throw "Diretorio de staging ja existe: $StagingPoint"
@@ -888,6 +1112,13 @@ try {
         foreach ($dir in @($StagingPoint, $workingRoot, $archivesRoot, $metadataRoot)) {
             New-Item -ItemType Directory -Path $dir -Force | Out-Null
         }
+
+        [ordered]@{
+            Pid = $PID
+            RunId = $RunId
+            TierName = $EffectiveBatchName
+            StartTime = $RunStart.ToString('o')
+        } | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $StagingPoint 'RUNNING.marker.json') -Encoding UTF8
 
         Write-HostInventory -Path (Join-Path $metadataRoot 'HostInventory.json')
         Copy-Item -LiteralPath $LogPath -Destination (Join-Path $metadataRoot 'Initial.log') -Force -ErrorAction SilentlyContinue
@@ -1234,6 +1465,11 @@ try {
 
         Write-Stage -Number 5 -Total 9 -Title 'Publicar ponto de restauracao atomico'
 
+        $runningMarkerPath = Join-Path $StagingPoint 'RUNNING.marker.json'
+        if (Test-Path -LiteralPath $runningMarkerPath) {
+            Remove-Item -LiteralPath $runningMarkerPath -Force -ErrorAction SilentlyContinue
+        }
+
         Write-RestorePointMarker -Path (Join-Path $StagingPoint 'COMPLETE.marker.json') -Status 'COMPLETE'
         if (Test-Path -LiteralPath $FinalPoint) {
             throw "Destino final ja existe: $FinalPoint"
@@ -1264,7 +1500,7 @@ catch {
         Write-Log ("Pilha: " + ($_.ScriptStackTrace -replace "`r?`n", ' | ')) 'ERROR'
     }
 
-    if ($OverallStatus -eq 'FAILED' -and $Execute -and (Test-Path -LiteralPath $StagingPoint)) {
+    if ($OverallStatus -eq 'FAILED' -and $Execute -and -not [string]::IsNullOrWhiteSpace($StagingPoint) -and (Test-Path -LiteralPath $StagingPoint)) {
         try {
             if (-not (Test-Path -LiteralPath $FailedRoot)) {
                 New-Item -ItemType Directory -Path $FailedRoot -Force | Out-Null
@@ -1304,6 +1540,7 @@ finally {
         RunId = $RunId
         ScriptVersion = $ScriptVersion
         ComputerName = $ComputerName
+        BatchName = $EffectiveBatchName
         Status = $OverallStatus
         Mode = $Mode
         StartTime = $RunStart.ToString('yyyy-MM-dd HH:mm:ss')
@@ -1343,8 +1580,16 @@ finally {
             'PLAN' { '[PLANO]' }
             default { '[FALHA]' }
         }
-        $subject = "$subjectPrefix Backup Hyper-V por exportacao - $ComputerName - $successCount/$($SelectedVMs.Count) VMs"
-        Send-ReportEmail -Subject $subject -HtmlBody $html
+        $batchLabel = if ([string]::IsNullOrWhiteSpace($EffectiveBatchName)) { 'DESCONHECIDO' } else { $EffectiveBatchName }
+        $subject = "$subjectPrefix [Lote $batchLabel] Backup Hyper-V por exportacao - $ComputerName - $successCount/$($SelectedVMs.Count) VMs"
+
+        $shouldEmail = ($OverallStatus -in @('FAILED', 'PARTIAL_FAILED')) -and -not $SkipEmail
+        if ($shouldEmail) {
+            Send-ReportEmail -Subject $subject -HtmlBody $html
+        }
+        else {
+            Write-Log "E-mail nao enviado (Status=$OverallStatus, SkipEmail=$SkipEmail)."
+        }
     }
     catch {
         Write-Log "Falha ao gerar ou enviar relatorio: $($_.Exception.Message)" 'ERROR'

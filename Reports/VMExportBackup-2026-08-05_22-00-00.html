@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
-<title>Backup Hyper-V por exportacao - SRV-HOST01</title>
+<title>Backup Hyper-V por exportacao - SRV-HOST01 - Lote SMALL</title>
 <style>
 body { font-family: Segoe UI, Arial, sans-serif; margin: 24px; color: #222; }
 h1, h2 { margin-bottom: 8px; }
@@ -12,6 +12,7 @@ h1, h2 { margin-bottom: 8px; }
 .fail { background: #ffe3e3; color: #9a1111; }
 .okText { color: #116b18; font-weight: 700; }
 .failText { color: #9a1111; font-weight: 700; }
+.failureBox { background: #fff5f5; border: 1px solid #f0b4b4; border-radius: 6px; padding: 4px 16px 12px; margin: 12px 0 24px; }
 table { border-collapse: collapse; width: 100%; margin: 12px 0 24px; }
 th, td { border: 1px solid #ccc; text-align: left; padding: 7px; vertical-align: top; }
 th { background: #f2f2f2; }
@@ -21,23 +22,25 @@ pre { white-space: pre-wrap; background: #f7f7f7; padding: 12px; border: 1px sol
 </head>
 <body>
 <h1>Backup Hyper-V por exportacao e 7-Zip</h1>
-<p><span class="badge ok">SUCCESS</span></p>
+<p><span class="badge ok">SUCCESS</span> Lote: <strong>SMALL</strong></p>
+
 <h2>Resumo</h2>
 <table>
 <tr><th>Servidor</th><td>SRV-HOST01</td></tr>
-<tr><th>RunId</th><td>091a4a2ab970484f9da61e4c4ea20322</td></tr>
+<tr><th>Lote</th><td>SMALL</td></tr>
+<tr><th>RunId</th><td>ca628dec9f7c4fedab6186e9b9df3b10</td></tr>
 <tr><th>Modo</th><td>EXECUTE</td></tr>
-<tr><th>Inicio</th><td>2026-08-05 15:02:24</td></tr>
-<tr><th>Fim</th><td>2026-08-05 15:32:53</td></tr>
-<tr><th>Duracao</th><td>00:30:28</td></tr>
+<tr><th>Inicio</th><td>2026-08-05 22:00:00</td></tr>
+<tr><th>Fim</th><td>2026-08-05 22:31:34</td></tr>
+<tr><th>Duracao</th><td>00:31:33</td></tr>
 <tr><th>Destino</th><td>F:\HyperV-Exports</td></tr>
-<tr><th>Ponto publicado</th><td>F:\HyperV-Exports\2026-08-05_15-02-24-091a4a2a</td></tr>
+<tr><th>Ponto publicado</th><td>F:\HyperV-Exports\2026-08-05_22-00-00_SMALL_ca628dec</td></tr>
 <tr><th>VMs</th><td>9</td></tr>
 <tr><th>Sucessos</th><td>9</td></tr>
 <tr><th>Falhas</th><td>0</td></tr>
-<tr><th>Livre antes</th><td>1418.54 GB</td></tr>
-<tr><th>Livre depois</th><td>1380.69 GB</td></tr>
-<tr><th>Retencao</th><td>9 pontos completos</td></tr>
+<tr><th>Livre antes</th><td>1380.69 GB</td></tr>
+<tr><th>Livre depois</th><td>1348.5 GB</td></tr>
+<tr><th>Retencao</th><td>3 pontos completos</td></tr>
 <tr><th>Pontos removidos</th><td>0</td></tr>
 </table>
 <h2>Resultado por VM</h2>
@@ -49,12 +52,12 @@ pre { white-space: pre-wrap; background: #f7f7f7; padding: 12px; border: 1px sol
 <td><span class="okText">SUCESSO</span></td>
 <td>1</td>
 <td>00:00:16</td>
-<td>00:03:38</td>
-<td>00:00:06</td>
+<td>00:03:40</td>
+<td>00:00:10</td>
 <td>4 arquivo(s) | 1 disco(s) | 1 VMCX | 13,04 GB</td>
 <td>13,04 GB</td>
-<td>4,34 GB</td>
-<td>66,7%</td>
+<td>4,37 GB</td>
+<td>66,5%</td>
 <td class='small'></td>
 </tr>
 <tr>
@@ -63,12 +66,12 @@ pre { white-space: pre-wrap; background: #f7f7f7; padding: 12px; border: 1px sol
 <td><span class="okText">SUCESSO</span></td>
 <td>1</td>
 <td>00:00:18</td>
-<td>00:04:26</td>
-<td>00:00:10</td>
-<td>4 arquivo(s) | 1 disco(s) | 1 VMCX | 16,20 GB</td>
-<td>16,20 GB</td>
-<td>5,72 GB</td>
-<td>64,7%</td>
+<td>00:04:42</td>
+<td>00:00:14</td>
+<td>4 arquivo(s) | 1 disco(s) | 1 VMCX | 16,35 GB</td>
+<td>16,35 GB</td>
+<td>5,76 GB</td>
+<td>64,8%</td>
 <td class='small'></td>
 </tr>
 <tr>
@@ -77,11 +80,11 @@ pre { white-space: pre-wrap; background: #f7f7f7; padding: 12px; border: 1px sol
 <td><span class="okText">SUCESSO</span></td>
 <td>1</td>
 <td>00:00:14</td>
-<td>00:02:24</td>
-<td>00:00:06</td>
+<td>00:02:30</td>
+<td>00:00:08</td>
 <td>4 arquivo(s) | 1 disco(s) | 1 VMCX | 12,63 GB</td>
 <td>12,63 GB</td>
-<td>2,99 GB</td>
+<td>2,98 GB</td>
 <td>76,4%</td>
 <td class='small'></td>
 </tr>
@@ -91,11 +94,11 @@ pre { white-space: pre-wrap; background: #f7f7f7; padding: 12px; border: 1px sol
 <td><span class="okText">SUCESSO</span></td>
 <td>1</td>
 <td>00:00:18</td>
-<td>00:04:02</td>
-<td>00:00:08</td>
+<td>00:04:20</td>
+<td>00:00:12</td>
 <td>4 arquivo(s) | 1 disco(s) | 1 VMCX | 17,10 GB</td>
 <td>17,10 GB</td>
-<td>5,54 GB</td>
+<td>5,53 GB</td>
 <td>67,6%</td>
 <td class='small'></td>
 </tr>
@@ -105,12 +108,12 @@ pre { white-space: pre-wrap; background: #f7f7f7; padding: 12px; border: 1px sol
 <td><span class="okText">SUCESSO</span></td>
 <td>1</td>
 <td>00:00:22</td>
-<td>00:03:38</td>
-<td>00:00:08</td>
+<td>00:03:36</td>
+<td>00:00:10</td>
 <td>4 arquivo(s) | 1 disco(s) | 1 VMCX | 19,79 GB</td>
 <td>19,79 GB</td>
-<td>3,89 GB</td>
-<td>80,3%</td>
+<td>3,87 GB</td>
+<td>80,5%</td>
 <td class='small'></td>
 </tr>
 <tr>
@@ -120,11 +123,11 @@ pre { white-space: pre-wrap; background: #f7f7f7; padding: 12px; border: 1px sol
 <td>1</td>
 <td>00:00:14</td>
 <td>00:02:44</td>
-<td>00:00:06</td>
-<td>4 arquivo(s) | 1 disco(s) | 1 VMCX | 11,35 GB</td>
-<td>11,35 GB</td>
+<td>00:00:08</td>
+<td>4 arquivo(s) | 1 disco(s) | 1 VMCX | 11,38 GB</td>
+<td>11,38 GB</td>
 <td>3,29 GB</td>
-<td>71,0%</td>
+<td>71,1%</td>
 <td class='small'></td>
 </tr>
 <tr>
@@ -137,7 +140,7 @@ pre { white-space: pre-wrap; background: #f7f7f7; padding: 12px; border: 1px sol
 <td>00:00:02</td>
 <td>4 arquivo(s) | 1 disco(s) | 1 VMCX | 8,08 MB</td>
 <td>8,08 MB</td>
-<td>48,22 KB</td>
+<td>48,21 KB</td>
 <td>99,4%</td>
 <td class='small'></td>
 </tr>
@@ -148,10 +151,10 @@ pre { white-space: pre-wrap; background: #f7f7f7; padding: 12px; border: 1px sol
 <td>1</td>
 <td>00:00:12</td>
 <td>00:02:36</td>
-<td>00:00:06</td>
+<td>00:00:08</td>
 <td>4 arquivo(s) | 1 disco(s) | 1 VMCX | 10,23 GB</td>
 <td>10,23 GB</td>
-<td>3,25 GB</td>
+<td>3,24 GB</td>
 <td>68,3%</td>
 <td class='small'></td>
 </tr>
@@ -160,9 +163,9 @@ pre { white-space: pre-wrap; background: #f7f7f7; padding: 12px; border: 1px sol
 <td>54632406-d1e5-4325-8ff8-113da09a1873</td>
 <td><span class="okText">SUCESSO</span></td>
 <td>1</td>
-<td>00:00:12</td>
-<td>00:02:26</td>
-<td>00:00:06</td>
+<td>00:00:14</td>
+<td>00:02:28</td>
+<td>00:00:08</td>
 <td>4 arquivo(s) | 1 disco(s) | 1 VMCX | 10,35 GB</td>
 <td>10,35 GB</td>
 <td>3,15 GB</td>
@@ -172,8 +175,7 @@ pre { white-space: pre-wrap; background: #f7f7f7; padding: 12px; border: 1px sol
 
 </table>
 
-
-<p class="small">Log: C:\Scripts\WindowsServerBackup\Logs\VMExportBackup-2026-08-05_15-02-24.log</p>
-<p class="small">JSON: C:\Scripts\WindowsServerBackup\Reports\VMExportBackup-2026-08-05_15-02-24.json</p>
+<p class="small">Log: C:\Scripts\WindowsServerBackup\Logs\VMExportBackup-2026-08-05_22-00-00.log</p>
+<p class="small">JSON: C:\Scripts\WindowsServerBackup\Reports\VMExportBackup-2026-08-05_22-00-00.json</p>
 </body>
 </html>

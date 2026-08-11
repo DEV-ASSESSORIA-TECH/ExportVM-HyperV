@@ -1,0 +1,375 @@
+﻿[2026-08-05 22:00:00] [INFO] ==========================================================================
+[2026-08-05 22:00:00] [INFO] Inicio do Invoke-VMExportBackup.ps1 v1.1.0.
+[2026-08-05 22:00:00] [INFO] RunId: ca628dec9f7c4fedab6186e9b9df3b10
+[2026-08-05 22:00:00] [INFO] Modo: EXECUTE
+[2026-08-05 22:00:00] [INFO] ==========================================================================
+[2026-08-05 22:00:00] [INFO] Lock criado: C:\Scripts\WindowsServerBackup\Locks\VMExportBackup.lock.json | PID=19936.
+[2026-08-05 22:00:00] [INFO] Config: BackupDrive definido por Settings.json = F:.
+[2026-08-05 22:00:00] [INFO] Config: ExpectedVolumeLabel definido por Settings.json = BACKUP-HYPERV.
+[2026-08-05 22:00:00] [INFO] Config: RepositoryFolder definido por Settings.json = HyperV-Exports.
+[2026-08-05 22:00:00] [INFO] Config: CompressionLevel definido por Settings.json = 3.
+[2026-08-05 22:00:00] [INFO] Config: HeartbeatSeconds definido por Settings.json = 30.
+[2026-08-05 22:00:00] [INFO] Config: ExportTimeoutHours definido por Settings.json = 12.
+[2026-08-05 22:00:00] [INFO] Config: CompressionTimeoutHours definido por Settings.json = 12.
+[2026-08-05 22:00:00] [INFO] Config: IntegrityTimeoutHours definido por Settings.json = 8.
+[2026-08-05 22:00:00] [INFO] Config: MinFreeGB definido por Settings.json = 200.
+[2026-08-05 22:00:00] [INFO] Config: RetryCount definido por Settings.json = 1.
+[2026-08-05 22:00:00] [INFO] Config: FailedRetentionDays definido por Settings.json = 7.
+[2026-08-05 22:00:00] [INFO] Config: SevenZipPath definido por Settings.json = C:\Program Files\7-Zip\7z.exe.
+[2026-08-05 22:00:00] [INFO] Config: SmtpServer definido por Settings.json = 192.168.4.10.
+[2026-08-05 22:00:00] [INFO] Config: SmtpPort definido por Settings.json = 25.
+[2026-08-05 22:00:00] [INFO] Config: MailFrom definido por Settings.json = alertas@assessoriatech.com.
+[2026-08-05 22:00:00] [INFO] Config: MailTo definido por Settings.json = suporte@assessoriatech.com.
+[2026-08-05 22:00:00] [INFO] Config: SkipHash definido por Settings.json = False.
+[2026-08-05 22:00:00] [INFO] Config: KeepRestorePoints definido por Settings.json = 3.
+[2026-08-05 22:00:00] [INFO] Lote: SMALL
+[2026-08-05 22:00:00] [INFO] Repositorio: F:\HyperV-Exports
+[2026-08-05 22:00:00] [INFO] ==========================================================================
+[2026-08-05 22:00:00] [INFO] [ETAPA 01/09] Validar host, destino e ferramentas
+[2026-08-05 22:00:00] [INFO] ==========================================================================
+[2026-08-05 22:00:02] [INFO] Destino: F: | Rotulo=BACKUP-HYPERV | Sistema=NTFS | Saude=Healthy | Livre=1380.69GB.
+[2026-08-05 22:00:02] [INFO] ==========================================================================
+[2026-08-05 22:00:02] [INFO] [ETAPA 02/09] Selecionar VMs e registrar inventario
+[2026-08-05 22:00:02] [INFO] ==========================================================================
+[2026-08-05 22:00:05] [INFO] VMs selecionadas: 9.
+[2026-08-05 22:00:05] [INFO] VM=SRV-ADM | GUID=8ffb3aaa-da0c-4604-90fc-5f128b75e798 | Estado=Running | Lote=SMALL | VHDX atuais=13,04 GB.
+[2026-08-05 22:00:05] [INFO] VM=SRV-APPS | GUID=dd13f743-6c54-4a3c-8b8c-7ba96473bba8 | Estado=Running | Lote=SMALL | VHDX atuais=16,35 GB.
+[2026-08-05 22:00:05] [INFO] VM=SRV-DOCS | GUID=df7d278f-363b-4c27-b86e-2b64b0b00745 | Estado=Running | Lote=SMALL | VHDX atuais=12,63 GB.
+[2026-08-05 22:00:05] [INFO] VM=SRV-N8N | GUID=072c2075-0453-41da-9724-8f0ea07c3081 | Estado=Running | Lote=SMALL | VHDX atuais=17,10 GB.
+[2026-08-05 22:00:05] [INFO] VM=SRV-RMM | GUID=4f4418af-975f-4500-885f-e6b036a2f2a7 | Estado=Running | Lote=SMALL | VHDX atuais=19,79 GB.
+[2026-08-05 22:00:05] [INFO] VM=SRV-SNIPE | GUID=5b8eaecd-2350-44b5-b7ff-431f8fcb8290 | Estado=Running | Lote=SMALL | VHDX atuais=11,38 GB.
+[2026-08-05 22:00:05] [INFO] VM=SRV-VoIP | GUID=36082740-05fc-4071-946d-dd8f23d9d759 | Estado=Off | Lote=SMALL | VHDX atuais=4,00 MB.
+[2026-08-05 22:00:05] [INFO] VM=SRV-VPN | GUID=02f80c76-9066-407b-82f2-019730600a73 | Estado=Running | Lote=SMALL | VHDX atuais=10,22 GB.
+[2026-08-05 22:00:05] [INFO] VM=SRV-WEB | GUID=54632406-d1e5-4325-8ff8-113da09a1873 | Estado=Running | Lote=SMALL | VHDX atuais=10,35 GB.
+[2026-08-05 22:00:08] [INFO] ==========================================================================
+[2026-08-05 22:00:08] [INFO] [ETAPA 03/09] Exportar, compactar e validar cada VM
+[2026-08-05 22:00:08] [INFO] ==========================================================================
+[2026-08-05 22:00:08] [INFO] --------------------------------------------------------------------------
+[2026-08-05 22:00:08] [INFO] [VM 1/9] SRV-ADM | GUID=8ffb3aaa-da0c-4604-90fc-5f128b75e798 | Estado=Running.
+[2026-08-05 22:00:08] [INFO] [SRV-ADM] Tentativa 1/2: iniciando exportacao consistente.
+[2026-08-05 22:00:09] [INFO] Export-VM SRV-ADM iniciado. PID=24744 | Timeout=12:00:00.
+[2026-08-05 22:00:25] [INFO] Export-VM SRV-ADM finalizado. Duracao=00:00:16 | ExitCode=indisponivel.
+[2026-08-05 22:00:25] [WARNING] [SRV-ADM] ExitCode do worker indisponivel; sucesso confirmado pelo JSON e pelos arquivos exportados.
+[2026-08-05 22:00:25] [SUCCESS] [SRV-ADM] Exportacao concluida: 13,04 GB em 00:00:16.
+[2026-08-05 22:00:25] [INFO] [SRV-ADM] Iniciando compactacao 7-Zip nivel 3.
+[2026-08-05 22:00:25] [INFO] 7-Zip compactar SRV-ADM iniciado. PID=18292 | Timeout=12:00:00.
+[2026-08-05 22:00:55] [WAIT] 7-Zip compactar SRV-ADM | decorrido=00:00:30 | PID=18292 | CPU=200.7s | RAM=490,07 MB
+[2026-08-05 22:01:25] [WAIT] 7-Zip compactar SRV-ADM | decorrido=00:01:00 | PID=18292 | CPU=421.2s | RAM=506,45 MB
+[2026-08-05 22:01:55] [WAIT] 7-Zip compactar SRV-ADM | decorrido=00:01:30 | PID=18292 | CPU=640s | RAM=506,79 MB
+[2026-08-05 22:02:25] [WAIT] 7-Zip compactar SRV-ADM | decorrido=00:02:00 | PID=18292 | CPU=837s | RAM=505,57 MB
+[2026-08-05 22:02:55] [WAIT] 7-Zip compactar SRV-ADM | decorrido=00:02:30 | PID=18292 | CPU=1001.3s | RAM=505,57 MB
+[2026-08-05 22:03:25] [WAIT] 7-Zip compactar SRV-ADM | decorrido=00:03:00 | PID=18292 | CPU=1159.2s | RAM=505,07 MB
+[2026-08-05 22:03:55] [WAIT] 7-Zip compactar SRV-ADM | decorrido=00:03:30 | PID=18292 | CPU=1356.8s | RAM=500,55 MB
+[2026-08-05 22:04:05] [INFO] 7-Zip compactar SRV-ADM finalizado. Duracao=00:03:40 | ExitCode=indisponivel.
+[2026-08-05 22:04:05] [WARNING] [SRV-ADM] ExitCode do 7-Zip indisponivel; conclusao confirmada pela saida 'Everything is Ok'.
+[2026-08-05 22:04:05] [SUCCESS] [SRV-ADM] Compactacao concluida: 4,37 GB em 00:03:40.
+[2026-08-05 22:04:05] [INFO] [SRV-ADM] Testando integralmente o arquivo 7z.
+[2026-08-05 22:04:05] [INFO] 7-Zip testar SRV-ADM iniciado. PID=27636 | Timeout=08:00:00.
+[2026-08-05 22:04:15] [INFO] 7-Zip testar SRV-ADM finalizado. Duracao=00:00:10 | ExitCode=indisponivel.
+[2026-08-05 22:04:15] [WARNING] [SRV-ADM] ExitCode do teste 7-Zip indisponivel; integridade confirmada pela saida 'Everything is Ok'.
+[2026-08-05 22:04:15] [SUCCESS] [SRV-ADM] Arquivo aprovado no teste integral do 7-Zip em 00:00:10.
+[2026-08-05 22:04:15] [INFO] [SRV-ADM] Validando estrutura e tamanho descompactado do arquivo 7z.
+[2026-08-05 22:04:15] [INFO] 7-Zip listar SRV-ADM iniciado. PID=8380 | Timeout=08:00:00.
+[2026-08-05 22:04:17] [INFO] 7-Zip listar SRV-ADM finalizado. Duracao=00:00:02 | ExitCode=indisponivel.
+[2026-08-05 22:04:17] [WARNING] [SRV-ADM] ExitCode da listagem 7-Zip indisponivel; formato confirmado pela saida tecnica.
+[2026-08-05 22:04:17] [SUCCESS] [SRV-ADM] Estrutura aprovada: arquivos=4 | pastas=4 | discos=1 | VMCX=1 | listado=13,04 GB, igual ao exportado.
+[2026-08-05 22:04:17] [INFO] [SRV-ADM] Calculando SHA-256.
+[2026-08-05 22:04:17] [INFO] SHA-256 SRV-ADM iniciado. PID=26928 | Timeout=08:00:00.
+[2026-08-05 22:04:23] [INFO] SHA-256 SRV-ADM finalizado. Duracao=00:00:06 | ExitCode=indisponivel.
+[2026-08-05 22:04:23] [WARNING] [SRV-ADM] ExitCode do worker SHA-256 indisponivel; sucesso confirmado pelo JSON.
+[2026-08-05 22:04:23] [SUCCESS] [SRV-ADM] SHA-256=18A7F1FBAA8EEF6AF5BAF06F1DB2168B13C9C2CDF98D564326439BC9C607549F
+[2026-08-05 22:04:24] [SUCCESS] [SRV-ADM] Exportacao temporaria removida; arquivo final publicado no staging.
+[2026-08-05 22:04:24] [INFO] --------------------------------------------------------------------------
+[2026-08-05 22:04:24] [INFO] [VM 2/9] SRV-APPS | GUID=dd13f743-6c54-4a3c-8b8c-7ba96473bba8 | Estado=Running.
+[2026-08-05 22:04:24] [INFO] [SRV-APPS] Tentativa 1/2: iniciando exportacao consistente.
+[2026-08-05 22:04:24] [INFO] Export-VM SRV-APPS iniciado. PID=20544 | Timeout=12:00:00.
+[2026-08-05 22:04:42] [INFO] Export-VM SRV-APPS finalizado. Duracao=00:00:18 | ExitCode=indisponivel.
+[2026-08-05 22:04:42] [WARNING] [SRV-APPS] ExitCode do worker indisponivel; sucesso confirmado pelo JSON e pelos arquivos exportados.
+[2026-08-05 22:04:42] [SUCCESS] [SRV-APPS] Exportacao concluida: 16,35 GB em 00:00:18.
+[2026-08-05 22:04:42] [INFO] [SRV-APPS] Iniciando compactacao 7-Zip nivel 3.
+[2026-08-05 22:04:42] [INFO] 7-Zip compactar SRV-APPS iniciado. PID=624 | Timeout=12:00:00.
+[2026-08-05 22:05:12] [WAIT] 7-Zip compactar SRV-APPS | decorrido=00:00:30 | PID=624 | CPU=209.5s | RAM=500,53 MB
+[2026-08-05 22:05:42] [WAIT] 7-Zip compactar SRV-APPS | decorrido=00:01:00 | PID=624 | CPU=425.7s | RAM=505,96 MB
+[2026-08-05 22:06:12] [WAIT] 7-Zip compactar SRV-APPS | decorrido=00:01:30 | PID=624 | CPU=650.6s | RAM=506,84 MB
+[2026-08-05 22:06:42] [WAIT] 7-Zip compactar SRV-APPS | decorrido=00:02:00 | PID=624 | CPU=856.5s | RAM=506,17 MB
+[2026-08-05 22:07:12] [WAIT] 7-Zip compactar SRV-APPS | decorrido=00:02:30 | PID=624 | CPU=1027.8s | RAM=506,16 MB
+[2026-08-05 22:07:42] [WAIT] 7-Zip compactar SRV-APPS | decorrido=00:03:00 | PID=624 | CPU=1217.4s | RAM=506,11 MB
+[2026-08-05 22:08:12] [WAIT] 7-Zip compactar SRV-APPS | decorrido=00:03:30 | PID=624 | CPU=1436.1s | RAM=500,36 MB
+[2026-08-05 22:08:42] [WAIT] 7-Zip compactar SRV-APPS | decorrido=00:04:00 | PID=624 | CPU=1649.1s | RAM=500,37 MB
+[2026-08-05 22:09:12] [WAIT] 7-Zip compactar SRV-APPS | decorrido=00:04:30 | PID=624 | CPU=1856.3s | RAM=496,96 MB
+[2026-08-05 22:09:25] [INFO] 7-Zip compactar SRV-APPS finalizado. Duracao=00:04:42 | ExitCode=indisponivel.
+[2026-08-05 22:09:25] [WARNING] [SRV-APPS] ExitCode do 7-Zip indisponivel; conclusao confirmada pela saida 'Everything is Ok'.
+[2026-08-05 22:09:25] [SUCCESS] [SRV-APPS] Compactacao concluida: 5,76 GB em 00:04:42.
+[2026-08-05 22:09:25] [INFO] [SRV-APPS] Testando integralmente o arquivo 7z.
+[2026-08-05 22:09:25] [INFO] 7-Zip testar SRV-APPS iniciado. PID=12836 | Timeout=08:00:00.
+[2026-08-05 22:09:39] [INFO] 7-Zip testar SRV-APPS finalizado. Duracao=00:00:14 | ExitCode=indisponivel.
+[2026-08-05 22:09:39] [WARNING] [SRV-APPS] ExitCode do teste 7-Zip indisponivel; integridade confirmada pela saida 'Everything is Ok'.
+[2026-08-05 22:09:39] [SUCCESS] [SRV-APPS] Arquivo aprovado no teste integral do 7-Zip em 00:00:14.
+[2026-08-05 22:09:39] [INFO] [SRV-APPS] Validando estrutura e tamanho descompactado do arquivo 7z.
+[2026-08-05 22:09:39] [INFO] 7-Zip listar SRV-APPS iniciado. PID=9648 | Timeout=08:00:00.
+[2026-08-05 22:09:41] [INFO] 7-Zip listar SRV-APPS finalizado. Duracao=00:00:02 | ExitCode=indisponivel.
+[2026-08-05 22:09:41] [WARNING] [SRV-APPS] ExitCode da listagem 7-Zip indisponivel; formato confirmado pela saida tecnica.
+[2026-08-05 22:09:41] [SUCCESS] [SRV-APPS] Estrutura aprovada: arquivos=4 | pastas=4 | discos=1 | VMCX=1 | listado=16,35 GB, igual ao exportado.
+[2026-08-05 22:09:41] [INFO] [SRV-APPS] Calculando SHA-256.
+[2026-08-05 22:09:41] [INFO] SHA-256 SRV-APPS iniciado. PID=20716 | Timeout=08:00:00.
+[2026-08-05 22:09:49] [INFO] SHA-256 SRV-APPS finalizado. Duracao=00:00:08 | ExitCode=indisponivel.
+[2026-08-05 22:09:49] [WARNING] [SRV-APPS] ExitCode do worker SHA-256 indisponivel; sucesso confirmado pelo JSON.
+[2026-08-05 22:09:49] [SUCCESS] [SRV-APPS] SHA-256=D4C0596F9754E035209F2CFEC25B4C538E91DAE3DA657C11F581FBFA7C22FDC5
+[2026-08-05 22:09:49] [SUCCESS] [SRV-APPS] Exportacao temporaria removida; arquivo final publicado no staging.
+[2026-08-05 22:09:49] [INFO] --------------------------------------------------------------------------
+[2026-08-05 22:09:49] [INFO] [VM 3/9] SRV-DOCS | GUID=df7d278f-363b-4c27-b86e-2b64b0b00745 | Estado=Running.
+[2026-08-05 22:09:49] [INFO] [SRV-DOCS] Tentativa 1/2: iniciando exportacao consistente.
+[2026-08-05 22:09:49] [INFO] Export-VM SRV-DOCS iniciado. PID=19384 | Timeout=12:00:00.
+[2026-08-05 22:10:03] [INFO] Export-VM SRV-DOCS finalizado. Duracao=00:00:14 | ExitCode=indisponivel.
+[2026-08-05 22:10:03] [WARNING] [SRV-DOCS] ExitCode do worker indisponivel; sucesso confirmado pelo JSON e pelos arquivos exportados.
+[2026-08-05 22:10:03] [SUCCESS] [SRV-DOCS] Exportacao concluida: 12,63 GB em 00:00:14.
+[2026-08-05 22:10:03] [INFO] [SRV-DOCS] Iniciando compactacao 7-Zip nivel 3.
+[2026-08-05 22:10:03] [INFO] 7-Zip compactar SRV-DOCS iniciado. PID=6712 | Timeout=12:00:00.
+[2026-08-05 22:10:33] [WAIT] 7-Zip compactar SRV-DOCS | decorrido=00:00:30 | PID=6712 | CPU=201.9s | RAM=489,18 MB
+[2026-08-05 22:11:03] [WAIT] 7-Zip compactar SRV-DOCS | decorrido=00:01:00 | PID=6712 | CPU=426.2s | RAM=503,20 MB
+[2026-08-05 22:11:33] [WAIT] 7-Zip compactar SRV-DOCS | decorrido=00:01:30 | PID=6712 | CPU=634.8s | RAM=503,54 MB
+[2026-08-05 22:12:03] [WAIT] 7-Zip compactar SRV-DOCS | decorrido=00:02:00 | PID=6712 | CPU=827.3s | RAM=504,05 MB
+[2026-08-05 22:12:33] [INFO] 7-Zip compactar SRV-DOCS finalizado. Duracao=00:02:30 | ExitCode=indisponivel.
+[2026-08-05 22:12:33] [WARNING] [SRV-DOCS] ExitCode do 7-Zip indisponivel; conclusao confirmada pela saida 'Everything is Ok'.
+[2026-08-05 22:12:33] [SUCCESS] [SRV-DOCS] Compactacao concluida: 2,98 GB em 00:02:30.
+[2026-08-05 22:12:33] [INFO] [SRV-DOCS] Testando integralmente o arquivo 7z.
+[2026-08-05 22:12:33] [INFO] 7-Zip testar SRV-DOCS iniciado. PID=11348 | Timeout=08:00:00.
+[2026-08-05 22:12:41] [INFO] 7-Zip testar SRV-DOCS finalizado. Duracao=00:00:08 | ExitCode=indisponivel.
+[2026-08-05 22:12:41] [WARNING] [SRV-DOCS] ExitCode do teste 7-Zip indisponivel; integridade confirmada pela saida 'Everything is Ok'.
+[2026-08-05 22:12:41] [SUCCESS] [SRV-DOCS] Arquivo aprovado no teste integral do 7-Zip em 00:00:08.
+[2026-08-05 22:12:41] [INFO] [SRV-DOCS] Validando estrutura e tamanho descompactado do arquivo 7z.
+[2026-08-05 22:12:41] [INFO] 7-Zip listar SRV-DOCS iniciado. PID=22928 | Timeout=08:00:00.
+[2026-08-05 22:12:43] [INFO] 7-Zip listar SRV-DOCS finalizado. Duracao=00:00:02 | ExitCode=indisponivel.
+[2026-08-05 22:12:43] [WARNING] [SRV-DOCS] ExitCode da listagem 7-Zip indisponivel; formato confirmado pela saida tecnica.
+[2026-08-05 22:12:43] [SUCCESS] [SRV-DOCS] Estrutura aprovada: arquivos=4 | pastas=4 | discos=1 | VMCX=1 | listado=12,63 GB, igual ao exportado.
+[2026-08-05 22:12:43] [INFO] [SRV-DOCS] Calculando SHA-256.
+[2026-08-05 22:12:43] [INFO] SHA-256 SRV-DOCS iniciado. PID=24224 | Timeout=08:00:00.
+[2026-08-05 22:12:47] [INFO] SHA-256 SRV-DOCS finalizado. Duracao=00:00:04 | ExitCode=indisponivel.
+[2026-08-05 22:12:47] [WARNING] [SRV-DOCS] ExitCode do worker SHA-256 indisponivel; sucesso confirmado pelo JSON.
+[2026-08-05 22:12:47] [SUCCESS] [SRV-DOCS] SHA-256=2C1684806F4B374B379F62017FBB0A3242FF52EE99D81DDE54C37A38E667DF62
+[2026-08-05 22:12:48] [SUCCESS] [SRV-DOCS] Exportacao temporaria removida; arquivo final publicado no staging.
+[2026-08-05 22:12:48] [INFO] --------------------------------------------------------------------------
+[2026-08-05 22:12:48] [INFO] [VM 4/9] SRV-N8N | GUID=072c2075-0453-41da-9724-8f0ea07c3081 | Estado=Running.
+[2026-08-05 22:12:48] [INFO] [SRV-N8N] Tentativa 1/2: iniciando exportacao consistente.
+[2026-08-05 22:12:48] [INFO] Export-VM SRV-N8N iniciado. PID=29836 | Timeout=12:00:00.
+[2026-08-05 22:13:06] [INFO] Export-VM SRV-N8N finalizado. Duracao=00:00:18 | ExitCode=indisponivel.
+[2026-08-05 22:13:06] [WARNING] [SRV-N8N] ExitCode do worker indisponivel; sucesso confirmado pelo JSON e pelos arquivos exportados.
+[2026-08-05 22:13:06] [SUCCESS] [SRV-N8N] Exportacao concluida: 17,10 GB em 00:00:18.
+[2026-08-05 22:13:06] [INFO] [SRV-N8N] Iniciando compactacao 7-Zip nivel 3.
+[2026-08-05 22:13:06] [INFO] 7-Zip compactar SRV-N8N iniciado. PID=23036 | Timeout=12:00:00.
+[2026-08-05 22:13:36] [WAIT] 7-Zip compactar SRV-N8N | decorrido=00:00:30 | PID=23036 | CPU=206.1s | RAM=487,37 MB
+[2026-08-05 22:14:06] [WAIT] 7-Zip compactar SRV-N8N | decorrido=00:01:00 | PID=23036 | CPU=417.1s | RAM=504,46 MB
+[2026-08-05 22:14:36] [WAIT] 7-Zip compactar SRV-N8N | decorrido=00:01:30 | PID=23036 | CPU=648.2s | RAM=506,18 MB
+[2026-08-05 22:15:06] [WAIT] 7-Zip compactar SRV-N8N | decorrido=00:02:00 | PID=23036 | CPU=845.9s | RAM=505,47 MB
+[2026-08-05 22:15:36] [WAIT] 7-Zip compactar SRV-N8N | decorrido=00:02:30 | PID=23036 | CPU=1042.8s | RAM=505,21 MB
+[2026-08-05 22:16:06] [WAIT] 7-Zip compactar SRV-N8N | decorrido=00:03:00 | PID=23036 | CPU=1269.6s | RAM=505,41 MB
+[2026-08-05 22:16:37] [WAIT] 7-Zip compactar SRV-N8N | decorrido=00:03:30 | PID=23036 | CPU=1467.7s | RAM=497,98 MB
+[2026-08-05 22:17:07] [WAIT] 7-Zip compactar SRV-N8N | decorrido=00:04:00 | PID=23036 | CPU=1692.9s | RAM=495,16 MB
+[2026-08-05 22:17:27] [INFO] 7-Zip compactar SRV-N8N finalizado. Duracao=00:04:20 | ExitCode=indisponivel.
+[2026-08-05 22:17:27] [WARNING] [SRV-N8N] ExitCode do 7-Zip indisponivel; conclusao confirmada pela saida 'Everything is Ok'.
+[2026-08-05 22:17:27] [SUCCESS] [SRV-N8N] Compactacao concluida: 5,53 GB em 00:04:20.
+[2026-08-05 22:17:27] [INFO] [SRV-N8N] Testando integralmente o arquivo 7z.
+[2026-08-05 22:17:27] [INFO] 7-Zip testar SRV-N8N iniciado. PID=22424 | Timeout=08:00:00.
+[2026-08-05 22:17:39] [INFO] 7-Zip testar SRV-N8N finalizado. Duracao=00:00:12 | ExitCode=indisponivel.
+[2026-08-05 22:17:39] [WARNING] [SRV-N8N] ExitCode do teste 7-Zip indisponivel; integridade confirmada pela saida 'Everything is Ok'.
+[2026-08-05 22:17:39] [SUCCESS] [SRV-N8N] Arquivo aprovado no teste integral do 7-Zip em 00:00:12.
+[2026-08-05 22:17:39] [INFO] [SRV-N8N] Validando estrutura e tamanho descompactado do arquivo 7z.
+[2026-08-05 22:17:39] [INFO] 7-Zip listar SRV-N8N iniciado. PID=29160 | Timeout=08:00:00.
+[2026-08-05 22:17:41] [INFO] 7-Zip listar SRV-N8N finalizado. Duracao=00:00:02 | ExitCode=indisponivel.
+[2026-08-05 22:17:41] [WARNING] [SRV-N8N] ExitCode da listagem 7-Zip indisponivel; formato confirmado pela saida tecnica.
+[2026-08-05 22:17:41] [SUCCESS] [SRV-N8N] Estrutura aprovada: arquivos=4 | pastas=4 | discos=1 | VMCX=1 | listado=17,10 GB, igual ao exportado.
+[2026-08-05 22:17:41] [INFO] [SRV-N8N] Calculando SHA-256.
+[2026-08-05 22:17:41] [INFO] SHA-256 SRV-N8N iniciado. PID=27756 | Timeout=08:00:00.
+[2026-08-05 22:17:49] [INFO] SHA-256 SRV-N8N finalizado. Duracao=00:00:08 | ExitCode=indisponivel.
+[2026-08-05 22:17:49] [WARNING] [SRV-N8N] ExitCode do worker SHA-256 indisponivel; sucesso confirmado pelo JSON.
+[2026-08-05 22:17:49] [SUCCESS] [SRV-N8N] SHA-256=D21C4CF86D9D14A3B98DF2C250A5D531E30637E7803CAC8B3684435970B669CA
+[2026-08-05 22:17:49] [SUCCESS] [SRV-N8N] Exportacao temporaria removida; arquivo final publicado no staging.
+[2026-08-05 22:17:49] [INFO] --------------------------------------------------------------------------
+[2026-08-05 22:17:49] [INFO] [VM 5/9] SRV-RMM | GUID=4f4418af-975f-4500-885f-e6b036a2f2a7 | Estado=Running.
+[2026-08-05 22:17:49] [INFO] [SRV-RMM] Tentativa 1/2: iniciando exportacao consistente.
+[2026-08-05 22:17:49] [INFO] Export-VM SRV-RMM iniciado. PID=26744 | Timeout=12:00:00.
+[2026-08-05 22:18:11] [INFO] Export-VM SRV-RMM finalizado. Duracao=00:00:22 | ExitCode=indisponivel.
+[2026-08-05 22:18:11] [WARNING] [SRV-RMM] ExitCode do worker indisponivel; sucesso confirmado pelo JSON e pelos arquivos exportados.
+[2026-08-05 22:18:11] [SUCCESS] [SRV-RMM] Exportacao concluida: 19,79 GB em 00:00:22.
+[2026-08-05 22:18:11] [INFO] [SRV-RMM] Iniciando compactacao 7-Zip nivel 3.
+[2026-08-05 22:18:11] [INFO] 7-Zip compactar SRV-RMM iniciado. PID=22596 | Timeout=12:00:00.
+[2026-08-05 22:18:41] [WAIT] 7-Zip compactar SRV-RMM | decorrido=00:00:30 | PID=22596 | CPU=191s | RAM=462,96 MB
+[2026-08-05 22:19:11] [WAIT] 7-Zip compactar SRV-RMM | decorrido=00:01:00 | PID=22596 | CPU=360.3s | RAM=488,48 MB
+[2026-08-05 22:19:41] [WAIT] 7-Zip compactar SRV-RMM | decorrido=00:01:30 | PID=22596 | CPU=543.5s | RAM=492,52 MB
+[2026-08-05 22:20:12] [WAIT] 7-Zip compactar SRV-RMM | decorrido=00:02:00 | PID=22596 | CPU=720.6s | RAM=500,20 MB
+[2026-08-05 22:20:42] [WAIT] 7-Zip compactar SRV-RMM | decorrido=00:02:30 | PID=22596 | CPU=880.7s | RAM=496,60 MB
+[2026-08-05 22:21:12] [WAIT] 7-Zip compactar SRV-RMM | decorrido=00:03:00 | PID=22596 | CPU=1056s | RAM=489,26 MB
+[2026-08-05 22:21:42] [WAIT] 7-Zip compactar SRV-RMM | decorrido=00:03:30 | PID=22596 | CPU=1221.1s | RAM=500,01 MB
+[2026-08-05 22:21:48] [INFO] 7-Zip compactar SRV-RMM finalizado. Duracao=00:03:36 | ExitCode=indisponivel.
+[2026-08-05 22:21:48] [WARNING] [SRV-RMM] ExitCode do 7-Zip indisponivel; conclusao confirmada pela saida 'Everything is Ok'.
+[2026-08-05 22:21:48] [SUCCESS] [SRV-RMM] Compactacao concluida: 3,87 GB em 00:03:36.
+[2026-08-05 22:21:48] [INFO] [SRV-RMM] Testando integralmente o arquivo 7z.
+[2026-08-05 22:21:48] [INFO] 7-Zip testar SRV-RMM iniciado. PID=18720 | Timeout=08:00:00.
+[2026-08-05 22:21:58] [INFO] 7-Zip testar SRV-RMM finalizado. Duracao=00:00:10 | ExitCode=indisponivel.
+[2026-08-05 22:21:58] [WARNING] [SRV-RMM] ExitCode do teste 7-Zip indisponivel; integridade confirmada pela saida 'Everything is Ok'.
+[2026-08-05 22:21:58] [SUCCESS] [SRV-RMM] Arquivo aprovado no teste integral do 7-Zip em 00:00:10.
+[2026-08-05 22:21:58] [INFO] [SRV-RMM] Validando estrutura e tamanho descompactado do arquivo 7z.
+[2026-08-05 22:21:58] [INFO] 7-Zip listar SRV-RMM iniciado. PID=25192 | Timeout=08:00:00.
+[2026-08-05 22:22:00] [INFO] 7-Zip listar SRV-RMM finalizado. Duracao=00:00:01 | ExitCode=indisponivel.
+[2026-08-05 22:22:00] [WARNING] [SRV-RMM] ExitCode da listagem 7-Zip indisponivel; formato confirmado pela saida tecnica.
+[2026-08-05 22:22:00] [SUCCESS] [SRV-RMM] Estrutura aprovada: arquivos=4 | pastas=4 | discos=1 | VMCX=1 | listado=19,79 GB, igual ao exportado.
+[2026-08-05 22:22:00] [INFO] [SRV-RMM] Calculando SHA-256.
+[2026-08-05 22:22:00] [INFO] SHA-256 SRV-RMM iniciado. PID=26476 | Timeout=08:00:00.
+[2026-08-05 22:22:06] [INFO] SHA-256 SRV-RMM finalizado. Duracao=00:00:06 | ExitCode=indisponivel.
+[2026-08-05 22:22:06] [WARNING] [SRV-RMM] ExitCode do worker SHA-256 indisponivel; sucesso confirmado pelo JSON.
+[2026-08-05 22:22:06] [SUCCESS] [SRV-RMM] SHA-256=723CA2054B616E1258A0EF975BF5079901697EC7A769E013EE29F83DFD784EC7
+[2026-08-05 22:22:06] [SUCCESS] [SRV-RMM] Exportacao temporaria removida; arquivo final publicado no staging.
+[2026-08-05 22:22:06] [INFO] --------------------------------------------------------------------------
+[2026-08-05 22:22:06] [INFO] [VM 6/9] SRV-SNIPE | GUID=5b8eaecd-2350-44b5-b7ff-431f8fcb8290 | Estado=Running.
+[2026-08-05 22:22:06] [INFO] [SRV-SNIPE] Tentativa 1/2: iniciando exportacao consistente.
+[2026-08-05 22:22:06] [INFO] Export-VM SRV-SNIPE iniciado. PID=6464 | Timeout=12:00:00.
+[2026-08-05 22:22:20] [INFO] Export-VM SRV-SNIPE finalizado. Duracao=00:00:14 | ExitCode=indisponivel.
+[2026-08-05 22:22:20] [WARNING] [SRV-SNIPE] ExitCode do worker indisponivel; sucesso confirmado pelo JSON e pelos arquivos exportados.
+[2026-08-05 22:22:20] [SUCCESS] [SRV-SNIPE] Exportacao concluida: 11,38 GB em 00:00:14.
+[2026-08-05 22:22:20] [INFO] [SRV-SNIPE] Iniciando compactacao 7-Zip nivel 3.
+[2026-08-05 22:22:20] [INFO] 7-Zip compactar SRV-SNIPE iniciado. PID=27540 | Timeout=12:00:00.
+[2026-08-05 22:22:51] [WAIT] 7-Zip compactar SRV-SNIPE | decorrido=00:00:30 | PID=27540 | CPU=209s | RAM=490,07 MB
+[2026-08-05 22:23:21] [WAIT] 7-Zip compactar SRV-SNIPE | decorrido=00:01:00 | PID=27540 | CPU=419.9s | RAM=501,56 MB
+[2026-08-05 22:23:51] [WAIT] 7-Zip compactar SRV-SNIPE | decorrido=00:01:30 | PID=27540 | CPU=600s | RAM=501,48 MB
+[2026-08-05 22:24:21] [WAIT] 7-Zip compactar SRV-SNIPE | decorrido=00:02:00 | PID=27540 | CPU=806.2s | RAM=505,18 MB
+[2026-08-05 22:24:51] [WAIT] 7-Zip compactar SRV-SNIPE | decorrido=00:02:30 | PID=27540 | CPU=988.6s | RAM=505,13 MB
+[2026-08-05 22:25:05] [INFO] 7-Zip compactar SRV-SNIPE finalizado. Duracao=00:02:44 | ExitCode=indisponivel.
+[2026-08-05 22:25:05] [WARNING] [SRV-SNIPE] ExitCode do 7-Zip indisponivel; conclusao confirmada pela saida 'Everything is Ok'.
+[2026-08-05 22:25:05] [SUCCESS] [SRV-SNIPE] Compactacao concluida: 3,29 GB em 00:02:44.
+[2026-08-05 22:25:05] [INFO] [SRV-SNIPE] Testando integralmente o arquivo 7z.
+[2026-08-05 22:25:05] [INFO] 7-Zip testar SRV-SNIPE iniciado. PID=26684 | Timeout=08:00:00.
+[2026-08-05 22:25:13] [INFO] 7-Zip testar SRV-SNIPE finalizado. Duracao=00:00:08 | ExitCode=indisponivel.
+[2026-08-05 22:25:13] [WARNING] [SRV-SNIPE] ExitCode do teste 7-Zip indisponivel; integridade confirmada pela saida 'Everything is Ok'.
+[2026-08-05 22:25:13] [SUCCESS] [SRV-SNIPE] Arquivo aprovado no teste integral do 7-Zip em 00:00:08.
+[2026-08-05 22:25:13] [INFO] [SRV-SNIPE] Validando estrutura e tamanho descompactado do arquivo 7z.
+[2026-08-05 22:25:13] [INFO] 7-Zip listar SRV-SNIPE iniciado. PID=24448 | Timeout=08:00:00.
+[2026-08-05 22:25:15] [INFO] 7-Zip listar SRV-SNIPE finalizado. Duracao=00:00:02 | ExitCode=indisponivel.
+[2026-08-05 22:25:15] [WARNING] [SRV-SNIPE] ExitCode da listagem 7-Zip indisponivel; formato confirmado pela saida tecnica.
+[2026-08-05 22:25:15] [SUCCESS] [SRV-SNIPE] Estrutura aprovada: arquivos=4 | pastas=4 | discos=1 | VMCX=1 | listado=11,38 GB, igual ao exportado.
+[2026-08-05 22:25:15] [INFO] [SRV-SNIPE] Calculando SHA-256.
+[2026-08-05 22:25:15] [INFO] SHA-256 SRV-SNIPE iniciado. PID=27116 | Timeout=08:00:00.
+[2026-08-05 22:25:21] [INFO] SHA-256 SRV-SNIPE finalizado. Duracao=00:00:06 | ExitCode=indisponivel.
+[2026-08-05 22:25:21] [WARNING] [SRV-SNIPE] ExitCode do worker SHA-256 indisponivel; sucesso confirmado pelo JSON.
+[2026-08-05 22:25:21] [SUCCESS] [SRV-SNIPE] SHA-256=5EA879C083FE4B9271A57E15315D739B88AF72F12E05A124CDF2D72EA3938D81
+[2026-08-05 22:25:21] [SUCCESS] [SRV-SNIPE] Exportacao temporaria removida; arquivo final publicado no staging.
+[2026-08-05 22:25:21] [INFO] --------------------------------------------------------------------------
+[2026-08-05 22:25:22] [INFO] [VM 7/9] SRV-VoIP | GUID=36082740-05fc-4071-946d-dd8f23d9d759 | Estado=Off.
+[2026-08-05 22:25:22] [INFO] [SRV-VoIP] Tentativa 1/2: iniciando exportacao consistente.
+[2026-08-05 22:25:22] [INFO] Export-VM SRV-VoIP iniciado. PID=3508 | Timeout=12:00:00.
+[2026-08-05 22:25:24] [INFO] Export-VM SRV-VoIP finalizado. Duracao=00:00:02 | ExitCode=indisponivel.
+[2026-08-05 22:25:24] [WARNING] [SRV-VoIP] ExitCode do worker indisponivel; sucesso confirmado pelo JSON e pelos arquivos exportados.
+[2026-08-05 22:25:24] [SUCCESS] [SRV-VoIP] Exportacao concluida: 8,08 MB em 00:00:02.
+[2026-08-05 22:25:24] [INFO] [SRV-VoIP] Iniciando compactacao 7-Zip nivel 3.
+[2026-08-05 22:25:24] [INFO] 7-Zip compactar SRV-VoIP iniciado. PID=29956 | Timeout=12:00:00.
+[2026-08-05 22:25:26] [INFO] 7-Zip compactar SRV-VoIP finalizado. Duracao=00:00:02 | ExitCode=indisponivel.
+[2026-08-05 22:25:26] [WARNING] [SRV-VoIP] ExitCode do 7-Zip indisponivel; conclusao confirmada pela saida 'Everything is Ok'.
+[2026-08-05 22:25:26] [SUCCESS] [SRV-VoIP] Compactacao concluida: 48,21 KB em 00:00:02.
+[2026-08-05 22:25:26] [INFO] [SRV-VoIP] Testando integralmente o arquivo 7z.
+[2026-08-05 22:25:26] [INFO] 7-Zip testar SRV-VoIP iniciado. PID=27304 | Timeout=08:00:00.
+[2026-08-05 22:25:28] [INFO] 7-Zip testar SRV-VoIP finalizado. Duracao=00:00:02 | ExitCode=indisponivel.
+[2026-08-05 22:25:28] [WARNING] [SRV-VoIP] ExitCode do teste 7-Zip indisponivel; integridade confirmada pela saida 'Everything is Ok'.
+[2026-08-05 22:25:28] [SUCCESS] [SRV-VoIP] Arquivo aprovado no teste integral do 7-Zip em 00:00:02.
+[2026-08-05 22:25:28] [INFO] [SRV-VoIP] Validando estrutura e tamanho descompactado do arquivo 7z.
+[2026-08-05 22:25:28] [INFO] 7-Zip listar SRV-VoIP iniciado. PID=12992 | Timeout=08:00:00.
+[2026-08-05 22:25:30] [INFO] 7-Zip listar SRV-VoIP finalizado. Duracao=00:00:02 | ExitCode=indisponivel.
+[2026-08-05 22:25:30] [WARNING] [SRV-VoIP] ExitCode da listagem 7-Zip indisponivel; formato confirmado pela saida tecnica.
+[2026-08-05 22:25:30] [SUCCESS] [SRV-VoIP] Estrutura aprovada: arquivos=4 | pastas=4 | discos=1 | VMCX=1 | listado=8,08 MB, igual ao exportado.
+[2026-08-05 22:25:30] [INFO] [SRV-VoIP] Calculando SHA-256.
+[2026-08-05 22:25:30] [INFO] SHA-256 SRV-VoIP iniciado. PID=15832 | Timeout=08:00:00.
+[2026-08-05 22:25:32] [INFO] SHA-256 SRV-VoIP finalizado. Duracao=00:00:01 | ExitCode=indisponivel.
+[2026-08-05 22:25:32] [WARNING] [SRV-VoIP] ExitCode do worker SHA-256 indisponivel; sucesso confirmado pelo JSON.
+[2026-08-05 22:25:32] [SUCCESS] [SRV-VoIP] SHA-256=D87CFB722BDA4AB29F24302E96FE462456606FB21F3976C08270BF755B131E16
+[2026-08-05 22:25:32] [SUCCESS] [SRV-VoIP] Exportacao temporaria removida; arquivo final publicado no staging.
+[2026-08-05 22:25:32] [INFO] --------------------------------------------------------------------------
+[2026-08-05 22:25:32] [INFO] [VM 8/9] SRV-VPN | GUID=02f80c76-9066-407b-82f2-019730600a73 | Estado=Running.
+[2026-08-05 22:25:32] [INFO] [SRV-VPN] Tentativa 1/2: iniciando exportacao consistente.
+[2026-08-05 22:25:32] [INFO] Export-VM SRV-VPN iniciado. PID=11544 | Timeout=12:00:00.
+[2026-08-05 22:25:44] [INFO] Export-VM SRV-VPN finalizado. Duracao=00:00:12 | ExitCode=indisponivel.
+[2026-08-05 22:25:44] [WARNING] [SRV-VPN] ExitCode do worker indisponivel; sucesso confirmado pelo JSON e pelos arquivos exportados.
+[2026-08-05 22:25:44] [SUCCESS] [SRV-VPN] Exportacao concluida: 10,23 GB em 00:00:12.
+[2026-08-05 22:25:44] [INFO] [SRV-VPN] Iniciando compactacao 7-Zip nivel 3.
+[2026-08-05 22:25:44] [INFO] 7-Zip compactar SRV-VPN iniciado. PID=28200 | Timeout=12:00:00.
+[2026-08-05 22:26:14] [WAIT] 7-Zip compactar SRV-VPN | decorrido=00:00:30 | PID=28200 | CPU=212.4s | RAM=487,93 MB
+[2026-08-05 22:26:44] [WAIT] 7-Zip compactar SRV-VPN | decorrido=00:01:00 | PID=28200 | CPU=430.8s | RAM=503,29 MB
+[2026-08-05 22:27:14] [WAIT] 7-Zip compactar SRV-VPN | decorrido=00:01:30 | PID=28200 | CPU=636.3s | RAM=505,43 MB
+[2026-08-05 22:27:44] [WAIT] 7-Zip compactar SRV-VPN | decorrido=00:02:00 | PID=28200 | CPU=840s | RAM=504,89 MB
+[2026-08-05 22:28:14] [WAIT] 7-Zip compactar SRV-VPN | decorrido=00:02:30 | PID=28200 | CPU=1042.8s | RAM=502,85 MB
+[2026-08-05 22:28:20] [INFO] 7-Zip compactar SRV-VPN finalizado. Duracao=00:02:36 | ExitCode=indisponivel.
+[2026-08-05 22:28:20] [WARNING] [SRV-VPN] ExitCode do 7-Zip indisponivel; conclusao confirmada pela saida 'Everything is Ok'.
+[2026-08-05 22:28:20] [SUCCESS] [SRV-VPN] Compactacao concluida: 3,24 GB em 00:02:36.
+[2026-08-05 22:28:20] [INFO] [SRV-VPN] Testando integralmente o arquivo 7z.
+[2026-08-05 22:28:20] [INFO] 7-Zip testar SRV-VPN iniciado. PID=17008 | Timeout=08:00:00.
+[2026-08-05 22:28:28] [INFO] 7-Zip testar SRV-VPN finalizado. Duracao=00:00:08 | ExitCode=indisponivel.
+[2026-08-05 22:28:28] [WARNING] [SRV-VPN] ExitCode do teste 7-Zip indisponivel; integridade confirmada pela saida 'Everything is Ok'.
+[2026-08-05 22:28:28] [SUCCESS] [SRV-VPN] Arquivo aprovado no teste integral do 7-Zip em 00:00:08.
+[2026-08-05 22:28:28] [INFO] [SRV-VPN] Validando estrutura e tamanho descompactado do arquivo 7z.
+[2026-08-05 22:28:28] [INFO] 7-Zip listar SRV-VPN iniciado. PID=20608 | Timeout=08:00:00.
+[2026-08-05 22:28:30] [INFO] 7-Zip listar SRV-VPN finalizado. Duracao=00:00:02 | ExitCode=indisponivel.
+[2026-08-05 22:28:30] [WARNING] [SRV-VPN] ExitCode da listagem 7-Zip indisponivel; formato confirmado pela saida tecnica.
+[2026-08-05 22:28:30] [SUCCESS] [SRV-VPN] Estrutura aprovada: arquivos=4 | pastas=4 | discos=1 | VMCX=1 | listado=10,23 GB, igual ao exportado.
+[2026-08-05 22:28:30] [INFO] [SRV-VPN] Calculando SHA-256.
+[2026-08-05 22:28:30] [INFO] SHA-256 SRV-VPN iniciado. PID=13440 | Timeout=08:00:00.
+[2026-08-05 22:28:36] [INFO] SHA-256 SRV-VPN finalizado. Duracao=00:00:06 | ExitCode=indisponivel.
+[2026-08-05 22:28:36] [WARNING] [SRV-VPN] ExitCode do worker SHA-256 indisponivel; sucesso confirmado pelo JSON.
+[2026-08-05 22:28:36] [SUCCESS] [SRV-VPN] SHA-256=8B48812309EC2E5C641756EC306427E5BCEBEEC1370EC21CE16449F0A4854438
+[2026-08-05 22:28:37] [SUCCESS] [SRV-VPN] Exportacao temporaria removida; arquivo final publicado no staging.
+[2026-08-05 22:28:37] [INFO] --------------------------------------------------------------------------
+[2026-08-05 22:28:37] [INFO] [VM 9/9] SRV-WEB | GUID=54632406-d1e5-4325-8ff8-113da09a1873 | Estado=Running.
+[2026-08-05 22:28:37] [INFO] [SRV-WEB] Tentativa 1/2: iniciando exportacao consistente.
+[2026-08-05 22:28:37] [INFO] Export-VM SRV-WEB iniciado. PID=30048 | Timeout=12:00:00.
+[2026-08-05 22:28:51] [INFO] Export-VM SRV-WEB finalizado. Duracao=00:00:14 | ExitCode=indisponivel.
+[2026-08-05 22:28:51] [WARNING] [SRV-WEB] ExitCode do worker indisponivel; sucesso confirmado pelo JSON e pelos arquivos exportados.
+[2026-08-05 22:28:51] [SUCCESS] [SRV-WEB] Exportacao concluida: 10,35 GB em 00:00:14.
+[2026-08-05 22:28:51] [INFO] [SRV-WEB] Iniciando compactacao 7-Zip nivel 3.
+[2026-08-05 22:28:51] [INFO] 7-Zip compactar SRV-WEB iniciado. PID=10340 | Timeout=12:00:00.
+[2026-08-05 22:29:21] [WAIT] 7-Zip compactar SRV-WEB | decorrido=00:00:30 | PID=10340 | CPU=188.7s | RAM=470,17 MB
+[2026-08-05 22:29:51] [WAIT] 7-Zip compactar SRV-WEB | decorrido=00:01:00 | PID=10340 | CPU=404.4s | RAM=487,32 MB
+[2026-08-05 22:30:21] [WAIT] 7-Zip compactar SRV-WEB | decorrido=00:01:30 | PID=10340 | CPU=604.4s | RAM=503,15 MB
+[2026-08-05 22:30:51] [WAIT] 7-Zip compactar SRV-WEB | decorrido=00:02:00 | PID=10340 | CPU=800.9s | RAM=501,40 MB
+[2026-08-05 22:31:19] [INFO] 7-Zip compactar SRV-WEB finalizado. Duracao=00:02:28 | ExitCode=indisponivel.
+[2026-08-05 22:31:19] [WARNING] [SRV-WEB] ExitCode do 7-Zip indisponivel; conclusao confirmada pela saida 'Everything is Ok'.
+[2026-08-05 22:31:19] [SUCCESS] [SRV-WEB] Compactacao concluida: 3,15 GB em 00:02:28.
+[2026-08-05 22:31:19] [INFO] [SRV-WEB] Testando integralmente o arquivo 7z.
+[2026-08-05 22:31:19] [INFO] 7-Zip testar SRV-WEB iniciado. PID=26092 | Timeout=08:00:00.
+[2026-08-05 22:31:27] [INFO] 7-Zip testar SRV-WEB finalizado. Duracao=00:00:08 | ExitCode=indisponivel.
+[2026-08-05 22:31:27] [WARNING] [SRV-WEB] ExitCode do teste 7-Zip indisponivel; integridade confirmada pela saida 'Everything is Ok'.
+[2026-08-05 22:31:27] [SUCCESS] [SRV-WEB] Arquivo aprovado no teste integral do 7-Zip em 00:00:08.
+[2026-08-05 22:31:27] [INFO] [SRV-WEB] Validando estrutura e tamanho descompactado do arquivo 7z.
+[2026-08-05 22:31:27] [INFO] 7-Zip listar SRV-WEB iniciado. PID=30364 | Timeout=08:00:00.
+[2026-08-05 22:31:29] [INFO] 7-Zip listar SRV-WEB finalizado. Duracao=00:00:01 | ExitCode=indisponivel.
+[2026-08-05 22:31:29] [WARNING] [SRV-WEB] ExitCode da listagem 7-Zip indisponivel; formato confirmado pela saida tecnica.
+[2026-08-05 22:31:29] [SUCCESS] [SRV-WEB] Estrutura aprovada: arquivos=4 | pastas=4 | discos=1 | VMCX=1 | listado=10,35 GB, igual ao exportado.
+[2026-08-05 22:31:29] [INFO] [SRV-WEB] Calculando SHA-256.
+[2026-08-05 22:31:29] [INFO] SHA-256 SRV-WEB iniciado. PID=28392 | Timeout=08:00:00.
+[2026-08-05 22:31:33] [INFO] SHA-256 SRV-WEB finalizado. Duracao=00:00:04 | ExitCode=indisponivel.
+[2026-08-05 22:31:33] [WARNING] [SRV-WEB] ExitCode do worker SHA-256 indisponivel; sucesso confirmado pelo JSON.
+[2026-08-05 22:31:33] [SUCCESS] [SRV-WEB] SHA-256=34DED6C8B88408B10B0A6D6E919B617AE2188C2DD34055E8A8151304335E9946
+[2026-08-05 22:31:34] [SUCCESS] [SRV-WEB] Exportacao temporaria removida; arquivo final publicado no staging.
+[2026-08-05 22:31:34] [INFO] ==========================================================================
+[2026-08-05 22:31:34] [INFO] [ETAPA 04/09] Avaliar o conjunto completo
+[2026-08-05 22:31:34] [INFO] ==========================================================================
+[2026-08-05 22:31:34] [INFO] ==========================================================================
+[2026-08-05 22:31:34] [INFO] [ETAPA 05/09] Publicar ponto de restauracao atomico
+[2026-08-05 22:31:34] [INFO] ==========================================================================
+[2026-08-05 22:31:34] [SUCCESS] Ponto de restauracao publicado: F:\HyperV-Exports\2026-08-05_22-00-00_SMALL_ca628dec
+[2026-08-05 22:31:34] [INFO] ==========================================================================
+[2026-08-05 22:31:34] [INFO] [ETAPA 06/09] Aplicar retencao somente apos sucesso
+[2026-08-05 22:31:34] [INFO] ==========================================================================
+[2026-08-05 22:31:34] [INFO] Aplicando retencao do lote 'SMALL': manter 3 ponto(s) completo(s) de 1 encontrado(s).
+[2026-08-05 22:31:34] [SUCCESS] Retencao concluida. Pontos completos encontrados=1, removidos=0.
+[2026-08-05 22:31:34] [INFO] ==========================================================================
+[2026-08-05 22:31:34] [INFO] [ETAPA 07/09] Confirmar arquivos publicados
+[2026-08-05 22:31:34] [INFO] ==========================================================================
+[2026-08-05 22:31:34] [SUCCESS] Confirmacao final: 9 arquivos 7z presentes.
+[2026-08-05 22:31:34] [INFO] ==========================================================================
+[2026-08-05 22:31:34] [INFO] [ETAPA 08/09] Finalizar execucao
+[2026-08-05 22:31:34] [INFO] ==========================================================================
+[2026-08-05 22:31:34] [INFO] ==========================================================================
+[2026-08-05 22:31:34] [INFO] [ETAPA 09/09] Gerar relatorios e enviar e-mail
+[2026-08-05 22:31:34] [INFO] ==========================================================================
+[2026-08-05 22:31:34] [INFO] Resultado JSON: C:\Scripts\WindowsServerBackup\Reports\VMExportBackup-2026-08-05_22-00-00.json
+[2026-08-05 22:31:34] [INFO] Relatorio HTML: C:\Scripts\WindowsServerBackup\Reports\VMExportBackup-2026-08-05_22-00-00.html
+[2026-08-05 22:31:34] [INFO] E-mail nao enviado (Status=SUCCESS, SkipEmail=False).
+[2026-08-05 22:31:34] [INFO] Lock removido: C:\Scripts\WindowsServerBackup\Locks\VMExportBackup.lock.json.
+[2026-08-05 22:31:34] [INFO] Fim da rotina. Status=SUCCESS | ExitCode=0 | Duracao=00:31:33.
+[2026-08-05 22:31:34] [INFO] ==========================================================================

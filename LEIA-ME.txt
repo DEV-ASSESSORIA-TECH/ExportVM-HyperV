@@ -1,18 +1,19 @@
-﻿VM Export Backup v1.0
+VM Export Backup v1.1
 =========================
 
 Objetivo
 --------
 Substituir temporariamente o Windows Server Backup por um fluxo previsivel:
 
-1. Lista as VMs atuais do Hyper-V.
+1. Classifica automaticamente cada VM do Hyper-V em um lote (SMALL/MEDIUM/BIG)
+   pelo tamanho logico atual do disco, usando os limiares de Config\Tiers.json.
 2. Exporta uma VM por vez com CaptureDataConsistentState quando suportado.
 3. Compacta cada VM em um arquivo 7z separado.
 4. Testa integralmente cada arquivo com `7z t`.
 5. Calcula SHA-256, salvo quando `-SkipHash` for usado.
-6. Publica o ponto somente quando TODAS as VMs terminarem com sucesso.
-7. Aplica retencao somente depois da publicacao do novo ponto.
-8. Gera log, JSON, HTML e envia o relatorio pelo relay SMTP.
+6. Publica o ponto somente quando TODAS as VMs do lote terminarem com sucesso.
+7. Aplica retencao propria do lote somente depois da publicacao do novo ponto.
+8. Gera log, JSON, HTML e envia o relatorio por e-mail SOMENTE em caso de falha.
 9. Exibe heartbeat a cada 30 segundos em operacoes longas.
 
 Arquivos
@@ -20,11 +21,14 @@ Arquivos
 - Invoke-VMExportBackup.ps1       Script principal.
 - Export-VMWorker.ps1             Worker isolado para Export-VM.
 - Get-FileHashWorker.ps1          Worker isolado para SHA-256.
-- Install-VMExportBackupTask.ps1  Cria a tarefa agendada como SYSTEM.
+- TierHelpers.ps1                 Funcoes compartilhadas de classificacao por lote.
+- Install-VMExportBackupTask.ps1  Cria uma tarefa agendada por lote como SYSTEM.
+- Config\Tiers.json                Limiares de tamanho, retencao e horario por lote.
+- Config\Settings.json             Parametros gerais (drive, timeouts, SMTP etc.).
 
 Diretorio de instalacao
 -----------------------
-Copie os quatro scripts para:
+Copie a pasta inteira (scripts + Config\) para:
 
 C:\Scripts\WindowsServerBackup
 
@@ -40,7 +44,7 @@ Estrutura:
 F:\HyperV-Exports\
   _STAGING\
   _FAILED\
-  2026-08-03_00-30-00-1234abcd\
+  2026-08-03_00-30-00_SMALL_1234abcd\
     Archives\
       SRV-AD.7z
       SRV-DOCS.7z
@@ -50,6 +54,9 @@ F:\HyperV-Exports\
       logs por VM
     COMPLETE.marker.json
 
+O nome do ponto inclui o lote (SMALL/MEDIUM/BIG/ADHOC); a retencao conta cada
+lote separadamente (KeepRestorePoints de Config\Tiers.json).
+
 Importante: o script nao toca em F:\WindowsImageBackup.
 
 Antes de usar
@@ -58,6 +65,7 @@ Antes de usar
 2. Rode como administrador.
 3. Desative tarefas antigas que chamem ExportVMs(3).ps1 ou BackupVMs(3).ps1.
 4. Revogue a senha SMTP que estava gravada em texto puro no script antigo.
+5. Confira/ajuste Config\Tiers.json e Config\Settings.json para o ambiente atual.
 
 Validacao de sintaxe
 --------------------
@@ -66,7 +74,8 @@ $files = @(
   'C:\Scripts\WindowsServerBackup\Invoke-VMExportBackup.ps1',
   'C:\Scripts\WindowsServerBackup\Export-VMWorker.ps1',
   'C:\Scripts\WindowsServerBackup\Get-FileHashWorker.ps1',
-  'C:\Scripts\WindowsServerBackup\Install-VMExportBackupTask.ps1'
+  'C:\Scripts\WindowsServerBackup\Install-VMExportBackupTask.ps1',
+  'C:\Scripts\WindowsServerBackup\TierHelpers.ps1'
 )
 
 foreach ($file in $files) {
@@ -81,55 +90,46 @@ foreach ($file in $files) {
   $errors
 }
 
-Teste de plano
---------------
+Teste de plano (mostra a classificacao por lote, nao exporta nada)
+--------------------------------------------------------------------
 
-& 'C:\Scripts\WindowsServerBackup\Invoke-VMExportBackup.ps1' `
-  -BackupDrive F: `
-  -ExpectedVolumeLabel 'BACKUP-HYPERV' `
-  -SkipEmail
+& 'C:\Scripts\WindowsServerBackup\Invoke-VMExportBackup.ps1' -BatchName SMALL
 
-Teste real com uma VM pequena
------------------------------
+Teste real com um lote pequeno
+-------------------------------
 
-& 'C:\Scripts\WindowsServerBackup\Invoke-VMExportBackup.ps1' `
-  -BackupDrive F: `
-  -ExpectedVolumeLabel 'BACKUP-HYPERV' `
-  -VMName 'SRV-VoIP' `
-  -KeepRestorePoints 3 `
-  -CompressionLevel 3 `
-  -Execute `
-  -SkipEmail
+& 'C:\Scripts\WindowsServerBackup\Invoke-VMExportBackup.ps1' -BatchName SMALL -Execute -SkipEmail
 
-Execucao real com todas as VMs
-------------------------------
+Teste real com VMs especificas (fora do esquema de lotes, conta como ADHOC)
+------------------------------------------------------------------------------
 
-& 'C:\Scripts\WindowsServerBackup\Invoke-VMExportBackup.ps1' `
-  -BackupDrive F: `
-  -ExpectedVolumeLabel 'BACKUP-HYPERV' `
-  -KeepRestorePoints 3 `
-  -CompressionLevel 3 `
-  -Execute
+& 'C:\Scripts\WindowsServerBackup\Invoke-VMExportBackup.ps1' -VMName 'SRV-VoIP' -Execute -SkipEmail
 
-Criar tarefa diaria as 00:30
-----------------------------
+Execucao real de um lote (como sera rodado pela tarefa agendada, sem -SkipEmail)
+------------------------------------------------------------------------------------
 
-& 'C:\Scripts\WindowsServerBackup\Install-VMExportBackupTask.ps1' `
-  -DailyAt '00:30' `
-  -BackupDrive F: `
-  -ExpectedVolumeLabel 'BACKUP-HYPERV' `
-  -KeepRestorePoints 3 `
-  -CompressionLevel 3
+& 'C:\Scripts\WindowsServerBackup\Invoke-VMExportBackup.ps1' -BatchName BIG -Execute
+
+Instalar as tarefas agendadas (uma por lote, horarios vindos de Tiers.json)
+------------------------------------------------------------------------------
+
+& 'C:\Scripts\WindowsServerBackup\Install-VMExportBackupTask.ps1'
+
+Rodar de novo depois de mudar Tiers.json atualiza as tarefas e remove
+automaticamente as de lotes que nao existem mais no config.
 
 Comportamento de seguranca
 --------------------------
 - O ponto antigo nunca e apagado antes do novo estar completo.
-- Uma falha em qualquer VM faz o conjunto ir para _FAILED.
+- Uma falha em qualquer VM faz o conjunto do lote ir para _FAILED.
 - Conjuntos em _FAILED nao contam para retencao.
 - Cada VM gera seu proprio 7z; uma corrupcao nao invalida todas as VMs.
 - O arquivo parcial usa a extensao .partial.7z e so vira .7z depois do teste.
-- O lock impede duas execucoes simultaneas.
+- O lock impede duas execucoes simultaneas (de qualquer lote).
 - O rotulo do volume e validado antes de qualquer gravacao.
+- Staging orfao de uma execucao morta a forca e movido para _FAILED automaticamente.
+- Retencao e independente por lote (BIG nao apaga pontos de MEDIUM/SMALL).
+- E-mail so dispara em falha (FAILED/PARTIAL_FAILED); sucesso fica em silencio.
 
 Restauracao
 -----------
