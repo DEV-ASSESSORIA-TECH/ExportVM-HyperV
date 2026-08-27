@@ -28,4 +28,10 @@ Describe 'Documentacao de producao v2.0' {
         $runbook | Should Match 'Não existe migração automática'
         $quick | Should Match 'Não existe _AUDIT'
     }
+
+    It 'documenta instalacao em pasta personalizada do Agendador' {
+        $readme | Should Match "-TaskPath '\\ASSESSORIA SCF\\'"
+        $runbook | Should Match 'pasta lógica do Agendador é independente'
+        $quick | Should Match 'remove outras cópias de mesmo TaskName'
+    }
 }

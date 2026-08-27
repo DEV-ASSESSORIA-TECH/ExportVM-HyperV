@@ -1,4 +1,4 @@
-# RUNBOOK — VM Export Backup v2.0
+# RUNBOOK — VM Export Backup v2.0.1
 
 Guia de operação, diagnóstico e recuperação. A arquitetura e os parâmetros estão em [README.md](../README.md).
 
@@ -10,6 +10,13 @@ Guia de operação, diagnóstico e recuperação. A arquitetura e os parâmetros
 Get-ScheduledTaskInfo -TaskName 'Backup Hyper-V - Cascata Noturna'
 ```
 
+Se a tarefa estiver em uma pasta personalizada:
+
+```powershell
+Get-ScheduledTask -TaskPath '\ASSESSORIA SCF\' -TaskName 'BACKUP-VM' |
+    Get-ScheduledTaskInfo
+```
+
 `LastTaskResult`:
 
 - `0`: sucesso sem avisos;
@@ -17,6 +24,22 @@ Get-ScheduledTaskInfo -TaskName 'Backup Hyper-V - Cascata Noturna'
 - `2`: backups concluídos, mas houve aviso ou falha de observabilidade.
 
 O wrapper continua os tiers posteriores mesmo que um anterior falhe.
+
+### Pasta personalizada no Agendador
+
+A pasta lógica do Agendador é independente da pasta física da instalação. Para
+instalar em uma pasta já existente:
+
+```powershell
+& 'C:\TI\Scripts\WindowsServerBackup\Install-VMExportBackupTask.ps1' `
+    -TaskPath '\ASSESSORIA SCF\' `
+    -TaskName 'BACKUP-VM'
+```
+
+O padrão de `TaskPath` é a raiz (`\`). O valor também pode ser informado como
+`ASSESSORIA SCF`; o instalador normaliza as barras. Quando uma tarefa de mesmo
+nome existir em outro caminho, a nova é registrada primeiro e a anterior é
+removida depois. Confirme que a pasta personalizada já existe no Agendador.
 
 ### 2. Conferir o consolidado
 

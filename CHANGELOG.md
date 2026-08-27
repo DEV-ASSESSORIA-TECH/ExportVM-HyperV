@@ -4,6 +4,18 @@ Histórico de versões. Para arquitetura/configuração atual veja [README.md](R
 
 ---
 
+## v2.0.1 — 2026-08-27
+
+### Adicionado
+
+- Parâmetro `-TaskPath` em `Install-VMExportBackupTask.ps1` para registrar a cascata em uma pasta personalizada já existente no Agendador do Windows.
+- Normalização do caminho lógico, aceitando por exemplo `ASSESSORIA SCF` ou `\ASSESSORIA SCF\`.
+
+### Alterado
+
+- Ao mudar a pasta, o instalador registra a nova tarefa antes de remover cópias de mesmo `TaskName` em outros caminhos, evitando cascatas duplicadas.
+- A remoção das tarefas legadas agora informa explicitamente `TaskPath` e `TaskName`.
+
 ## v2.0.0 — 2026-08-27
 
 Repaginação do repositório para tolerar falhas por VM sem reescrever o fluxo validado de exportação e 7-Zip.

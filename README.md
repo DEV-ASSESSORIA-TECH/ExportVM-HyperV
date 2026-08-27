@@ -1,4 +1,4 @@
-# VM Export Backup v2.0
+# VM Export Backup v2.0.1
 
 Backup completo de VMs Hyper-V por `Export-VM` e 7-Zip, com publicação e retenção independentes por VM. É uma solução de contingência: não é incremental e não substitui uma plataforma dedicada como Veeam ou Acronis.
 
@@ -145,6 +145,22 @@ Instalar ou atualizar a tarefa diária:
 & 'C:\Scripts\WindowsServerBackup\Install-VMExportBackupTask.ps1'
 ```
 
+Por padrão, a tarefa é registrada na raiz (`\`) do Agendador. Para usar uma pasta
+personalizada já existente, informe `-TaskPath`; o instalador aceita o nome com ou
+sem as barras externas:
+
+```powershell
+& 'C:\TI\Scripts\WindowsServerBackup\Install-VMExportBackupTask.ps1' `
+    -TaskPath '\ASSESSORIA SCF\' `
+    -TaskName 'BACKUP-VM'
+```
+
+Ao mudar `TaskPath`, o instalador registra primeiro a nova tarefa e depois remove
+outras cópias com o mesmo `TaskName`, evitando duas cascatas concorrentes. A pasta
+do Agendador é independente da pasta física dos scripts. `Config`, `Logs`,
+`Reports`, `Locks` e os helpers continuam sendo localizados relativamente ao
+diretório do próprio script.
+
 Plano de um tier:
 
 ```powershell
@@ -171,7 +187,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\Invoke-Tests.p
 
 ## Empacotamento e release
 
-Gerar localmente `dist\VM-Export-Backup-2.0.0.zip` e seu SHA-256:
+Gerar localmente `dist\VM-Export-Backup-2.0.1.zip` e seu SHA-256:
 
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\Package.ps1
@@ -185,7 +201,7 @@ Para esta versão, depois do commit local:
 
 ```powershell
 git push origin main
-git push origin v2.0.0
+git push origin v2.0.1
 ```
 
 ## Restauração parcial

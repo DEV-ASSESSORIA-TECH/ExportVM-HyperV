@@ -1,5 +1,5 @@
-VM Export Backup v2.0
-=====================
+VM Export Backup v2.0.1
+=======================
 
 Resumo rápido. A referência técnica está em ..\README.md e a operação/recuperação
 detalhada neste diretório em RUNBOOK.md.
@@ -64,6 +64,15 @@ Executar a cascata SMALL -> MEDIUM -> BIG:
 Instalar/atualizar a tarefa diária das 21:00:
 
 & 'C:\Scripts\WindowsServerBackup\Install-VMExportBackupTask.ps1'
+
+Instalar na pasta personalizada existente do Agendador:
+
+& 'C:\TI\Scripts\WindowsServerBackup\Install-VMExportBackupTask.ps1' `
+    -TaskPath '\ASSESSORIA SCF\' -TaskName 'BACKUP-VM'
+
+TaskPath é a pasta lógica do Agendador, não a pasta física dos scripts. Ao mudar
+TaskPath, o instalador remove outras cópias de mesmo TaskName depois de registrar
+a nova tarefa com sucesso.
 
 Executar parser e Pester 3.4 no clone do repositório (não no pacote de produção):
 
