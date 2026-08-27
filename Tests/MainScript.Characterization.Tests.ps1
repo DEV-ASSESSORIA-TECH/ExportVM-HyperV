@@ -20,20 +20,21 @@ Describe 'Funcoes do script principal' {
     }
 }
 
-Describe 'Fluxo produtivo v1.2 antes da repaginacao' {
-    It 'usa CascadeId e uma subpasta de execucao dentro da pasta da noite' {
-        $mainSource | Should Match '\[string\]\$CascadeId'
-        $mainSource | Should Match '\$FinalPoint\s*=\s*Join-Path \(Join-Path \$RepositoryRoot \$CascadeGroupName\) \$RestorePointName'
+Describe 'Fluxo produtivo v1.3' {
+    It 'usa BackupSetId e o layout schema 2 por tier' {
+        $mainSource | Should Match '\[string\]\$BackupSetId'
+        $mainSource | Should Match 'Get-BackupSetPathModel'
+        $mainSource | Should Match 'Write-BackupTierManifestV2'
     }
 
-    It 'move o staging inteiro para FAILED quando alguma VM falha' {
-        $mainSource | Should Match '\$OverallStatus\s*=\s*''PARTIAL_FAILED'''
-        $mainSource | Should Match 'Move-Item -LiteralPath \$StagingPoint -Destination \$failedDestination'
+    It 'publica e preserva falhas de forma independente por VM' {
+        $mainSource | Should Match 'Publish-VMTransactionResult'
+        $mainSource | Should Match 'Save-FailedVMTransaction'
+        $mainSource | Should Match 'PARTIAL_SUCCESS'
     }
 
-    It 'publica somente um lote completo com codigo zero' {
-        $mainSource | Should Match "Write-RestorePointMarker.+-Status 'COMPLETE'"
-        $mainSource | Should Match '\$OverallStatus\s*=\s*''SUCCESS'''
-        $mainSource | Should Match '\$ExitCode\s*=\s*0'
+    It 'ativa o orquestrador v1.3 no caminho de execucao' {
+        $mainSource | Should Match 'Invoke-BackupExecutionV13'
+        $mainSource | Should Match 'Get-BackupOutcome'
     }
 }

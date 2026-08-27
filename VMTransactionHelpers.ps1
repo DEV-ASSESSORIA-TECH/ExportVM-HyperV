@@ -99,6 +99,8 @@ function Invoke-VMTransaction {
 
         [scriptblock]$HashAction,
 
+        [scriptblock]$FinalizeAction,
+
         [ValidateRange(0, 3)]
         [int]$RetryCount = 0,
 
@@ -126,6 +128,11 @@ function Invoke-VMTransaction {
         Status = 'FAILED'
         CurrentStage = 'INITIALIZE'
         Attempts = 0
+        ExportDuration = [timespan]::Zero
+        CompressionDuration = [timespan]::Zero
+        IntegrityDuration = [timespan]::Zero
+        StructureDuration = [timespan]::Zero
+        HashDuration = [timespan]::Zero
         ExportBytes = 0L
         ArchiveBytes = 0L
         ArchiveListedBytes = 0L
@@ -137,6 +144,8 @@ function Invoke-VMTransaction {
         HashEnabled = $null -ne $HashAction
         ArchivePath = $Context.ArchivePath
         MetadataPath = $Context.MetadataRoot
+        Archive = $null
+        Metadata = $null
         FailureKind = $null
         Retryable = $false
         ErrorType = $null
@@ -151,6 +160,11 @@ function Invoke-VMTransaction {
         $result.ExportBytes = 0L
         $result.ArchiveBytes = 0L
         $result.ArchiveListedBytes = 0L
+        $result.ExportDuration = [timespan]::Zero
+        $result.CompressionDuration = [timespan]::Zero
+        $result.IntegrityDuration = [timespan]::Zero
+        $result.StructureDuration = [timespan]::Zero
+        $result.HashDuration = [timespan]::Zero
         $result.ArchiveFileCount = 0
         $result.ArchiveFolderCount = 0
         $result.VirtualDiskCount = 0
@@ -166,19 +180,23 @@ function Invoke-VMTransaction {
             $result.CurrentStage = 'EXPORT'
             $export = & $ExportAction $Context $attempt
             $result.ExportBytes = [long](Get-StageResultProperty -StageResult $export -Name 'ExportBytes' -DefaultValue 0L)
+            $result.ExportDuration = Get-StageResultProperty -StageResult $export -Name 'Duration' -DefaultValue ([timespan]::Zero)
             $stageResults.Add([pscustomobject]@{ Stage = 'EXPORT'; Attempt = $attempt; Result = $export })
 
             $result.CurrentStage = 'COMPRESS'
             $compression = & $CompressAction $Context $attempt
             $result.ArchiveBytes = [long](Get-StageResultProperty -StageResult $compression -Name 'ArchiveBytes' -DefaultValue 0L)
+            $result.CompressionDuration = Get-StageResultProperty -StageResult $compression -Name 'Duration' -DefaultValue ([timespan]::Zero)
             $stageResults.Add([pscustomobject]@{ Stage = 'COMPRESS'; Attempt = $attempt; Result = $compression })
 
             $result.CurrentStage = 'INTEGRITY'
             $integrity = & $IntegrityAction $Context $attempt
+            $result.IntegrityDuration = Get-StageResultProperty -StageResult $integrity -Name 'Duration' -DefaultValue ([timespan]::Zero)
             $stageResults.Add([pscustomobject]@{ Stage = 'INTEGRITY'; Attempt = $attempt; Result = $integrity })
 
             $result.CurrentStage = 'STRUCTURE'
             $structure = & $StructureAction $Context $attempt
+            $result.StructureDuration = Get-StageResultProperty -StageResult $structure -Name 'Duration' -DefaultValue ([timespan]::Zero)
             $result.ArchiveListedBytes = [long](Get-StageResultProperty -StageResult $structure -Name 'ArchiveListedBytes' -DefaultValue 0L)
             $result.ArchiveFileCount = [int](Get-StageResultProperty -StageResult $structure -Name 'ArchiveFileCount' -DefaultValue 0)
             $result.ArchiveFolderCount = [int](Get-StageResultProperty -StageResult $structure -Name 'ArchiveFolderCount' -DefaultValue 0)
@@ -190,7 +208,14 @@ function Invoke-VMTransaction {
                 $result.CurrentStage = 'HASH'
                 $hash = & $HashAction $Context $attempt
                 $result.SHA256 = [string](Get-StageResultProperty -StageResult $hash -Name 'SHA256')
+                $result.HashDuration = Get-StageResultProperty -StageResult $hash -Name 'Duration' -DefaultValue ([timespan]::Zero)
                 $stageResults.Add([pscustomobject]@{ Stage = 'HASH'; Attempt = $attempt; Result = $hash })
+            }
+
+            if ($null -ne $FinalizeAction) {
+                $result.CurrentStage = 'FINALIZE'
+                $finalization = & $FinalizeAction $Context $attempt
+                $stageResults.Add([pscustomobject]@{ Stage = 'FINALIZE'; Attempt = $attempt; Result = $finalization })
             }
 
             $result.Success = $true

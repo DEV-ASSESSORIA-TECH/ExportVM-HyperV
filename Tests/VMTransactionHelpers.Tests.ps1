@@ -106,6 +106,24 @@ Describe 'Orquestracao da transacao de VM' {
         @($result.StageResults | Select-Object -ExpandProperty Stage) -contains 'HASH' | Should Be $true
     }
 
+    It 'so aprova a transacao depois de finalizar o arquivo da VM' {
+        $context = New-TestTransactionContext
+
+        $result = Invoke-VMTransaction `
+            -Context $context `
+            -ResetAction { } `
+            -ExportAction { [pscustomobject]@{ ExportBytes = 1000L } } `
+            -CompressAction { [pscustomobject]@{ ArchiveBytes = 600L } } `
+            -IntegrityAction { [pscustomobject]@{ Passed = $true } } `
+            -StructureAction { [pscustomobject]@{ ArchiveListedBytes = 1000L } } `
+            -FinalizeAction { throw 'nao foi possivel finalizar o arquivo' }
+
+        $result.Success | Should Be $false
+        $result.CurrentStage | Should Be 'FINALIZE'
+        $result.Status | Should Be 'FAILED'
+        $result.Error | Should Be 'nao foi possivel finalizar o arquivo'
+    }
+
     It 'interrompe etapas posteriores registra a falha e preserva o payload da VM' {
         $context = New-TestTransactionContext
         $calls = New-Object System.Collections.Generic.List[string]

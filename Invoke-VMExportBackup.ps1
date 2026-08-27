@@ -17,7 +17,7 @@ param(
     # Passado pelo wrapper Invoke-CascadeBackup.ps1 para que os lotes de uma mesma
     # cascata noturna publiquem dentro da mesma pasta na raiz do repositorio. Quando
     # ausente (execucao manual/avulsa), o script gera seu proprio identificador.
-    [string]$CascadeId,
+    [string]$BackupSetId,
 
     [ValidateRange(1, 30)]
     [int]$KeepRestorePoints = 3,
@@ -43,8 +43,8 @@ param(
     [ValidateRange(0, 3)]
     [int]$RetryCount = 1,
 
-    [ValidateRange(0, 60)]
-    [int]$FailedRetentionDays = 7,
+    [ValidateRange(0, 30)]
+    [int]$FailedPayloadKeepPerVM = 3,
 
     [string]$SevenZipPath = 'C:\Program Files\7-Zip\7z.exe',
 
@@ -57,7 +57,7 @@ param(
 
     [string[]]$MailTo = @('suporte@assessoriatech.com'),
 
-    # A partir da v1.1.0 o e-mail so dispara em FAILED/PARTIAL_FAILED (SUCCESS/PLAN
+    # O e-mail direto dispara em FAILED/PARTIAL_SUCCESS (SUCCESS/PLAN
     # ficam silenciosos por padrao). -SkipEmail passou a significar "forcar silencio
     # mesmo em falha", util para testes manuais onde uma falha e esperada.
     [switch]$SkipEmail,
@@ -71,7 +71,7 @@ Set-StrictMode -Version 2.0
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
 
-$ScriptVersion = '1.2.0'
+$ScriptVersion = '1.3.0'
 $RunId = [guid]::NewGuid().ToString('N')
 $RunStart = Get-Date
 $Mode = if ($Execute) { 'EXECUTE' } else { 'PLAN' }
@@ -85,6 +85,12 @@ $ConfigDir = Join-Path $ScriptRoot 'Config'
 $WorkerPath = Join-Path $ScriptRoot 'Export-VMWorker.ps1'
 $HashWorkerPath = Join-Path $ScriptRoot 'Get-FileHashWorker.ps1'
 $TierHelpersPath = Join-Path $ScriptRoot 'TierHelpers.ps1'
+$RepositoryHelpersPath = Join-Path $ScriptRoot 'RepositoryHelpers.ps1'
+$RetentionHelpersPath = Join-Path $ScriptRoot 'RetentionHelpers.ps1'
+$SpaceHelpersPath = Join-Path $ScriptRoot 'SpaceHelpers.ps1'
+$FailureHelpersPath = Join-Path $ScriptRoot 'FailureClassificationHelpers.ps1'
+$TransactionHelpersPath = Join-Path $ScriptRoot 'VMTransactionHelpers.ps1'
+$PublishingHelpersPath = Join-Path $ScriptRoot 'PublishingHelpers.ps1'
 $SettingsConfigPath = Join-Path $ConfigDir 'Settings.json'
 $TiersConfigPath = Join-Path $ConfigDir 'Tiers.json'
 $Timestamp = $RunStart.ToString('yyyy-MM-dd_HH-mm-ss')
@@ -104,7 +110,7 @@ $FailedRoot = $null
 $RestorePointName = $null
 $StagingPoint = $null
 $FinalPoint = $null
-$CascadeGroupName = $null
+$BackupSetPathModel = $null
 $CurrentStage = 'Inicializacao'
 $ExitCode = 1
 $LockAcquired = $false
@@ -182,6 +188,12 @@ function Get-FreeGB {
     $driveLetter = $BackupDrive.TrimEnd(':')
     $volume = Get-Volume -DriveLetter $driveLetter -ErrorAction Stop
     return [math]::Round(($volume.SizeRemaining / 1GB), 2)
+}
+
+function Get-FreeBytes {
+    $driveLetter = $BackupDrive.TrimEnd(':')
+    $volume = Get-Volume -DriveLetter $driveLetter -ErrorAction Stop
+    return [long]$volume.SizeRemaining
 }
 
 function Get-SafeName {
@@ -625,7 +637,7 @@ function Write-RestorePointMarker {
         RunId = $RunId
         Status = $Status
         TierName = $EffectiveBatchName
-        CascadeId = $CascadeGroupName
+        BackupSetId = $BackupSetId
         ComputerName = $ComputerName
         CreatedAt = $RunStart.ToString('o')
         FinishedAt = (Get-Date).ToString('o')
@@ -873,7 +885,7 @@ function New-HtmlReport {
     } else { '' }
 
     # Bloco de falha montado a parte e inserido logo apos o badge de status, antes do
-    # Resumo - agora que o e-mail so dispara em FAILED/PARTIAL_FAILED, quem abre o
+    # Resumo - como o e-mail direto so dispara em FAILED/PARTIAL_SUCCESS, quem abre o
     # ticket precisa ver o motivo sem rolar a pagina inteira primeiro.
     $failedVMs = @($VMResults | Where-Object { -not $_.Success })
     $failureSummaryHtml = ''
@@ -1024,6 +1036,344 @@ function Send-ReportEmail {
     }
 }
 
+function Invoke-ConfiguredVMTransaction {
+    param(
+        [Parameter(Mandatory = $true)]$VM,
+        [Parameter(Mandatory = $true)]$Context
+    )
+
+    $resetAction = {
+        param($ctx, $attempt)
+        foreach ($path in @($ctx.ExportRoot, $ctx.PayloadRoot)) {
+            if (Test-Path -LiteralPath $path) { Remove-Item -LiteralPath $path -Recurse -Force -ErrorAction Stop }
+            New-Item -ItemType Directory -Path $path -Force -ErrorAction Stop | Out-Null
+        }
+        Write-Log "[$($VM.Name)] Tentativa $attempt/$($RetryCount + 1): preparando transacao isolada."
+    }
+
+    $exportAction = {
+        param($ctx, $attempt)
+        $resultPath = Join-Path $ctx.MetadataRoot "export-result-attempt$attempt.json"
+        $stdout = Join-Path $ctx.MetadataRoot "export-attempt$attempt.stdout.log"
+        $stderr = Join-Path $ctx.MetadataRoot "export-attempt$attempt.stderr.log"
+        $arguments = @(
+            '-NoProfile', '-ExecutionPolicy Bypass', '-File', (Quote-Argument $WorkerPath),
+            '-VMName', (Quote-Argument $VM.Name), '-ExportPath', (Quote-Argument $ctx.ExportRoot),
+            '-ResultPath', (Quote-Argument $resultPath)
+        ) -join ' '
+        $process = Invoke-MonitoredProcess -DisplayName "Export-VM $($VM.Name)" -FilePath 'powershell.exe' `
+            -ArgumentString $arguments -Timeout ([timespan]::FromHours($ExportTimeoutHours)) -StdOutPath $stdout -StdErrPath $stderr
+        if ($process.TimedOut) { throw (New-Object System.TimeoutException("Exportacao excedeu $ExportTimeoutHours hora(s).")) }
+        $workerResult = Read-JsonResultFile -Path $resultPath -WaitSeconds 15
+        if ($null -eq $workerResult) {
+            $detail = if ($process.StdErrTail) { $process.StdErrTail } else { $process.StdOutTail }
+            throw "Worker terminou sem resultado JSON valido. ExitCode=$($process.ExitCode). $detail"
+        }
+        if (-not $workerResult.Success) { throw "Exportacao reportou falha: $($workerResult.Error)" }
+        $bytes = Get-DirectorySize -Path $ctx.ExportRoot
+        if ($bytes -lt 1MB) { Throw-VMFailure -Message "Exportacao invalida ou vazia: $(Format-Bytes $bytes)." -FailureKind 'INVALID_EXPORT' -Retryable $false }
+        Write-Log "[$($VM.Name)] Exportacao concluida: $(Format-Bytes $bytes) em $(Format-Duration $process.Duration)." 'SUCCESS'
+        return [pscustomobject]@{ ExportBytes = $bytes; Duration = $process.Duration }
+    }
+
+    $compressAction = {
+        param($ctx, $attempt)
+        $stdout = Join-Path $ctx.MetadataRoot "7zip-attempt$attempt.stdout.log"
+        $stderr = Join-Path $ctx.MetadataRoot "7zip-attempt$attempt.stderr.log"
+        $arguments = @(
+            'a', '-t7z', "-mx=$CompressionLevel", '-mmt=8', '-ms=on', '-bd', '-bb1', '-bso1', '-bse1', '--',
+            (Quote-Argument $ctx.ArchivePartialPath), (Quote-Argument (Join-Path $ctx.ExportRoot '*'))
+        ) -join ' '
+        $process = Invoke-MonitoredProcess -DisplayName "7-Zip compactar $($VM.Name)" -FilePath $SevenZipPath `
+            -ArgumentString $arguments -Timeout ([timespan]::FromHours($CompressionTimeoutHours)) -StdOutPath $stdout -StdErrPath $stderr
+        if ($process.TimedOut) { throw (New-Object System.TimeoutException("Compactacao excedeu $CompressionTimeoutHours hora(s).")) }
+        $textSuccess = "$($process.StdOutTail) $($process.StdErrTail)" -match '(?i)Everything is Ok'
+        if (($null -ne $process.ExitCode -and $process.ExitCode -gt 1) -or ($null -eq $process.ExitCode -and -not $textSuccess)) {
+            $detail = if ($process.StdErrTail) { $process.StdErrTail } else { $process.StdOutTail }
+            throw "7-Zip falhou ao compactar. ExitCode=$($process.ExitCode). $detail"
+        }
+        if (-not (Test-Path -LiteralPath $ctx.ArchivePartialPath -PathType Leaf)) { throw "Arquivo parcial nao foi criado: $($ctx.ArchivePartialPath)" }
+        $bytes = [long](Get-Item -LiteralPath $ctx.ArchivePartialPath).Length
+        if ($bytes -le 0) { throw 'O arquivo compactado foi criado com tamanho zero.' }
+        Write-Log "[$($VM.Name)] Compactacao concluida: $(Format-Bytes $bytes) em $(Format-Duration $process.Duration)." 'SUCCESS'
+        return [pscustomobject]@{ ArchiveBytes = $bytes; Duration = $process.Duration }
+    }
+
+    $integrityAction = {
+        param($ctx, $attempt)
+        $stdout = Join-Path $ctx.MetadataRoot "7zip-test-attempt$attempt.stdout.log"
+        $stderr = Join-Path $ctx.MetadataRoot "7zip-test-attempt$attempt.stderr.log"
+        $arguments = @('t', '-bd', '-bb1', '-bso1', '-bse1', '--', (Quote-Argument $ctx.ArchivePartialPath)) -join ' '
+        $process = Invoke-MonitoredProcess -DisplayName "7-Zip testar $($VM.Name)" -FilePath $SevenZipPath `
+            -ArgumentString $arguments -Timeout ([timespan]::FromHours($IntegrityTimeoutHours)) -StdOutPath $stdout -StdErrPath $stderr
+        if ($process.TimedOut) { throw (New-Object System.TimeoutException("Teste do arquivo excedeu $IntegrityTimeoutHours hora(s).")) }
+        $textSuccess = "$($process.StdOutTail) $($process.StdErrTail)" -match '(?i)Everything is Ok'
+        if (($null -ne $process.ExitCode -and $process.ExitCode -ne 0) -or ($null -eq $process.ExitCode -and -not $textSuccess)) {
+            $detail = if ($process.StdErrTail) { $process.StdErrTail } else { $process.StdOutTail }
+            throw "Teste 7-Zip falhou. ExitCode=$($process.ExitCode). $detail"
+        }
+        Write-Log "[$($VM.Name)] Arquivo aprovado no teste integral do 7-Zip em $(Format-Duration $process.Duration)." 'SUCCESS'
+        return [pscustomobject]@{ Passed = $true; Duration = $process.Duration }
+    }
+
+    $structureAction = {
+        param($ctx, $attempt)
+        $stdout = Join-Path $ctx.MetadataRoot "7zip-list-attempt$attempt.stdout.log"
+        $stderr = Join-Path $ctx.MetadataRoot "7zip-list-attempt$attempt.stderr.log"
+        $arguments = @('l', '-slt', '-bd', '-bso1', '-bse1', '--', (Quote-Argument $ctx.ArchivePartialPath)) -join ' '
+        $process = Invoke-MonitoredProcess -DisplayName "7-Zip listar $($VM.Name)" -FilePath $SevenZipPath `
+            -ArgumentString $arguments -Timeout ([timespan]::FromHours($IntegrityTimeoutHours)) -StdOutPath $stdout -StdErrPath $stderr
+        if ($process.TimedOut) { throw (New-Object System.TimeoutException("Listagem estrutural excedeu $IntegrityTimeoutHours hora(s).")) }
+        $listText = if (Test-Path -LiteralPath $stdout) { Get-Content -LiteralPath $stdout -Raw -ErrorAction Stop } else { '' }
+        $typeConfirmed = $listText -match '(?im)^Type = 7z\s*$'
+        if (($null -ne $process.ExitCode -and $process.ExitCode -ne 0) -or ($null -eq $process.ExitCode -and -not $typeConfirmed)) {
+            Throw-VMFailure -Message "Nao foi possivel listar a estrutura do arquivo 7z. ExitCode=$($process.ExitCode)." -FailureKind 'INVALID_STRUCTURE' -Retryable $false
+        }
+        $structure = Get-SevenZipArchiveStructure -ListText $listText
+        if ([int]$structure.VirtualDiskCount -lt 1) { Throw-VMFailure -Message 'A estrutura nao contem disco virtual.' -FailureKind 'INVALID_STRUCTURE' -Retryable $false }
+        if ([int]$structure.VmcxCount -lt 1) { Throw-VMFailure -Message 'A estrutura nao contem VMCX.' -FailureKind 'INVALID_STRUCTURE' -Retryable $false }
+        $exportBytes = Get-DirectorySize -Path $ctx.ExportRoot
+        if ([long]$structure.TotalUncompressedBytes -ne $exportBytes) {
+            Throw-VMFailure -Message "Tamanho listado difere da exportacao. Exportado=$exportBytes; listado=$($structure.TotalUncompressedBytes)." -FailureKind 'INVALID_STRUCTURE' -Retryable $false
+        }
+        Write-Log "[$($VM.Name)] Estrutura do arquivo aprovada." 'SUCCESS'
+        return [pscustomobject]@{
+            ArchiveListedBytes = [long]$structure.TotalUncompressedBytes; ArchiveFileCount = [int]$structure.FileCount
+            ArchiveFolderCount = [int]$structure.FolderCount; VirtualDiskCount = [int]$structure.VirtualDiskCount
+            VmcxCount = [int]$structure.VmcxCount; Duration = $process.Duration
+        }
+    }
+
+    $hashAction = $null
+    if (-not $SkipHash) {
+        $hashAction = {
+            param($ctx, $attempt)
+            $resultPath = Join-Path $ctx.MetadataRoot "hash-result-attempt$attempt.json"
+            $stdout = Join-Path $ctx.MetadataRoot "hash-attempt$attempt.stdout.log"
+            $stderr = Join-Path $ctx.MetadataRoot "hash-attempt$attempt.stderr.log"
+            $arguments = @('-NoProfile', '-ExecutionPolicy Bypass', '-File', (Quote-Argument $HashWorkerPath), '-FilePath', (Quote-Argument $ctx.ArchivePartialPath), '-ResultPath', (Quote-Argument $resultPath)) -join ' '
+            $process = Invoke-MonitoredProcess -DisplayName "SHA-256 $($VM.Name)" -FilePath 'powershell.exe' `
+                -ArgumentString $arguments -Timeout ([timespan]::FromHours($IntegrityTimeoutHours)) -StdOutPath $stdout -StdErrPath $stderr
+            if ($process.TimedOut) { throw (New-Object System.TimeoutException("SHA-256 excedeu $IntegrityTimeoutHours hora(s).")) }
+            $hashResult = Read-JsonResultFile -Path $resultPath -WaitSeconds 15
+            if ($null -eq $hashResult -or -not $hashResult.Success) { throw "Falha SHA-256: $($hashResult.Error)" }
+            return [pscustomobject]@{ SHA256 = [string]$hashResult.Hash; Duration = $process.Duration }
+        }
+    }
+
+    $finalizeAction = {
+        param($ctx, $attempt)
+        Move-Item -LiteralPath $ctx.ArchivePartialPath -Destination $ctx.ArchivePath -Force -ErrorAction Stop
+        Remove-Item -LiteralPath $ctx.ExportRoot -Recurse -Force -ErrorAction Stop
+        Write-Log "[$($VM.Name)] Exportacao temporaria removida; VM pronta para publicar." 'SUCCESS'
+    }
+
+    $parameters = @{
+        Context = $Context; ResetAction = $resetAction; ExportAction = $exportAction; CompressAction = $compressAction
+        IntegrityAction = $integrityAction; StructureAction = $structureAction; FinalizeAction = $finalizeAction
+        RetryCount = $RetryCount; RetryDelaySeconds = 60
+        WaitAction = { param($seconds) Write-Log "[$($VM.Name)] Falha transitoria; nova tentativa em $seconds segundos." 'WARNING'; Start-Sleep -Seconds $seconds }
+    }
+    if ($null -ne $hashAction) { $parameters.HashAction = $hashAction }
+    $result = Invoke-VMTransaction @parameters
+
+    $result | Add-Member -NotePropertyName State -NotePropertyValue ([string]$VM.State) -Force
+    $result | Add-Member -NotePropertyName ExportSize -NotePropertyValue (Format-Bytes $result.ExportBytes) -Force
+    $result | Add-Member -NotePropertyName ArchiveSize -NotePropertyValue (Format-Bytes $result.ArchiveBytes) -Force
+    $result | Add-Member -NotePropertyName ArchiveListedSize -NotePropertyValue (Format-Bytes $result.ArchiveListedBytes) -Force
+    $result | Add-Member -NotePropertyName ArchiveStructure -NotePropertyValue $(if ($result.Success) { "$($result.ArchiveFileCount) arquivo(s) | $($result.VirtualDiskCount) disco(s) | $($result.VmcxCount) VMCX | $(Format-Bytes $result.ArchiveListedBytes)" } else { $null }) -Force
+    $ratio = if ($result.ExportBytes -gt 0 -and $result.ArchiveBytes -gt 0) { '{0:N1}%' -f (100 - (($result.ArchiveBytes / [double]$result.ExportBytes) * 100)) } else { $null }
+    $result | Add-Member -NotePropertyName CompressionRatio -NotePropertyValue $ratio -Force
+    foreach ($name in @('ExportDuration', 'CompressionDuration', 'IntegrityDuration', 'StructureDuration', 'HashDuration')) {
+        $result.$name = Format-Duration $result.$name
+    }
+    return $result
+}
+
+function Invoke-BackupExecutionV13 {
+    foreach ($dir in @($RepositoryRoot, $StagingRoot, $FailedRoot)) {
+        if (-not (Test-Path -LiteralPath $dir -PathType Container)) {
+            New-Item -ItemType Directory -Path $dir -Force -ErrorAction Stop | Out-Null
+        }
+    }
+
+    # Stagings interrompidos nao sao backups validos. Eles ficam preservados como
+    # payload orfao para diagnostico e podem ser descartados pela pressao de espaco.
+    $orphanRoot = Join-Path $FailedRoot '_ORPHANED'
+    foreach ($orphan in @(Get-ChildItem -LiteralPath $StagingRoot -Directory -ErrorAction SilentlyContinue)) {
+        if ($orphan.FullName -eq $StagingPoint) { continue }
+        $occurrenceRoot = Join-Path $orphanRoot $orphan.Name
+        if (Test-Path -LiteralPath $occurrenceRoot) {
+            $occurrenceRoot = Join-Path $orphanRoot ("$($orphan.Name)--$([guid]::NewGuid().ToString('N').Substring(0, 8))")
+        }
+        New-Item -ItemType Directory -Path $occurrenceRoot -Force -ErrorAction Stop | Out-Null
+        Move-Item -LiteralPath $orphan.FullName -Destination (Join-Path $occurrenceRoot 'Payload') -ErrorAction Stop
+        [ordered]@{
+            SchemaVersion = 2; VMName = '_ORPHANED'; VMId = $null; VMIdentity = '_ORPHANED'
+            TierName = $null; BackupSetId = $null; RunId = $null; OccurrenceId = $orphan.Name
+            OccurredAt = (Get-Date).ToString('o'); Status = 'FAILED'; FailureKind = 'ORPHANED_STAGING'
+            Retryable = $false; FailedStage = 'RECOVERY'; Attempts = 0
+            ErrorType = $null; Error = 'Staging interrompido recuperado na execucao seguinte.'
+            PayloadStatus = 'PRESENT'
+        } | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $occurrenceRoot 'failure.json') -Encoding UTF8 -ErrorAction Stop
+        Write-Log "Staging interrompido movido para: $occurrenceRoot" 'WARNING'
+    }
+
+    if (Test-Path -LiteralPath $StagingPoint) { throw "Diretorio de staging ja existe: $StagingPoint" }
+    if (Test-Path -LiteralPath $BackupSetPathModel.TierRoot) { throw "Destino final ja existe: $($BackupSetPathModel.TierRoot)" }
+
+    $tierMetadata = Join-Path $StagingPoint 'TierMetadata'
+    New-Item -ItemType Directory -Path $tierMetadata -Force -ErrorAction Stop | Out-Null
+    [ordered]@{
+        SchemaVersion = 2; Pid = $PID; RunId = $RunId; BackupSetId = $BackupSetId
+        TierName = $EffectiveBatchName; StartTime = $RunStart.ToString('o')
+    } | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $StagingPoint 'RUNNING.marker.json') -Encoding UTF8
+    Write-HostInventory -Path (Join-Path $tierMetadata 'HostInventory.json')
+    Copy-Item -LiteralPath $LogPath -Destination (Join-Path $tierMetadata 'Initial.log') -Force -ErrorAction SilentlyContinue
+
+    Write-Stage -Number 3 -Total 9 -Title 'Exportar, validar e publicar cada VM'
+    $vmIndex = 0
+    foreach ($vm in $SelectedVMs) {
+        $vmIndex++
+        Write-Log ('-' * 74)
+        Write-Log "[VM $vmIndex/$($SelectedVMs.Count)] $($vm.Name) | GUID=$($vm.VMId) | Estado=$($vm.State)."
+
+        $occurrenceId = "${Timestamp}--$($RunId.Substring(0, 8))"
+        $context = New-VMTransactionContext -StagingRoot $StagingPoint -VMName $vm.Name `
+            -VMId ([string]$vm.VMId) -TierName $EffectiveBatchName -OccurrenceId $occurrenceId
+
+        $failedEntries = @(Get-Schema2FailedPayloadEntries -RepositoryRoot $RepositoryRoot)
+        $space = Invoke-VMSpacePreparation -SourceBytes ([long]$vm.SourceBytes) -MinFreeGB $MinFreeGB `
+            -FailedPayloadEntries $failedEntries -KeepPerVM $FailedPayloadKeepPerVM `
+            -GetFreeBytesAction { Get-FreeBytes }
+        foreach ($spaceError in @($space.Errors)) { $Warnings.Add("Falha na limpeza de _FAILED: $spaceError") }
+        foreach ($event in @($space.Events)) {
+            if ($event.Success) {
+                Write-Log "Payload falho removido ($($event.Reason)): $($event.OccurrenceRoot) | livre antes=$(Format-Bytes $event.SpaceBeforeBytes) | depois=$(Format-Bytes $event.SpaceAfterBytes)." 'WARNING'
+            }
+        }
+        if ($space.EmergencyDeletionOccurred) {
+            $Warnings.Add("Pressao de espaco exigiu remover payloads falhos adicionais antes de $($vm.Name).")
+        }
+
+        if ($space.Sufficient) {
+            $result = Invoke-ConfiguredVMTransaction -VM $vm -Context $context
+        }
+        else {
+            $spaceFailure = $space.Failure
+            $result = Invoke-VMTransaction -Context $context -RetryCount 0 `
+                -InitializeAction { param($ctx) throw (New-VMFailureException -Message $spaceFailure.Error -FailureKind $spaceFailure.FailureKind -Retryable $false) } `
+                -ResetAction { param($ctx, $attempt) } -ExportAction { param($ctx, $attempt) } `
+                -CompressAction { param($ctx, $attempt) } -IntegrityAction { param($ctx, $attempt) } `
+                -StructureAction { param($ctx, $attempt) }
+            $result | Add-Member -NotePropertyName State -NotePropertyValue ([string]$vm.State) -Force
+            $result | Add-Member -NotePropertyName ExportSize -NotePropertyValue (Format-Bytes 0) -Force
+            $result | Add-Member -NotePropertyName ArchiveSize -NotePropertyValue (Format-Bytes 0) -Force
+            $result | Add-Member -NotePropertyName ArchiveListedSize -NotePropertyValue (Format-Bytes 0) -Force
+            $result | Add-Member -NotePropertyName ArchiveStructure -NotePropertyValue $null -Force
+            $result | Add-Member -NotePropertyName CompressionRatio -NotePropertyValue $null -Force
+            foreach ($durationName in @('ExportDuration', 'CompressionDuration', 'IntegrityDuration', 'StructureDuration', 'HashDuration')) {
+                $result.$durationName = Format-Duration $result.$durationName
+            }
+        }
+
+        $result | Add-Member -NotePropertyName BackupSetId -NotePropertyValue $BackupSetId -Force
+        $result | Add-Member -NotePropertyName RunId -NotePropertyValue $RunId -Force
+        if ($result.Success) {
+            try {
+                [void](Publish-VMTransactionResult -Context $context -Result $result -PathModel $BackupSetPathModel)
+                Write-Log "[$($vm.Name)] Publicada atomicamente em $($result.ArchivePath)." 'SUCCESS'
+            }
+            catch {
+                $result.Success = $false; $result.Status = 'FAILED'; $result.CurrentStage = 'PUBLISH'
+                $result.FailureKind = 'PUBLISH_IO'; $result.Retryable = $false
+                $result.ErrorType = $_.Exception.GetType().FullName; $result.Error = $_.Exception.Message
+                $result.FinishedAt = (Get-Date).ToString('o')
+            }
+        }
+
+        if (-not $result.Success) {
+            Write-Log "[$($vm.Name)] Falha isolada em $($result.CurrentStage): $($result.Error)" 'ERROR'
+            try {
+                $failedPaths = Save-FailedVMTransaction -RepositoryRoot $RepositoryRoot -Context $context -Result $result
+                Write-Log "[$($vm.Name)] Payload falho preservado em $($failedPaths.OccurrenceRoot)." 'WARNING'
+            }
+            catch {
+                $Warnings.Add("Falha ao preservar payload de $($vm.Name): $($_.Exception.Message)")
+            }
+
+            # A ocorrencia recem-criada tambem participa imediatamente do limite.
+            $failedPlan = Get-FailedPayloadRetentionPlan `
+                -Entries @(Get-Schema2FailedPayloadEntries -RepositoryRoot $RepositoryRoot) `
+                -KeepPerVM $FailedPayloadKeepPerVM
+            foreach ($entry in @($failedPlan.DeleteEntries)) {
+                try {
+                    $before = Get-FreeBytes
+                    [void](Remove-FailedPayload -Entry $entry -Reason 'RETENTION' -SpaceBeforeBytes $before)
+                    $after = Get-FreeBytes
+                    Update-FailedPayloadSpaceAfter -Entry $entry -SpaceAfterBytes $after
+                    Write-Log "Payload falho excedente removido: $($entry.OccurrenceRoot)." 'WARNING'
+                }
+                catch { $Warnings.Add("Falha na retencao de payload falho: $($_.Exception.Message)") }
+            }
+        }
+        $VMResults.Add($result)
+    }
+
+    Write-Stage -Number 4 -Total 9 -Title 'Consolidar e publicar o tier'
+    $vmResultArray = $VMResults.ToArray()
+    $successCount = @($vmResultArray | Where-Object { $_.Success }).Count
+    $failureCount = @($vmResultArray | Where-Object { -not $_.Success }).Count
+    if ($successCount -gt 0) {
+        $tierMetadataDestination = Join-Path $BackupSetPathModel.MetadataRoot '_Tier'
+        if (-not (Test-Path -LiteralPath $BackupSetPathModel.MetadataRoot -PathType Container)) {
+            New-Item -ItemType Directory -Path $BackupSetPathModel.MetadataRoot -Force -ErrorAction Stop | Out-Null
+        }
+        Move-Item -LiteralPath $tierMetadata -Destination $tierMetadataDestination -ErrorAction Stop
+        $markerStatus = if ($failureCount -gt 0) { 'PARTIAL_SUCCESS' } else { 'SUCCESS' }
+        [void](Write-BackupTierManifestV2 -PathModel $BackupSetPathModel -Status $markerStatus `
+            -RunId $RunId -StartedAt $RunStart -FinishedAt (Get-Date) `
+            -KeepRestorePoints $KeepRestorePoints -VMResults $vmResultArray)
+        $script:RepositoryPublished = $true
+        $script:FinalPoint = $BackupSetPathModel.TierRoot
+        Write-Log "Tier publicado com estado $markerStatus em $($BackupSetPathModel.TierRoot)." 'SUCCESS'
+
+        Write-Stage -Number 5 -Total 9 -Title 'Aplicar retencao valida por VM'
+        $validPlan = Get-ValidBackupRetentionPlan `
+            -Entries @(Get-Schema2ValidBackupEntries -RepositoryRoot $RepositoryRoot) `
+            -DefaultKeepRestorePoints $KeepRestorePoints
+        foreach ($entry in @($validPlan.DeleteEntries)) {
+            try {
+                [void](Remove-ValidBackupEntry -Entry $entry)
+                $DeletedRestorePoints.Add($entry.ArchivePath)
+                Write-Log "Backup valido antigo removido por VMId: $($entry.ArchivePath)." 'WARNING'
+            }
+            catch { $Warnings.Add("Falha na retencao valida de $($entry.ArchivePath): $($_.Exception.Message)") }
+        }
+
+        Write-Stage -Number 6 -Total 9 -Title 'Confirmar arquivos publicados'
+        foreach ($published in @($vmResultArray | Where-Object { $_.Success })) {
+            if (-not (Test-Path -LiteralPath $published.ArchivePath -PathType Leaf)) {
+                throw "Arquivo publicado desapareceu antes da confirmacao: $($published.ArchivePath)"
+            }
+        }
+    }
+    else {
+        $script:FinalPoint = $null
+        if (Test-Path -LiteralPath $tierMetadata -PathType Container) {
+            Remove-Item -LiteralPath $tierMetadata -Recurse -Force -ErrorAction SilentlyContinue
+        }
+    }
+
+    if (Test-Path -LiteralPath $StagingPoint -PathType Container) {
+        Remove-Item -LiteralPath $StagingPoint -Recurse -Force -ErrorAction Stop
+    }
+    $outcome = Get-BackupOutcome -VMResults $vmResultArray -WarningCount $Warnings.Count
+    $script:OverallStatus = $outcome.Status
+    $script:ExitCode = $outcome.ExitCode
+    Write-Stage -Number 8 -Total 9 -Title "Finalizar execucao: $($outcome.Status)"
+}
+
 # Nomes de parametro elegiveis para receber valor default de Config\Settings.json
 # quando nao informados explicitamente na linha de comando. Switches de escopo/seguranca
 # (-Execute, -VMName, -BatchName, -SkipEmail) ficam de fora de proposito: um JSON nao deve
@@ -1031,7 +1381,7 @@ function Send-ReportEmail {
 $ConfigurableSettingNames = @(
     'BackupDrive', 'ExpectedVolumeLabel', 'RepositoryFolder', 'CompressionLevel',
     'HeartbeatSeconds', 'ExportTimeoutHours', 'CompressionTimeoutHours', 'IntegrityTimeoutHours',
-    'MinFreeGB', 'RetryCount', 'FailedRetentionDays', 'SevenZipPath',
+    'MinFreeGB', 'RetryCount', 'FailedPayloadKeepPerVM', 'SevenZipPath',
     'SmtpServer', 'SmtpPort', 'MailFrom', 'MailTo', 'SkipHash', 'KeepRestorePoints'
 )
 
@@ -1067,10 +1417,13 @@ Write-Log ('=' * 74)
 try {
     Acquire-Lock
 
-    if (-not (Test-Path -LiteralPath $TierHelpersPath -PathType Leaf)) {
-        throw "Modulo de lotes nao encontrado: $TierHelpersPath"
+    foreach ($helperPath in @(
+        $TierHelpersPath, $RepositoryHelpersPath, $RetentionHelpersPath, $SpaceHelpersPath,
+        $FailureHelpersPath, $TransactionHelpersPath, $PublishingHelpersPath
+    )) {
+        if (-not (Test-Path -LiteralPath $helperPath -PathType Leaf)) { throw "Modulo requerido nao encontrado: $helperPath" }
+        . $helperPath
     }
-    . $TierHelpersPath
 
     $SettingsConfig = Import-JsonConfigFile -Path $SettingsConfigPath -WarningList $Warnings
     Merge-ConfiguredDefaults -BoundParameters $PSBoundParameters -ConfigObject $SettingsConfig -Names $ConfigurableSettingNames
@@ -1108,27 +1461,18 @@ try {
     $RepositoryRoot = Join-Path ($BackupDrive + '\') $RepositoryFolder
     $StagingRoot = Join-Path $RepositoryRoot '_STAGING'
     $FailedRoot = Join-Path $RepositoryRoot '_FAILED'
-    $RestorePointName = "{0}_{1}_{2}" -f $Timestamp, (Get-SafeName $EffectiveBatchName), $RunId.Substring(0, 8)
-    # Staging fica raso (direto em _STAGING\<RestorePointName>) de proposito - so o
-    # destino final/falho e que ganha a pasta compartilhada da cascata, o que evita
-    # mexer em Remove-OrphanedStagingDirectories.
+    if ($PSBoundParameters.ContainsKey('BackupSetId') -and -not [string]::IsNullOrWhiteSpace($BackupSetId)) {
+        if (-not (Test-BackupSetId -BackupSetId $BackupSetId)) { throw "BackupSetId invalido: '$BackupSetId'." }
+    } else {
+        $BackupSetId = New-BackupSetId -StartedAt $RunStart
+    }
+    $RestorePointName = "{0}_{1}_{2}" -f $BackupSetId, (ConvertTo-RepositorySafeName $EffectiveBatchName), $RunId.Substring(0, 8)
     $StagingPoint = Join-Path $StagingRoot $RestorePointName
-
-    # CascadeGroupName agrupa os lotes de uma mesma "noite" na mesma pasta, na raiz
-    # do repositorio. Quando -CascadeId vem do wrapper (Invoke-CascadeBackup.ps1), os
-    # tres lotes compartilham o mesmo valor. Numa execucao manual/avulsa, o script
-    # gera o seu proprio grupo (rotulo RUN em vez de CASCATA, ja que nao e uma cascata
-    # completa) - o layout no disco fica sempre aninhado, com ou sem cascata real.
-    if ($PSBoundParameters.ContainsKey('CascadeId') -and -not [string]::IsNullOrWhiteSpace($CascadeId)) {
-        $CascadeGroupName = Get-SafeName $CascadeId
-    }
-    else {
-        $CascadeGroupName = "{0}_RUN_{1}" -f $RunStart.ToString('yyyy-MM-dd'), $RunId.Substring(0, 8)
-    }
-    $FinalPoint = Join-Path (Join-Path $RepositoryRoot $CascadeGroupName) $RestorePointName
+    $BackupSetPathModel = Get-BackupSetPathModel -RepositoryRoot $RepositoryRoot -BackupSetId $BackupSetId -TierName $EffectiveBatchName
+    $FinalPoint = $BackupSetPathModel.TierRoot
 
     Write-Log "Lote: $EffectiveBatchName"
-    Write-Log "Cascade: $CascadeGroupName"
+    Write-Log "BackupSetId: $BackupSetId"
     Write-Log "Repositorio: $RepositoryRoot"
 
     Write-Stage -Number 1 -Total 9 -Title 'Validar host, destino e ferramentas'
@@ -1156,10 +1500,6 @@ try {
     $InitialFreeGB = Get-FreeGB
     Write-Log "Destino: $BackupDrive | Rotulo=$($volume.FileSystemLabel) | Sistema=$($volume.FileSystem) | Saude=$($volume.HealthStatus) | Livre=${InitialFreeGB}GB."
 
-    if ($Execute -and $InitialFreeGB -lt $MinFreeGB) {
-        throw "Espaco livre insuficiente. Livre=${InitialFreeGB}GB, minimo configurado=${MinFreeGB}GB."
-    }
-
     Write-Stage -Number 2 -Total 9 -Title 'Selecionar VMs e registrar inventario'
 
     $SelectedVMs = @(Get-SelectedVMs)
@@ -1175,6 +1515,12 @@ try {
         Write-Log 'Plano validado. Nenhuma exportacao ou exclusao foi executada.' 'SUCCESS'
     }
     else {
+        Invoke-BackupExecutionV13
+    }
+
+    # Fluxo v1.2 mantido temporariamente como referencia inerte durante a ativacao
+    # incremental da v1.3. O caminho produtivo acima e o unico executado.
+    if ($false) {
         foreach ($dir in @($RepositoryRoot, $StagingRoot, $FailedRoot)) {
             if (-not (Test-Path -LiteralPath $dir)) {
                 New-Item -ItemType Directory -Path $dir -Force | Out-Null
@@ -1590,23 +1936,28 @@ catch {
         Write-Log ("Pilha: " + ($_.ScriptStackTrace -replace "`r?`n", ' | ')) 'ERROR'
     }
 
-    if ($OverallStatus -eq 'FAILED' -and $Execute -and -not [string]::IsNullOrWhiteSpace($StagingPoint) -and (Test-Path -LiteralPath $StagingPoint)) {
+    if ($Execute -and -not [string]::IsNullOrWhiteSpace($StagingPoint) -and (Test-Path -LiteralPath $StagingPoint)) {
         try {
-            if (-not (Test-Path -LiteralPath $FailedRoot)) {
-                New-Item -ItemType Directory -Path $FailedRoot -Force | Out-Null
+            $orphanRoot = Join-Path $FailedRoot '_ORPHANED'
+            if (-not (Test-Path -LiteralPath $orphanRoot -PathType Container)) {
+                New-Item -ItemType Directory -Path $orphanRoot -Force | Out-Null
             }
-            Write-RestorePointMarker -Path (Join-Path $StagingPoint 'FAILED.marker.json') -Status 'FAILED'
-            $failedDestination = Join-Path (Join-Path $FailedRoot $CascadeGroupName) $RestorePointName
+            $failedDestination = Join-Path $orphanRoot $RestorePointName
             if (Test-Path -LiteralPath $failedDestination) {
-                Remove-Item -LiteralPath $failedDestination -Recurse -Force
+                $failedDestination = Join-Path $orphanRoot ("$RestorePointName--$([guid]::NewGuid().ToString('N').Substring(0, 8))")
             }
-            $failedDestinationParent = Split-Path -Parent $failedDestination
-            if (-not (Test-Path -LiteralPath $failedDestinationParent)) {
-                New-Item -ItemType Directory -Path $failedDestinationParent -Force | Out-Null
-            }
-            Move-Item -LiteralPath $StagingPoint -Destination $failedDestination
+            New-Item -ItemType Directory -Path $failedDestination -Force | Out-Null
+            Move-Item -LiteralPath $StagingPoint -Destination (Join-Path $failedDestination 'Payload')
+            [ordered]@{
+                SchemaVersion = 2; VMName = '_ORPHANED'; VMId = $null; VMIdentity = '_ORPHANED'
+                TierName = $EffectiveBatchName; BackupSetId = $BackupSetId; RunId = $RunId
+                OccurrenceId = $RestorePointName; OccurredAt = (Get-Date).ToString('o')
+                Status = 'FAILED'; FailureKind = 'UNEXPECTED_RUN_FAILURE'; Retryable = $false
+                FailedStage = $CurrentStage; Attempts = 0; ErrorType = $null; Error = $GlobalError
+                PayloadStatus = 'PRESENT'
+            } | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $failedDestination 'failure.json') -Encoding UTF8
             $FinalPoint = $failedDestination
-            Write-Log "Tentativa falha preservada em: $failedDestination" 'WARNING'
+            Write-Log "Staging inesperado preservado em: $failedDestination" 'WARNING'
         }
         catch {
             $Warnings.Add("Falha ao preservar staging: $($_.Exception.Message)")
@@ -1631,11 +1982,12 @@ finally {
     $failureCount = @($vmResultArray | Where-Object { -not $_.Success }).Count
 
     $summary = [ordered]@{
+        SchemaVersion = 2
         RunId = $RunId
         ScriptVersion = $ScriptVersion
         ComputerName = $ComputerName
         BatchName = $EffectiveBatchName
-        CascadeId = $CascadeGroupName
+        BackupSetId = $BackupSetId
         Status = $OverallStatus
         Mode = $Mode
         StartTime = $RunStart.ToString('yyyy-MM-dd HH:mm:ss')
@@ -1678,7 +2030,7 @@ finally {
         $batchLabel = if ([string]::IsNullOrWhiteSpace($EffectiveBatchName)) { 'DESCONHECIDO' } else { $EffectiveBatchName }
         $subject = "$subjectPrefix [Lote $batchLabel] Backup Hyper-V por exportacao - $ComputerName - $successCount/$($SelectedVMs.Count) VMs"
 
-        $shouldEmail = ($OverallStatus -in @('FAILED', 'PARTIAL_FAILED')) -and -not $SkipEmail
+        $shouldEmail = ($OverallStatus -in @('FAILED', 'PARTIAL_SUCCESS')) -and -not $SkipEmail
         if ($shouldEmail) {
             Send-ReportEmail -Subject $subject -HtmlBody $html
         }

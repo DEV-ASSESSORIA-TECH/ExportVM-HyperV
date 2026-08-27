@@ -2,11 +2,11 @@
 #requires -RunAsAdministrator
 
 <#
-    Orquestra a cascata noturna: gera uma assinatura compartilhada (CascadeId) e roda
+    Orquestra a cascata noturna: gera uma assinatura compartilhada (BackupSetId) e roda
     cada lote definido em Config\Tiers.json em sequencia (SMALL -> MEDIUM -> BIG, ordem
     de MinSizeGB ascendente), um atras do outro, cada um como processo powershell.exe
     separado - assim os tres publicam dentro da mesma pasta na raiz do repositorio
-    (ver Invoke-VMExportBackup.ps1, parametro -CascadeId), e o "exit" interno de cada
+    (ver Invoke-VMExportBackup.ps1, parametro -BackupSetId), e o "exit" interno de cada
     lote nao encerra a cadeia inteira.
 
     Chamado uma vez por noite pela tarefa agendada unica criada por
@@ -25,6 +25,7 @@ $ScriptPath = if (-not [string]::IsNullOrWhiteSpace($PSCommandPath)) { $PSComman
 $ScriptRoot = Split-Path -Parent $ScriptPath
 $MainScript = Join-Path $ScriptRoot 'Invoke-VMExportBackup.ps1'
 $TierHelpersPath = Join-Path $ScriptRoot 'TierHelpers.ps1'
+$RepositoryHelpersPath = Join-Path $ScriptRoot 'RepositoryHelpers.ps1'
 $TiersConfigPath = Join-Path $ScriptRoot 'Config\Tiers.json'
 $LogDir = Join-Path $ScriptRoot 'Logs'
 
@@ -55,8 +56,13 @@ if (-not (Test-Path -LiteralPath $TierHelpersPath -PathType Leaf)) {
     Write-CascadeLog "Modulo de lotes nao encontrado: $TierHelpersPath" 'ERROR'
     exit 1
 }
+if (-not (Test-Path -LiteralPath $RepositoryHelpersPath -PathType Leaf)) {
+    Write-CascadeLog "Modulo de repositorio nao encontrado: $RepositoryHelpersPath" 'ERROR'
+    exit 1
+}
 
 . $TierHelpersPath
+. $RepositoryHelpersPath
 
 try {
     $tierDefinitions = Get-TierDefinitions -Path $TiersConfigPath
@@ -71,11 +77,11 @@ if ($null -eq $tierDefinitions) {
     exit 1
 }
 
-# CascadeId gerado uma unica vez, antes do primeiro lote - garante que os tres
+# BackupSetId gerado uma unica vez, antes do primeiro lote - garante que os tres
 # processos publiquem na mesma pasta mesmo que a cascata atravesse a virada do dia
 # (ex.: BIG terminando de madrugada do dia seguinte).
-$CascadeId = "{0}_CASCATA_{1}" -f (Get-Date -Format 'yyyy-MM-dd'), ([guid]::NewGuid().ToString('N').Substring(0, 8))
-Write-CascadeLog "CascadeId: $CascadeId"
+$BackupSetId = New-BackupSetId
+Write-CascadeLog "BackupSetId: $BackupSetId"
 Write-CascadeLog "Ordem dos lotes: $(($tierDefinitions.Tiers | Select-Object -ExpandProperty Name) -join ' -> ')"
 
 $allSucceeded = $true
@@ -85,7 +91,7 @@ foreach ($tier in $tierDefinitions.Tiers) {
     Write-CascadeLog "Lote '$($tier.Name)': iniciando."
     $tierStart = Get-Date
 
-    & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $MainScript -BatchName $tier.Name -Execute -CascadeId $CascadeId
+    & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $MainScript -BatchName $tier.Name -Execute -BackupSetId $BackupSetId
     $exitCode = $LASTEXITCODE
 
     $tierDuration = (Get-Date) - $tierStart
@@ -100,10 +106,10 @@ foreach ($tier in $tierDefinitions.Tiers) {
 
 Write-CascadeLog ('-' * 74)
 if ($allSucceeded) {
-    Write-CascadeLog "Cascata concluida. Todos os lotes terminaram com sucesso. CascadeId=$CascadeId" 'SUCCESS'
+    Write-CascadeLog "Cascata concluida. Todos os lotes terminaram com sucesso. BackupSetId=$BackupSetId" 'SUCCESS'
     exit 0
 }
 else {
-    Write-CascadeLog "Cascata concluida com pelo menos um lote com problema. CascadeId=$CascadeId" 'ERROR'
+    Write-CascadeLog "Cascata concluida com pelo menos um lote com problema. BackupSetId=$BackupSetId" 'ERROR'
     exit 1
 }
