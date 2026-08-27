@@ -9,7 +9,7 @@ $tiersPath = Join-Path $repositoryRoot 'Config\Tiers.json'
 . $tierHelpersPath
 
 Describe 'Configuracao atual' {
-    It 'carrega Settings.json com o schema e defaults da v1.3' {
+    It 'carrega Settings.json com o schema e defaults da v2.0' {
         $settings = Get-Content -LiteralPath $settingsPath -Raw | ConvertFrom-Json
 
         $settings.SchemaVersion | Should Be 2

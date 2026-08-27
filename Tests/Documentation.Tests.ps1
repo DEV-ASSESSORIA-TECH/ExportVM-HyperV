@@ -1,11 +1,11 @@
 $here = Split-Path -Parent $MyInvocation.MyCommand.Path
 . (Join-Path $here 'TestHelpers.ps1')
-$repositoryRoot = Get-RepositoryRoot
+$repositoryRoot = Get-ProjectRoot
 
-Describe 'Documentacao de producao v1.3' {
+Describe 'Documentacao de producao v2.0' {
     $readme = Get-Content -LiteralPath (Join-Path $repositoryRoot 'README.md') -Raw
-    $runbook = Get-Content -LiteralPath (Join-Path $repositoryRoot 'RUNBOOK.md') -Raw
-    $quick = Get-Content -LiteralPath (Join-Path $repositoryRoot 'LEIA-ME.txt') -Raw
+    $runbook = Get-Content -LiteralPath (Join-Path $repositoryRoot 'docs\RUNBOOK.md') -Raw
+    $quick = Get-Content -LiteralPath (Join-Path $repositoryRoot 'docs\LEIA-ME.txt') -Raw
 
     It 'documenta layout identidade e restauracao parcial' {
         $readme | Should Match 'BackupSetId'
@@ -19,7 +19,7 @@ Describe 'Documentacao de producao v1.3' {
         $readme | Should Match '"SkipHash": true'
         $readme | Should Match 'SUCCESS_WITH_WARNINGS.+2'
         $quick | Should Match 'MinFreeGB \+ 2 x SourceBytes'
-        (Get-Content -LiteralPath (Join-Path $repositoryRoot 'Invoke-VMExportBackup.ps1') -Raw) |
+        (Get-Content -LiteralPath (Join-Path $repositoryRoot 'src\Invoke-VMExportBackup.ps1') -Raw) |
             Should Match '\[switch\]\$SkipHash\s*=\s*\$true'
     }
 

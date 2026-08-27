@@ -1,15 +1,18 @@
 # Changelog — VM Export Backup
 
-Histórico de versões. Para arquitetura/configuração atual veja [README.md](README.md); para operação do dia a dia, [RUNBOOK.md](RUNBOOK.md).
+Histórico de versões. Para arquitetura/configuração atual veja [README.md](README.md); para operação do dia a dia, [RUNBOOK.md](docs/RUNBOOK.md).
 
 ---
 
-## v1.3.0 — 2026-08-27
+## v2.0.0 — 2026-08-27
 
 Repaginação do repositório para tolerar falhas por VM sem reescrever o fluxo validado de exportação e 7-Zip.
 
 ### Adicionado
 
+- Organização do projeto em `src/`, `scripts/`, `Tests/` e `docs/`, sem alterar o layout interno do pacote instalado.
+- `VERSION`, `scripts/Package.ps1` e checksum SHA-256 do ZIP de distribuição.
+- Workflow de publicação por tag `v*.*.*`, limitado a empacotar e criar a GitHub Release, sem CI.
 - `BackupSetId` no formato `YYYY-MM-DD-xxxxxxxx` e manifests `SchemaVersion: 2`.
 - Identidade persistente `<nome-seguro>--<VMId-curto>`; o `VMId` completo governa descoberta e retenção mesmo após renomear a VM ou mudar seu tier.
 - Transação isolada por VM e publicação independente em `<BackupSetId>\<Tier>\Archives|Metadata`.
@@ -30,7 +33,7 @@ Repaginação do repositório para tolerar falhas por VM sem reescrever o fluxo 
 
 ### Compatibilidade
 
-- O código v1.3 descobre, retém e remove somente backups com schema 2.
+- O código v2.0 descobre, retém e remove somente backups com schema 2 e é intencionalmente incompatível com a linha 1.x.
 - Layouts anteriores (`_CASCATA_`, `_RUN_` ou marcadores sem `SchemaVersion: 2`) não são migrados, descobertos ou excluídos automaticamente. A cópia e remoção desses dados é responsabilidade operacional manual.
 - Não foi criado `_AUDIT`: logs e relatórios locais são a auditoria operacional; metadados volumosos acompanham a retenção do arquivo da VM.
 

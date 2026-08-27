@@ -63,6 +63,7 @@ System Volume Information/
 TestResults/
 Coverage/
 Output/
+dist/
 Temp/
 
 # ============================================================
@@ -71,8 +72,8 @@ Temp/
 
 # Os arquivos abaixo permanecem no repositório:
 #
-# Config/Settings.json
-# Config/Tiers.json
+# src/Config/Settings.json
+# src/Config/Tiers.json
 #
 # Não adicionar uma regra global "*.json", pois os arquivos de
 # configuração fazem parte do projeto.

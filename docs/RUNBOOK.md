@@ -1,6 +1,6 @@
-# RUNBOOK — VM Export Backup v1.3
+# RUNBOOK — VM Export Backup v2.0
 
-Guia de operação, diagnóstico e recuperação. A arquitetura e os parâmetros estão em [README.md](README.md).
+Guia de operação, diagnóstico e recuperação. A arquitetura e os parâmetros estão em [README.md](../README.md).
 
 ## Checklist matinal
 
@@ -153,7 +153,12 @@ Depois de editar os JSONs:
 ```powershell
 Get-Content 'C:\Scripts\WindowsServerBackup\Config\Tiers.json' -Raw | ConvertFrom-Json | Out-Null
 Get-Content 'C:\Scripts\WindowsServerBackup\Config\Settings.json' -Raw | ConvertFrom-Json | Out-Null
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File 'C:\Scripts\WindowsServerBackup\Invoke-Tests.ps1'
+```
+
+No clone do repositório de código, e não no pacote enxuto de produção, execute também:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File '.\scripts\Invoke-Tests.ps1'
 ```
 
 Reexecute `Install-VMExportBackupTask.ps1` após mudar horário ou limite da cascata.
@@ -170,4 +175,4 @@ Não existe migração automática. Antes da ativação:
 6. execute um tier pequeno e valide restauração;
 7. só então habilite a cascata definitiva.
 
-O v1.3 ignora integralmente nomes `_CASCATA_`, `_RUN_` e marcadores sem schema 2. Eles não contam para retenção e nunca são apagados pelo código novo.
+O v2.0 ignora integralmente layouts 1.x com nomes `_CASCATA_`, `_RUN_` e marcadores sem schema 2. Eles não contam para retenção e nunca são apagados pelo código novo.

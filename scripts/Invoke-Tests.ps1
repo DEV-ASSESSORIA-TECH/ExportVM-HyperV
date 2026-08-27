@@ -7,7 +7,8 @@ Set-StrictMode -Version 2.0
 $ErrorActionPreference = 'Stop'
 
 $scriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
-$testsPath = Join-Path $scriptRoot 'Tests'
+$projectRoot = Split-Path -Parent $scriptRoot
+$testsPath = Join-Path $projectRoot 'Tests'
 
 Import-Module Pester -RequiredVersion 3.4.0 -ErrorAction Stop
 $result = Invoke-Pester -Path $testsPath -PassThru

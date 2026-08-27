@@ -1,8 +1,21 @@
-# VM Export Backup v1.3
+# VM Export Backup v2.0
 
 Backup completo de VMs Hyper-V por `Export-VM` e 7-Zip, com publicação e retenção independentes por VM. É uma solução de contingência: não é incremental e não substitui uma plataforma dedicada como Veeam ou Acronis.
 
-Para operação diária e recuperação, consulte [RUNBOOK.md](RUNBOOK.md). Para comandos rápidos, consulte [LEIA-ME.txt](LEIA-ME.txt).
+Para operação diária e recuperação, consulte [RUNBOOK.md](docs/RUNBOOK.md). Para comandos rápidos, consulte [LEIA-ME.txt](docs/LEIA-ME.txt).
+
+## Organização do repositório
+
+```text
+src/                  scripts e Config que formam a instalação
+scripts/              testes locais e empacotamento
+Tests/                suíte Pester 3.4
+docs/                 guia rápido e runbook
+.github/workflows/    publicação de release por tag
+VERSION               versão SemVer usada pelo pacote
+```
+
+O conteúdo de `src/` permanece coeso: no pacote publicado, seus scripts são colocados na raiz e `Config/` continua ao lado deles, preservando os paths usados em produção.
 
 ## Comportamento principal
 
@@ -124,7 +137,7 @@ Não existe `_AUDIT`. `Logs\` e `Reports\`, ao lado dos scripts, são a auditori
 
 ## Instalação e execução
 
-Copie todos os scripts, helpers e a pasta `Config\` para `C:\Scripts\WindowsServerBackup`. No host Hyper-V, execute como administrador com o módulo Hyper-V e o 7-Zip disponíveis.
+Extraia o ZIP da release e copie o conteúdo de `VM-Export-Backup-<versão>` para `C:\Scripts\WindowsServerBackup`. No host Hyper-V, execute como administrador com o módulo Hyper-V e o 7-Zip disponíveis.
 
 Instalar ou atualizar a tarefa diária:
 
@@ -153,7 +166,26 @@ Cascata manual completa:
 Testes no diretório do projeto:
 
 ```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Invoke-Tests.ps1
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\Invoke-Tests.ps1
+```
+
+## Empacotamento e release
+
+Gerar localmente `dist\VM-Export-Backup-2.0.0.zip` e seu SHA-256:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\Package.ps1
+```
+
+`Package.ps1` exige que `VERSION`, o parâmetro `-Version` e `$ScriptVersion` sejam iguais. O ZIP contém somente os arquivos de instalação e documentação; testes, workflow e ferramentas de desenvolvimento ficam fora.
+
+O workflow `.github/workflows/release.yml` não é CI: ele não executa testes. Ao receber uma tag `vMAJOR.MINOR.PATCH`, gera o pacote e usa o token padrão do GitHub para publicar uma release com ZIP, checksum e notas automáticas. A tag precisa existir no remoto; o workflow usa `--verify-tag`.
+
+Para esta versão, depois do commit local:
+
+```powershell
+git push origin main
+git push origin v2.0.0
 ```
 
 ## Restauração parcial
@@ -162,4 +194,4 @@ Cada `.7z` aprovado é um ponto restaurável independente. Para recuperar uma VM
 
 ## Compatibilidade com versões anteriores
 
-O v1.3 descobre, retém e remove somente schema 2. Pastas antigas com `_CASCATA_`, `_RUN_` ou marcadores sem `SchemaVersion: 2` ficam totalmente fora da automação: não são migradas, contadas ou apagadas. Faça backup e remoção manual desses layouts antes da ativação em produção.
+O v2.0 descobre, retém e remove somente schema 2. Pastas antigas da linha 1.x com `_CASCATA_`, `_RUN_` ou marcadores sem `SchemaVersion: 2` ficam totalmente fora da automação: não são migradas, contadas ou apagadas. Faça backup e remoção manual desses layouts antes da ativação em produção.

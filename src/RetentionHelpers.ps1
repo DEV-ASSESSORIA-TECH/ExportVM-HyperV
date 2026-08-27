@@ -1,7 +1,7 @@
 #requires -Version 5.1
 
 # Descoberta, planejamento e aplicacao isolada de retencao para o schema 2.
-# O chamador produtivo sera conectado somente quando a publicacao v1.3 for ativada.
+# O chamador produtivo usa estas funcoes desde a publicacao v2.0.
 
 Set-StrictMode -Version 2.0
 

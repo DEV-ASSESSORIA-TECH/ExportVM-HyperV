@@ -76,7 +76,7 @@ Set-StrictMode -Version 2.0
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
 
-$ScriptVersion = '1.3.0'
+$ScriptVersion = '2.0.0'
 $RunId = [guid]::NewGuid().ToString('N')
 $RunStart = Get-Date
 $Mode = if ($Execute) { 'EXECUTE' } else { 'PLAN' }
@@ -1246,7 +1246,7 @@ function Invoke-ConfiguredVMTransaction {
     return $result
 }
 
-function Invoke-BackupExecutionV13 {
+function Invoke-BackupExecutionV2 {
     foreach ($dir in @($RepositoryRoot, $StagingRoot, $FailedRoot)) {
         if (-not (Test-Path -LiteralPath $dir -PathType Container)) {
             New-Item -ItemType Directory -Path $dir -Force -ErrorAction Stop | Out-Null
@@ -1577,11 +1577,11 @@ try {
         Write-Log 'Plano validado. Nenhuma exportacao ou exclusao foi executada.' 'SUCCESS'
     }
     else {
-        Invoke-BackupExecutionV13
+        Invoke-BackupExecutionV2
     }
 
     # Fluxo v1.2 mantido temporariamente como referencia inerte durante a ativacao
-    # incremental da v1.3. O caminho produtivo acima e o unico executado.
+    # incremental da v2.0. O caminho produtivo acima e o unico executado.
     if ($false) {
         foreach ($dir in @($RepositoryRoot, $StagingRoot, $FailedRoot)) {
             if (-not (Test-Path -LiteralPath $dir)) {

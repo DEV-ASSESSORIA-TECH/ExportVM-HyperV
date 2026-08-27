@@ -20,7 +20,7 @@ Describe 'Funcoes do script principal' {
     }
 }
 
-Describe 'Fluxo produtivo v1.3' {
+Describe 'Fluxo produtivo v2.0' {
     It 'usa BackupSetId e o layout schema 2 por tier' {
         $mainSource | Should Match '\[string\]\$BackupSetId'
         $mainSource | Should Match 'Get-BackupSetPathModel'
@@ -33,8 +33,8 @@ Describe 'Fluxo produtivo v1.3' {
         $mainSource | Should Match 'PARTIAL_SUCCESS'
     }
 
-    It 'ativa o orquestrador v1.3 no caminho de execucao' {
-        $mainSource | Should Match 'Invoke-BackupExecutionV13'
+    It 'ativa o orquestrador v2.0 no caminho de execucao' {
+        $mainSource | Should Match 'Invoke-BackupExecutionV2'
         $mainSource | Should Match 'Get-BackupOutcome'
     }
 }

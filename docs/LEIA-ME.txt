@@ -1,8 +1,8 @@
-VM Export Backup v1.3
+VM Export Backup v2.0
 =====================
 
-Resumo rápido. A referência técnica está em README.md e a operação/recuperação
-detalhada em RUNBOOK.md.
+Resumo rápido. A referência técnica está em ..\README.md e a operação/recuperação
+detalhada neste diretório em RUNBOOK.md.
 
 O que mudou
 ------------
@@ -65,9 +65,9 @@ Instalar/atualizar a tarefa diária das 21:00:
 
 & 'C:\Scripts\WindowsServerBackup\Install-VMExportBackupTask.ps1'
 
-Executar parser e Pester 3.4 no projeto:
+Executar parser e Pester 3.4 no clone do repositório (não no pacote de produção):
 
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Invoke-Tests.ps1
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\Invoke-Tests.ps1
 
 Configuração importante
 -----------------------
@@ -92,7 +92,7 @@ a VM e gerar um novo identificador, e use um switch isolado antes de ligá-la.
 
 Compatibilidade
 ---------------
-Antes de ativar a v1.3, faça backup e remova manualmente os pontos antigos. Pastas
+Antes de ativar a v2.0, faça backup e remova manualmente os pontos antigos. Pastas
 _CASCATA_, _RUN_ e marcadores sem SchemaVersion 2 ficam fora da automação nova.
 
 Não existe _AUDIT. Logs\ e Reports\ são a auditoria operacional; os metadados de

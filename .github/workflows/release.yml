@@ -1,0 +1,33 @@
+name: Publish release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Package and publish
+    runs-on: windows-latest
+    steps:
+      - name: Checkout tagged source
+        uses: actions/checkout@v6
+
+      - name: Build release package
+        shell: powershell
+        run: |
+          $version = '${{ github.ref_name }}'.TrimStart('v')
+          .\scripts\Package.ps1 -Version $version -OutputDirectory .\dist
+
+      - name: Publish GitHub release
+        shell: powershell
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $version = '${{ github.ref_name }}'.TrimStart('v')
+          $archive = ".\dist\VM-Export-Backup-$version.zip"
+          $checksum = "$archive.sha256"
+          gh release create '${{ github.ref_name }}' $archive $checksum --verify-tag --generate-notes --title "VM Export Backup $version"

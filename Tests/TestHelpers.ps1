@@ -1,6 +1,10 @@
 Set-StrictMode -Version 2.0
 
 function Get-RepositoryRoot {
+    return (Join-Path (Get-ProjectRoot) 'src')
+}
+
+function Get-ProjectRoot {
     return (Split-Path -Parent $PSScriptRoot)
 }
 
