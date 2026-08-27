@@ -196,6 +196,7 @@ function Get-Schema2FailedPayloadEntries {
                     GroupKey = $groupKey
                     VMId = $vmIdText
                     OccurredAt = $occurredAt
+                    FailedRoot = $failedRoot
                     OccurrenceRoot = $occurrence.FullName
                     PayloadRoot = $payloadRoot
                     FailurePath = $failurePath
@@ -238,6 +239,11 @@ function Remove-FailedPayload {
         [AllowNull()][Nullable[long]]$SpaceAfterBytes = $null
     )
 
+    $failedRoot = [string](Get-OptionalPropertyValue -InputObject $Entry -Name 'FailedRoot')
+    if ([string]::IsNullOrWhiteSpace($failedRoot)) {
+        throw 'Entrada de payload falho nao informa FailedRoot.'
+    }
+    [void](Assert-PathIsBelowRoot -Root $failedRoot -Path $Entry.OccurrenceRoot)
     $payloadRoot = Assert-PathIsBelowRoot -Root $Entry.OccurrenceRoot -Path $Entry.PayloadRoot
     $failurePath = Assert-PathIsBelowRoot -Root $Entry.OccurrenceRoot -Path $Entry.FailurePath
     $payloadBytes = if (Test-Path -LiteralPath $payloadRoot -PathType Container) {
@@ -262,4 +268,21 @@ function Remove-FailedPayload {
     $failure | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $failurePath -Encoding UTF8 -ErrorAction Stop
 
     return [pscustomobject]@{ GroupKey = $Entry.GroupKey; FailurePath = $failurePath; BytesRecovered = $payloadBytes; Reason = $Reason }
+}
+
+function Update-FailedPayloadSpaceAfter {
+    param(
+        [Parameter(Mandatory = $true)]$Entry,
+        [Parameter(Mandatory = $true)][long]$SpaceAfterBytes
+    )
+
+    $failedRoot = [string](Get-OptionalPropertyValue -InputObject $Entry -Name 'FailedRoot')
+    if ([string]::IsNullOrWhiteSpace($failedRoot)) {
+        throw 'Entrada de payload falho nao informa FailedRoot.'
+    }
+    [void](Assert-PathIsBelowRoot -Root $failedRoot -Path $Entry.OccurrenceRoot)
+    $failurePath = Assert-PathIsBelowRoot -Root $Entry.OccurrenceRoot -Path $Entry.FailurePath
+    $failure = Get-Content -LiteralPath $failurePath -Raw -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop
+    $failure | Add-Member -NotePropertyName SpaceAfterBytes -NotePropertyValue $SpaceAfterBytes -Force
+    $failure | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $failurePath -Encoding UTF8 -ErrorAction Stop
 }
