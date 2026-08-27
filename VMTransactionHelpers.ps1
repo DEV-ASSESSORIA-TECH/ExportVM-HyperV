@@ -105,6 +105,11 @@ function Invoke-VMTransaction {
         [ValidateRange(0, 3600)]
         [int]$RetryDelaySeconds = 60,
 
+        [scriptblock]$FailureClassifierAction = {
+            param($FailureException, $FailureStage)
+            Get-VMFailureClassification -Exception $FailureException -Stage $FailureStage
+        },
+
         [scriptblock]$WaitAction = { param($Seconds) Start-Sleep -Seconds $Seconds }
     )
 
@@ -133,6 +138,7 @@ function Invoke-VMTransaction {
         ArchivePath = $Context.ArchivePath
         MetadataPath = $Context.MetadataRoot
         FailureKind = $null
+        Retryable = $false
         ErrorType = $null
         Error = $null
         StartedAt = $startedAt.ToString('o')
@@ -191,6 +197,7 @@ function Invoke-VMTransaction {
             $result.Status = 'SUCCESS'
             $result.CurrentStage = 'COMPLETE'
             $result.FailureKind = $null
+            $result.Retryable = $false
             $result.ErrorType = $null
             $result.Error = $null
             break
@@ -198,18 +205,24 @@ function Invoke-VMTransaction {
         catch {
             $result.Success = $false
             $result.Status = 'FAILED'
-            $result.FailureKind = 'UNCLASSIFIED'
+            $classification = & $FailureClassifierAction $_.Exception $result.CurrentStage
+            $result.FailureKind = [string]$classification.FailureKind
+            $result.Retryable = [bool]$classification.Retryable
             $result.ErrorType = $_.Exception.GetType().FullName
             $result.Error = $_.Exception.Message
             $stageResults.Add([pscustomobject]@{
                 Stage = $result.CurrentStage
                 Attempt = $attempt
+                FailureKind = $result.FailureKind
+                Retryable = $result.Retryable
                 ErrorType = $result.ErrorType
                 Error = $result.Error
             })
 
-            if ($attempt -le $RetryCount) {
+            if ($result.Retryable -and $attempt -le $RetryCount) {
                 & $WaitAction $RetryDelaySeconds
+            } else {
+                break
             }
         }
     }

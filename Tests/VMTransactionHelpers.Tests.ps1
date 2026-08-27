@@ -3,6 +3,7 @@ $here = Split-Path -Parent $MyInvocation.MyCommand.Path
 
 $repositoryRoot = Get-RepositoryRoot
 . (Join-Path $repositoryRoot 'RepositoryHelpers.ps1')
+. (Join-Path $repositoryRoot 'FailureClassificationHelpers.ps1')
 . (Join-Path $repositoryRoot 'VMTransactionHelpers.ps1')
 
 function New-TestTransactionContext {
@@ -55,6 +56,8 @@ Describe 'Orquestracao da transacao de VM' {
 
         $result.Success | Should Be $false
         $result.CurrentStage | Should Be 'INITIALIZE'
+        $result.FailureKind | Should Be 'DETERMINISTIC_OPERATION'
+        $result.Retryable | Should Be $false
         $result.Error | Should Be 'staging sem acesso'
         $state.ExportCalled | Should Be $false
     }
@@ -119,7 +122,8 @@ Describe 'Orquestracao da transacao de VM' {
         $result.Success | Should Be $false
         $result.Status | Should Be 'FAILED'
         $result.CurrentStage | Should Be 'COMPRESS'
-        $result.FailureKind | Should Be 'UNCLASSIFIED'
+        $result.FailureKind | Should Be 'SEVEN_ZIP_TRANSIENT'
+        $result.Retryable | Should Be $true
         $result.Error | Should Be '7-Zip indisponivel'
         Test-Path -LiteralPath $context.PayloadRoot -PathType Container | Should Be $true
     }
