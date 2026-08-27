@@ -1,6 +1,38 @@
 # Changelog — VM Export Backup
 
-Histórico de versões. Para arquitetura/configuração atual veja [README-VM-Export-Backup.md](README-VM-Export-Backup.md); para operação do dia a dia, [RUNBOOK.md](RUNBOOK.md).
+Histórico de versões. Para arquitetura/configuração atual veja [README.md](README.md); para operação do dia a dia, [RUNBOOK.md](RUNBOOK.md).
+
+---
+
+## v1.3.0 — 2026-08-27
+
+Repaginação do repositório para tolerar falhas por VM sem reescrever o fluxo validado de exportação e 7-Zip.
+
+### Adicionado
+
+- `BackupSetId` no formato `YYYY-MM-DD-xxxxxxxx` e manifests `SchemaVersion: 2`.
+- Identidade persistente `<nome-seguro>--<VMId-curto>`; o `VMId` completo governa descoberta e retenção mesmo após renomear a VM ou mudar seu tier.
+- Transação isolada por VM e publicação independente em `<BackupSetId>\<Tier>\Archives|Metadata`.
+- Marcadores `COMPLETE.marker.json` e `PARTIAL.marker.json` schema 2.
+- Retenção dos backups válidos por VM através de noites e tiers.
+- `_FAILED\<nome--VMId>\<ocorrência>\Payload` com `failure.json`; três payloads pesados por VM são mantidos, enquanto todos os registros leves permanecem.
+- Reserva por VM de `MinFreeGB + 2 × SourceBytes`, com limpeza de `_FAILED` antes de falhar apenas a VM corrente.
+- Classificação de falhas transitórias e determinísticas; espera de 60 segundos somente quando haverá nova tentativa.
+- Relatórios por snapshot, `DiagnosticFailures` e logs tolerantes a falha de arquivo.
+- Resultado determinístico por tier e um único alerta consolidado após toda a cascata.
+
+### Alterado
+
+- Estados finais: `SUCCESS`/0, `SUCCESS_WITH_WARNINGS`/2, `PARTIAL_SUCCESS`/1 e `FAILED`/1.
+- SHA-256 passa a ser opcional e fica desativado por padrão (`SkipHash: true`). `7z t`, validação estrutural e comparação do tamanho listado continuam obrigatórios.
+- `FailedRetentionDays` foi substituído por `FailedPayloadKeepPerVM`.
+- Falha de uma VM não impede publicar as demais nem executar tiers posteriores.
+
+### Compatibilidade
+
+- O código v1.3 descobre, retém e remove somente backups com schema 2.
+- Layouts anteriores (`_CASCATA_`, `_RUN_` ou marcadores sem `SchemaVersion: 2`) não são migrados, descobertos ou excluídos automaticamente. A cópia e remoção desses dados é responsabilidade operacional manual.
+- Não foi criado `_AUDIT`: logs e relatórios locais são a auditoria operacional; metadados volumosos acompanham a retenção do arquivo da VM.
 
 ---
 

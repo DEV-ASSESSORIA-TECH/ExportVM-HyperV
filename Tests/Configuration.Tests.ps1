@@ -9,13 +9,22 @@ $tiersPath = Join-Path $repositoryRoot 'Config\Tiers.json'
 . $tierHelpersPath
 
 Describe 'Configuracao atual' {
-    It 'carrega Settings.json com o schema e defaults da v1.2' {
+    It 'carrega Settings.json com o schema e defaults da v1.3' {
         $settings = Get-Content -LiteralPath $settingsPath -Raw | ConvertFrom-Json
 
-        $settings.SchemaVersion | Should Be 1
-        $settings.FailedRetentionDays | Should Be 7
-        $settings.SkipHash | Should Be $false
+        $settings.SchemaVersion | Should Be 2
+        $settings.FailedPayloadKeepPerVM | Should Be 3
+        $settings.PSObject.Properties.Name -contains 'FailedRetentionDays' | Should Be $false
+        $settings.SkipHash | Should Be $true
         $settings.KeepRestorePoints | Should Be 3
+        Assert-SettingsSchemaV2 -ConfigObject $settings | Should Be $true
+    }
+
+    It 'rejeita Settings.json antigo ou com campo legado' {
+        { Assert-SettingsSchemaV2 -ConfigObject ([pscustomobject]@{ SchemaVersion = 1; FailedPayloadKeepPerVM = 3; SkipHash = $true }) } |
+            Should Throw 'SchemaVersion 2'
+        { Assert-SettingsSchemaV2 -ConfigObject ([pscustomobject]@{ SchemaVersion = 2; FailedRetentionDays = 7; FailedPayloadKeepPerVM = 3; SkipHash = $true }) } |
+            Should Throw 'nao aceita FailedRetentionDays'
     }
 
     It 'carrega e ordena os tiers configurados' {

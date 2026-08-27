@@ -67,7 +67,7 @@ param(
 
     [string]$ResultPath,
 
-    [switch]$SkipHash,
+    [switch]$SkipHash = $true,
 
     [switch]$Execute
 )
@@ -1482,7 +1482,12 @@ try {
         . $helperPath
     }
 
+    $settingsFileExists = Test-Path -LiteralPath $SettingsConfigPath -PathType Leaf
     $SettingsConfig = Import-JsonConfigFile -Path $SettingsConfigPath -WarningList $Warnings
+    if ($settingsFileExists) {
+        if ($null -eq $SettingsConfig) { throw "$SettingsConfigPath existe, mas nao contem JSON valido." }
+        [void](Assert-SettingsSchemaV2 -ConfigObject $SettingsConfig)
+    }
     Merge-ConfiguredDefaults -BoundParameters $PSBoundParameters -ConfigObject $SettingsConfig -Names $ConfigurableSettingNames
 
     try {

@@ -1,5 +1,5 @@
 {
-    "SchemaVersion": 1,
+    "SchemaVersion": 2,
     "BackupDrive": "F:",
     "ExpectedVolumeLabel": "BACKUP-HYPERV",
     "RepositoryFolder": "HyperV-Exports",
@@ -10,7 +10,7 @@
     "IntegrityTimeoutHours": 8,
     "MinFreeGB": 200,
     "RetryCount": 1,
-    "FailedRetentionDays": 7,
+    "FailedPayloadKeepPerVM": 3,
     "SevenZipPath": "C:\\Program Files\\7-Zip\\7z.exe",
     "SmtpServer": "192.168.4.10",
     "SmtpPort": 25,
@@ -18,6 +18,6 @@
     "MailTo": [
         "suporte@assessoriatech.com"
     ],
-    "SkipHash": false,
+    "SkipHash": true,
     "KeepRestorePoints": 3
 }

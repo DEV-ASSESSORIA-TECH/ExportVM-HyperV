@@ -45,6 +45,25 @@ function Import-JsonConfigFile {
     }
 }
 
+function Assert-SettingsSchemaV2 {
+    param([Parameter(Mandatory = $true)]$ConfigObject)
+
+    $properties = @($ConfigObject.PSObject.Properties.Name)
+    if ($properties -notcontains 'SchemaVersion' -or [int]$ConfigObject.SchemaVersion -ne 2) {
+        throw 'Settings.json deve usar SchemaVersion 2.'
+    }
+    if ($properties -contains 'FailedRetentionDays') {
+        throw 'Settings.json schema 2 nao aceita FailedRetentionDays; use FailedPayloadKeepPerVM.'
+    }
+    if ($properties -notcontains 'FailedPayloadKeepPerVM') {
+        throw 'Settings.json schema 2 exige FailedPayloadKeepPerVM.'
+    }
+    if ($properties -notcontains 'SkipHash') {
+        throw 'Settings.json schema 2 exige SkipHash.'
+    }
+    return $true
+}
+
 function Get-TierDefinitions {
     <#
         Carrega e valida Tiers.json. Diferente de Import-JsonConfigFile, um erro de
