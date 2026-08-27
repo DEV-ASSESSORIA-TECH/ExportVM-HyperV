@@ -155,6 +155,9 @@ function New-BackupTierManifest {
         [Parameter(Mandatory = $true)]
         [datetime]$FinishedAt,
 
+        [ValidateRange(1, 30)]
+        [int]$KeepRestorePoints = 3,
+
         [object[]]$VMResults = @()
     )
 
@@ -168,6 +171,7 @@ function New-BackupTierManifest {
         TierName = ConvertTo-RepositorySafeName -Name $TierName
         Status = $Status
         RunId = $RunId
+        KeepRestorePoints = $KeepRestorePoints
         StartedAt = $StartedAt.ToString('o')
         FinishedAt = $FinishedAt.ToString('o')
         VMResults = @($VMResults)
