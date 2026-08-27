@@ -26,11 +26,19 @@ $ScriptRoot = Split-Path -Parent $ScriptPath
 $MainScript = Join-Path $ScriptRoot 'Invoke-VMExportBackup.ps1'
 $TierHelpersPath = Join-Path $ScriptRoot 'TierHelpers.ps1'
 $RepositoryHelpersPath = Join-Path $ScriptRoot 'RepositoryHelpers.ps1'
+$ObservabilityHelpersPath = Join-Path $ScriptRoot 'ObservabilityHelpers.ps1'
 $TiersConfigPath = Join-Path $ScriptRoot 'Config\Tiers.json'
+$SettingsConfigPath = Join-Path $ScriptRoot 'Config\Settings.json'
 $LogDir = Join-Path $ScriptRoot 'Logs'
+$ReportDir = Join-Path $ScriptRoot 'Reports'
+$DiagnosticFailures = New-Object System.Collections.Generic.List[string]
+$TierExecutions = New-Object System.Collections.Generic.List[object]
 
-if (-not (Test-Path -LiteralPath $LogDir)) {
-    New-Item -ItemType Directory -Path $LogDir -Force | Out-Null
+foreach ($dir in @($LogDir, $ReportDir)) {
+    if (-not (Test-Path -LiteralPath $dir)) {
+        try { New-Item -ItemType Directory -Path $dir -Force -ErrorAction Stop | Out-Null }
+        catch { $DiagnosticFailures.Add("Nao foi possivel criar '$dir': $($_.Exception.Message)") }
+    }
 }
 
 $LogPath = Join-Path $LogDir "Cascade-$((Get-Date).ToString('yyyy-MM-dd_HH-mm-ss')).log"
@@ -42,7 +50,88 @@ function Write-CascadeLog {
     )
     $line = "[$((Get-Date).ToString('yyyy-MM-dd HH:mm:ss'))] [$Level] $Message"
     Write-Host $line
-    Add-Content -LiteralPath $LogPath -Value $line -Encoding UTF8
+    try { Add-Content -LiteralPath $LogPath -Value $line -Encoding UTF8 -ErrorAction Stop }
+    catch {
+        $diagnostic = "Falha ao gravar log da cascata '$LogPath': $($_.Exception.Message)"
+        if (-not $DiagnosticFailures.Contains($diagnostic)) { $DiagnosticFailures.Add($diagnostic) }
+    }
+}
+
+function ConvertTo-CascadeHtmlText {
+    param([AllowNull()]$Value)
+    if ($null -eq $Value) { return '' }
+    return [System.Security.SecurityElement]::Escape([string]$Value)
+}
+
+function New-CascadeHtmlReport {
+    param([Parameter(Mandatory = $true)]$Summary)
+
+    $rows = New-Object System.Text.StringBuilder
+    foreach ($execution in $TierExecutions) {
+        [void]$rows.AppendLine("<tr><td>$(ConvertTo-CascadeHtmlText $execution.TierName)</td><td>$(ConvertTo-CascadeHtmlText $execution.Status)</td><td>$(ConvertTo-CascadeHtmlText $execution.ExitCode)</td><td>$(ConvertTo-CascadeHtmlText $execution.SuccessCount)</td><td>$(ConvertTo-CascadeHtmlText $execution.FailureCount)</td><td>$(ConvertTo-CascadeHtmlText $execution.ResultPath)</td></tr>")
+    }
+    $diagnostics = if ($DiagnosticFailures.Count -gt 0) {
+        '<h2>Falhas de observabilidade</h2><ul>' + (($DiagnosticFailures | ForEach-Object { '<li>' + (ConvertTo-CascadeHtmlText $_) + '</li>' }) -join '') + '</ul>'
+    } else { '' }
+    return @"
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Cascata Backup Hyper-V</title>
+<style>body{font-family:Segoe UI,Arial,sans-serif;margin:24px;color:#222}table{border-collapse:collapse;width:100%}th,td{border:1px solid #ccc;padding:7px;text-align:left}th{background:#f2f2f2}</style></head>
+<body><h1>Cascata Backup Hyper-V</h1><p>Status: <strong>$(ConvertTo-CascadeHtmlText $Summary.Status)</strong></p>
+<p>BackupSetId: $(ConvertTo-CascadeHtmlText $Summary.BackupSetId)</p>
+<table><tr><th>Tier</th><th>Status</th><th>Codigo</th><th>Sucessos</th><th>Falhas</th><th>Resultado</th></tr>$($rows.ToString())</table>
+$diagnostics</body></html>
+"@
+}
+
+function Save-CascadeSnapshots {
+    param([Parameter(Mandatory = $true)]$Summary)
+    $html = $null
+    try { Write-JsonSnapshot -Value $Summary -Path $CascadeJsonPath -Depth 15 }
+    catch { Add-UniqueDiagnosticFailure -List $DiagnosticFailures -Message "Falha ao gravar JSON consolidado: $($_.Exception.Message)" }
+    try {
+        $html = New-CascadeHtmlReport -Summary $Summary
+        Write-TextSnapshot -Value $html -Path $CascadeHtmlPath
+    }
+    catch { Add-UniqueDiagnosticFailure -List $DiagnosticFailures -Message "Falha ao gravar HTML consolidado: $($_.Exception.Message)" }
+    return $html
+}
+
+function Send-CascadeEmail {
+    param([Parameter(Mandatory = $true)][string]$Subject, [Parameter(Mandatory = $true)][string]$HtmlBody)
+
+    $message = $null
+    $smtp = $null
+    $attachments = New-Object System.Collections.ArrayList
+    try {
+        $message = New-Object System.Net.Mail.MailMessage
+        $smtp = New-Object System.Net.Mail.SmtpClient($SmtpServer, $SmtpPort)
+        $message.From = New-Object System.Net.Mail.MailAddress($MailFrom)
+        foreach ($recipient in $MailTo) {
+            if (-not [string]::IsNullOrWhiteSpace($recipient)) { [void]$message.To.Add($recipient) }
+        }
+        if ($message.To.Count -eq 0) { throw 'Nenhum destinatario configurado.' }
+        $message.Subject = $Subject; $message.SubjectEncoding = [System.Text.Encoding]::UTF8
+        $message.Body = $HtmlBody; $message.BodyEncoding = [System.Text.Encoding]::UTF8; $message.IsBodyHtml = $true
+        foreach ($path in @($CascadeJsonPath, $CascadeHtmlPath)) {
+            if (Test-Path -LiteralPath $path -PathType Leaf) {
+                $attachment = New-Object System.Net.Mail.Attachment($path)
+                [void]$attachments.Add($attachment); [void]$message.Attachments.Add($attachment)
+            }
+        }
+        $smtp.Send($message)
+        $script:MailSent = $true; $script:NotificationStatus = 'SENT'
+        Write-CascadeLog "Alerta consolidado enviado para: $($MailTo -join ', ')." 'SUCCESS'
+    }
+    catch {
+        $script:MailError = $_.Exception.Message; $script:NotificationStatus = 'FAILED'
+        Add-UniqueDiagnosticFailure -List $DiagnosticFailures -Message "Falha SMTP consolidada: $($script:MailError)"
+        Write-CascadeLog "Falha ao enviar alerta consolidado: $($script:MailError)" 'WARNING'
+    }
+    finally {
+        foreach ($attachment in $attachments) { $attachment.Dispose() }
+        if ($null -ne $message) { $message.Dispose() }
+        if ($null -ne $smtp) { $smtp.Dispose() }
+    }
 }
 
 Write-CascadeLog ('=' * 74)
@@ -60,9 +149,27 @@ if (-not (Test-Path -LiteralPath $RepositoryHelpersPath -PathType Leaf)) {
     Write-CascadeLog "Modulo de repositorio nao encontrado: $RepositoryHelpersPath" 'ERROR'
     exit 1
 }
+if (-not (Test-Path -LiteralPath $ObservabilityHelpersPath -PathType Leaf)) {
+    Write-CascadeLog "Modulo de observabilidade nao encontrado: $ObservabilityHelpersPath" 'ERROR'
+    exit 1
+}
 
 . $TierHelpersPath
 . $RepositoryHelpersPath
+. $ObservabilityHelpersPath
+
+$SmtpServer = '192.168.4.10'; $SmtpPort = 25
+$MailFrom = 'alertas@assessoriatech.com'; $MailTo = @('suporte@assessoriatech.com')
+if (Test-Path -LiteralPath $SettingsConfigPath -PathType Leaf) {
+    try {
+        $settings = Get-Content -LiteralPath $SettingsConfigPath -Raw -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop
+        foreach ($name in @('SmtpServer', 'SmtpPort', 'MailFrom', 'MailTo')) {
+            if ($settings.PSObject.Properties.Name -contains $name) { Set-Variable -Name $name -Value $settings.$name }
+        }
+        $MailTo = @($MailTo)
+    }
+    catch { Add-UniqueDiagnosticFailure -List $DiagnosticFailures -Message "Falha ao ler SMTP de Settings.json: $($_.Exception.Message)" }
+}
 
 try {
     $tierDefinitions = Get-TierDefinitions -Path $TiersConfigPath
@@ -84,32 +191,79 @@ $BackupSetId = New-BackupSetId
 Write-CascadeLog "BackupSetId: $BackupSetId"
 Write-CascadeLog "Ordem dos lotes: $(($tierDefinitions.Tiers | Select-Object -ExpandProperty Name) -join ' -> ')"
 
-$allSucceeded = $true
+$CascadeJsonPath = Join-Path $ReportDir "Cascade-$BackupSetId.json"
+$CascadeHtmlPath = Join-Path $ReportDir "Cascade-$BackupSetId.html"
+$MailSent = $false; $MailError = $null; $NotificationStatus = 'NOT_REQUIRED'
+$cascadeStartedAt = Get-Date
 
 foreach ($tier in $tierDefinitions.Tiers) {
     Write-CascadeLog ('-' * 74)
     Write-CascadeLog "Lote '$($tier.Name)': iniciando."
     $tierStart = Get-Date
 
-    & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $MainScript -BatchName $tier.Name -Execute -BackupSetId $BackupSetId
+    $safeTierName = ConvertTo-RepositorySafeName -Name $tier.Name
+    $tierResultPath = Join-Path $ReportDir "BackupSet-$BackupSetId-$safeTierName.result.json"
+    & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $MainScript -BatchName $tier.Name -Execute `
+        -BackupSetId $BackupSetId -DeferEmail -ResultPath $tierResultPath
     $exitCode = $LASTEXITCODE
 
     $tierDuration = (Get-Date) - $tierStart
+    $tierResult = $null
+    try {
+        $tierResult = Get-Content -LiteralPath $tierResultPath -Raw -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop
+    }
+    catch {
+        Add-UniqueDiagnosticFailure -List $DiagnosticFailures -Message "Resultado do tier '$($tier.Name)' indisponivel: $($_.Exception.Message)"
+    }
+    $tierStatus = if ($null -ne $tierResult) { [string]$tierResult.Status } elseif ($exitCode -eq 1) { 'FAILED' } else { 'UNKNOWN' }
+    $TierExecutions.Add([pscustomobject][ordered]@{
+        TierName = $tier.Name; Status = $tierStatus; ExitCode = $exitCode
+        SuccessCount = if ($null -ne $tierResult) { [int]$tierResult.SuccessCount } else { 0 }
+        FailureCount = if ($null -ne $tierResult) { [int]$tierResult.FailureCount } else { 0 }
+        Duration = $tierDuration.ToString('hh\:mm\:ss'); ResultPath = $tierResultPath; Result = $tierResult
+    })
+
     if ($exitCode -eq 0) {
         Write-CascadeLog "Lote '$($tier.Name)': concluido com sucesso. Duracao=$($tierDuration.ToString('hh\:mm\:ss'))." 'SUCCESS'
     }
+    elseif ($exitCode -eq 2) {
+        Write-CascadeLog "Lote '$($tier.Name)': concluido com avisos. Duracao=$($tierDuration.ToString('hh\:mm\:ss'))." 'WARNING'
+    }
     else {
-        $allSucceeded = $false
-        Write-CascadeLog "Lote '$($tier.Name)': terminou com ExitCode=$exitCode. Duracao=$($tierDuration.ToString('hh\:mm\:ss')). Verifique o relatorio/e-mail desse lote para o motivo - a cascata continua com o proximo lote." 'ERROR'
+        Write-CascadeLog "Lote '$($tier.Name)': terminou com ExitCode=$exitCode. Duracao=$($tierDuration.ToString('hh\:mm\:ss')). A cascata continua com o proximo lote." 'ERROR'
     }
 }
 
 Write-CascadeLog ('-' * 74)
-if ($allSucceeded) {
-    Write-CascadeLog "Cascata concluida. Todos os lotes terminaram com sucesso. BackupSetId=$BackupSetId" 'SUCCESS'
-    exit 0
+$tierExecutionArray = $TierExecutions.ToArray()
+$outcome = Get-NightlyCascadeOutcome -TierExecutions $tierExecutionArray -DiagnosticFailureCount $DiagnosticFailures.Count
+$summary = [ordered]@{
+    SchemaVersion = 2; BackupSetId = $BackupSetId; Status = $outcome.Status; ExitCode = $outcome.ExitCode
+    StartedAt = $cascadeStartedAt.ToString('o'); FinishedAt = (Get-Date).ToString('o')
+    TierExecutions = $tierExecutionArray; DiagnosticFailures = $DiagnosticFailures.ToArray()
+    NotificationStatus = $NotificationStatus; MailSent = $MailSent; MailError = $MailError
+    LogPath = $LogPath; JsonPath = $CascadeJsonPath; HtmlPath = $CascadeHtmlPath
 }
-else {
-    Write-CascadeLog "Cascata concluida com pelo menos um lote com problema. BackupSetId=$BackupSetId" 'ERROR'
-    exit 1
+$html = Save-CascadeSnapshots -Summary $summary
+
+# Um alerta, somente depois de todos os tiers. Os filhos sempre usam -DeferEmail.
+if ($outcome.ExitCode -eq 1) {
+    $NotificationStatus = 'PENDING'
+    if ([string]::IsNullOrWhiteSpace($html)) {
+        try { $html = New-CascadeHtmlReport -Summary $summary }
+        catch { Add-UniqueDiagnosticFailure -List $DiagnosticFailures -Message "Falha ao gerar corpo consolidado: $($_.Exception.Message)" }
+    }
+    if (-not [string]::IsNullOrWhiteSpace($html)) {
+        Send-CascadeEmail -Subject "[FALHA] Backup Hyper-V - $env:COMPUTERNAME - $BackupSetId" -HtmlBody $html
+    }
 }
+
+$outcome = Get-NightlyCascadeOutcome -TierExecutions $tierExecutionArray -DiagnosticFailureCount $DiagnosticFailures.Count
+$summary.Status = $outcome.Status; $summary.ExitCode = $outcome.ExitCode
+$summary.FinishedAt = (Get-Date).ToString('o'); $summary.DiagnosticFailures = $DiagnosticFailures.ToArray()
+$summary.NotificationStatus = $NotificationStatus; $summary.MailSent = $MailSent; $summary.MailError = $MailError
+[void](Save-CascadeSnapshots -Summary $summary)
+
+$level = if ($outcome.ExitCode -eq 0) { 'SUCCESS' } elseif ($outcome.ExitCode -eq 2) { 'WARNING' } else { 'ERROR' }
+Write-CascadeLog "Cascata concluida. Status=$($outcome.Status) | ExitCode=$($outcome.ExitCode) | BackupSetId=$BackupSetId" $level
+exit $outcome.ExitCode

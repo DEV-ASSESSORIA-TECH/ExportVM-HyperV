@@ -62,6 +62,11 @@ param(
     # mesmo em falha", util para testes manuais onde uma falha e esperada.
     [switch]$SkipEmail,
 
+    # Uso interno do wrapper: adia a notificacao e entrega o resultado neste path.
+    [switch]$DeferEmail,
+
+    [string]$ResultPath,
+
     [switch]$SkipHash,
 
     [switch]$Execute
@@ -91,12 +96,17 @@ $SpaceHelpersPath = Join-Path $ScriptRoot 'SpaceHelpers.ps1'
 $FailureHelpersPath = Join-Path $ScriptRoot 'FailureClassificationHelpers.ps1'
 $TransactionHelpersPath = Join-Path $ScriptRoot 'VMTransactionHelpers.ps1'
 $PublishingHelpersPath = Join-Path $ScriptRoot 'PublishingHelpers.ps1'
+$ObservabilityHelpersPath = Join-Path $ScriptRoot 'ObservabilityHelpers.ps1'
 $SettingsConfigPath = Join-Path $ConfigDir 'Settings.json'
 $TiersConfigPath = Join-Path $ConfigDir 'Tiers.json'
 $Timestamp = $RunStart.ToString('yyyy-MM-dd_HH-mm-ss')
 $LogPath = Join-Path $LogDir "VMExportBackup-$Timestamp.log"
 $JsonPath = Join-Path $ReportDir "VMExportBackup-$Timestamp.json"
 $HtmlPath = Join-Path $ReportDir "VMExportBackup-$Timestamp.html"
+if (-not [string]::IsNullOrWhiteSpace($ResultPath)) {
+    $JsonPath = [System.IO.Path]::GetFullPath($ResultPath)
+    $HtmlPath = [System.IO.Path]::ChangeExtension($JsonPath, '.html')
+}
 $LockPath = Join-Path $LockDir 'VMExportBackup.lock.json'
 # RepositoryRoot/StagingRoot/FailedRoot/RestorePointName/StagingPoint/FinalPoint sao
 # calculados mais adiante, depois do merge de Config\Settings.json e da resolucao do
@@ -117,6 +127,8 @@ $LockAcquired = $false
 $MailSent = $false
 $MailError = $null
 $GlobalError = $null
+$NotificationStatus = 'NOT_REQUESTED'
+$DiagnosticFailures = New-Object System.Collections.Generic.List[string]
 $Warnings = New-Object System.Collections.Generic.List[string]
 $VMResults = New-Object System.Collections.Generic.List[object]
 $DeletedRestorePoints = New-Object System.Collections.Generic.List[string]
@@ -128,9 +140,15 @@ $OverallStatus = 'FAILED'
 $TierDefinitions = $null
 $EffectiveBatchName = $null
 
-foreach ($dir in @($LogDir, $ReportDir, $LockDir, $ConfigDir)) {
+foreach ($dir in @($LogDir, $ReportDir)) {
     if (-not (Test-Path -LiteralPath $dir)) {
-        New-Item -ItemType Directory -Path $dir -Force | Out-Null
+        try { New-Item -ItemType Directory -Path $dir -Force -ErrorAction Stop | Out-Null }
+        catch { $DiagnosticFailures.Add("Nao foi possivel criar o diretorio de observabilidade '$dir': $($_.Exception.Message)") }
+    }
+}
+foreach ($dir in @($LockDir, $ConfigDir)) {
+    if (-not (Test-Path -LiteralPath $dir)) {
+        New-Item -ItemType Directory -Path $dir -Force -ErrorAction Stop | Out-Null
     }
 }
 
@@ -146,7 +164,13 @@ function Write-Log {
     $stamp = Get-Date -Format 'yyyy-MM-dd HH:mm:ss'
     $line = "[$stamp] [$Level] $Message"
     Write-Host $line
-    Add-Content -LiteralPath $LogPath -Value $line -Encoding UTF8
+    try {
+        Add-Content -LiteralPath $LogPath -Value $line -Encoding UTF8 -ErrorAction Stop
+    }
+    catch {
+        $diagnostic = "Falha ao gravar log '$LogPath': $($_.Exception.Message)"
+        if (-not $DiagnosticFailures.Contains($diagnostic)) { $DiagnosticFailures.Add($diagnostic) }
+    }
 }
 
 function Write-Stage {
@@ -883,6 +907,9 @@ function New-HtmlReport {
     $warningHtml = if ($Warnings.Count -gt 0) {
         '<h2>Avisos</h2><ul>' + (($Warnings | ForEach-Object { '<li>' + (ConvertTo-HtmlText $_) + '</li>' }) -join '') + '</ul>'
     } else { '' }
+    $diagnosticHtml = if ($DiagnosticFailures.Count -gt 0) {
+        '<h2>Falhas de observabilidade</h2><ul>' + (($DiagnosticFailures | ForEach-Object { '<li>' + (ConvertTo-HtmlText $_) + '</li>' }) -join '') + '</ul>'
+    } else { '' }
 
     # Bloco de falha montado a parte e inserido logo apos o badge de status, antes do
     # Resumo - como o e-mail direto so dispara em FAILED/PARTIAL_SUCCESS, quem abre o
@@ -973,6 +1000,7 @@ $failureSummaryHtml
 $($rows.ToString())
 </table>
 $warningHtml
+$diagnosticHtml
 <p class="small">Log: $(ConvertTo-HtmlText $LogPath)</p>
 <p class="small">JSON: $(ConvertTo-HtmlText $JsonPath)</p>
 </body>
@@ -987,20 +1015,25 @@ function Send-ReportEmail {
     )
 
     if ($SkipEmail) {
+        $script:NotificationStatus = 'SUPPRESSED'
         Write-Log 'Envio de e-mail suprimido por -SkipEmail (mesmo em falha).'
         return
     }
 
     if ($MailTo.Count -eq 0) {
-        $Warnings.Add('Nenhum destinatario configurado; e-mail nao enviado.')
+        $script:NotificationStatus = 'FAILED'
+        $script:MailError = 'Nenhum destinatario configurado; e-mail nao enviado.'
+        Add-UniqueDiagnosticFailure -List $DiagnosticFailures -Message $script:MailError
         return
     }
 
-    $message = New-Object System.Net.Mail.MailMessage
-    $smtp = New-Object System.Net.Mail.SmtpClient($SmtpServer, $SmtpPort)
+    $message = $null
+    $smtp = $null
     $attachments = New-Object System.Collections.ArrayList
 
     try {
+        $message = New-Object System.Net.Mail.MailMessage
+        $smtp = New-Object System.Net.Mail.SmtpClient($SmtpServer, $SmtpPort)
         $message.From = New-Object System.Net.Mail.MailAddress($MailFrom)
         foreach ($recipient in $MailTo) {
             if (-not [string]::IsNullOrWhiteSpace($recipient)) {
@@ -1023,17 +1056,40 @@ function Send-ReportEmail {
 
         $smtp.Send($message)
         $script:MailSent = $true
+        $script:NotificationStatus = 'SENT'
         Write-Log "Relatorio enviado por e-mail para: $($MailTo -join ', ')." 'SUCCESS'
     }
     catch {
         $script:MailError = $_.Exception.Message
+        $script:NotificationStatus = 'FAILED'
+        Add-UniqueDiagnosticFailure -List $DiagnosticFailures -Message "Falha SMTP: $($script:MailError)"
         Write-Log "Falha ao enviar e-mail: $($script:MailError)" 'WARNING'
     }
     finally {
         foreach ($attachment in $attachments) { $attachment.Dispose() }
-        $message.Dispose()
-        $smtp.Dispose()
+        if ($null -ne $message) { $message.Dispose() }
+        if ($null -ne $smtp) { $smtp.Dispose() }
     }
+}
+
+function Save-LocalReportSnapshots {
+    param([Parameter(Mandatory = $true)][System.Collections.IDictionary]$Summary)
+
+    $html = $null
+    try {
+        Write-JsonSnapshot -Value $Summary -Path $JsonPath -Depth 15
+    }
+    catch {
+        Add-UniqueDiagnosticFailure -List $DiagnosticFailures -Message "Falha ao gravar JSON '$JsonPath': $($_.Exception.Message)"
+    }
+    try {
+        $html = New-HtmlReport -Summary $Summary
+        Write-TextSnapshot -Value $html -Path $HtmlPath
+    }
+    catch {
+        Add-UniqueDiagnosticFailure -List $DiagnosticFailures -Message "Falha ao gravar HTML '$HtmlPath': $($_.Exception.Message)"
+    }
+    return $html
 }
 
 function Invoke-ConfiguredVMTransaction {
@@ -1324,6 +1380,7 @@ function Invoke-BackupExecutionV13 {
     $vmResultArray = $VMResults.ToArray()
     $successCount = @($vmResultArray | Where-Object { $_.Success }).Count
     $failureCount = @($vmResultArray | Where-Object { -not $_.Success }).Count
+
     if ($successCount -gt 0) {
         $tierMetadataDestination = Join-Path $BackupSetPathModel.MetadataRoot '_Tier'
         if (-not (Test-Path -LiteralPath $BackupSetPathModel.MetadataRoot -PathType Container)) {
@@ -1419,7 +1476,7 @@ try {
 
     foreach ($helperPath in @(
         $TierHelpersPath, $RepositoryHelpersPath, $RetentionHelpersPath, $SpaceHelpersPath,
-        $FailureHelpersPath, $TransactionHelpersPath, $PublishingHelpersPath
+        $FailureHelpersPath, $TransactionHelpersPath, $PublishingHelpersPath, $ObservabilityHelpersPath
     )) {
         if (-not (Test-Path -LiteralPath $helperPath -PathType Leaf)) { throw "Modulo requerido nao encontrado: $helperPath" }
         . $helperPath
@@ -1981,6 +2038,17 @@ finally {
     $successCount = @($vmResultArray | Where-Object { $_.Success }).Count
     $failureCount = @($vmResultArray | Where-Object { -not $_.Success }).Count
 
+    $backupFailed = -not [string]::IsNullOrWhiteSpace($GlobalError) -or $failureCount -gt 0 -or $OverallStatus -in @('FAILED', 'PARTIAL_SUCCESS')
+    if ($backupFailed) {
+        $OverallStatus = if ($successCount -gt 0) { 'PARTIAL_SUCCESS' } else { 'FAILED' }
+        $ExitCode = 1
+    }
+    else {
+        $outcome = Get-BackupOutcome -VMResults $vmResultArray -WarningCount ($Warnings.Count + $DiagnosticFailures.Count)
+        $OverallStatus = $outcome.Status
+        $ExitCode = $outcome.ExitCode
+    }
+
     $summary = [ordered]@{
         SchemaVersion = 2
         RunId = $RunId
@@ -2007,7 +2075,9 @@ finally {
         DeletedRestorePoints = $deletedRestorePointArray
         MailSent = $MailSent
         MailError = $MailError
+        NotificationStatus = $NotificationStatus
         Warnings = $warningArray
+        DiagnosticFailures = $DiagnosticFailures.ToArray()
         Error = $GlobalError
         VMResults = $vmResultArray
         LogPath = $LogPath
@@ -2015,35 +2085,51 @@ finally {
         HtmlPath = $HtmlPath
     }
 
-    try {
-        $summary | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $JsonPath -Encoding UTF8
-        $html = New-HtmlReport -Summary $summary
-        $html | Set-Content -LiteralPath $HtmlPath -Encoding UTF8
-        Write-Log "Resultado JSON: $JsonPath"
-        Write-Log "Relatorio HTML: $HtmlPath"
+    $html = Save-LocalReportSnapshots -Summary $summary
+    Write-Log "Resultado JSON: $JsonPath"
+    Write-Log "Relatorio HTML: $HtmlPath"
 
-        $subjectPrefix = switch ($OverallStatus) {
-            'SUCCESS' { '[SUCESSO]' }
-            'PLAN' { '[PLANO]' }
-            default { '[FALHA]' }
-        }
-        $batchLabel = if ([string]::IsNullOrWhiteSpace($EffectiveBatchName)) { 'DESCONHECIDO' } else { $EffectiveBatchName }
-        $subject = "$subjectPrefix [Lote $batchLabel] Backup Hyper-V por exportacao - $ComputerName - $successCount/$($SelectedVMs.Count) VMs"
-
-        $shouldEmail = ($OverallStatus -in @('FAILED', 'PARTIAL_SUCCESS')) -and -not $SkipEmail
-        if ($shouldEmail) {
-            Send-ReportEmail -Subject $subject -HtmlBody $html
-        }
-        else {
-            Write-Log "E-mail nao enviado (Status=$OverallStatus, SkipEmail=$SkipEmail)."
-        }
+    $subjectPrefix = switch ($OverallStatus) {
+        'SUCCESS' { '[SUCESSO]' }
+        'SUCCESS_WITH_WARNINGS' { '[AVISO]' }
+        'PLAN' { '[PLANO]' }
+        default { '[FALHA]' }
     }
-    catch {
-        Write-Log "Falha ao gerar ou enviar relatorio: $($_.Exception.Message)" 'ERROR'
-        if ($ExitCode -eq 0) { $ExitCode = 1 }
+    $batchLabel = if ([string]::IsNullOrWhiteSpace($EffectiveBatchName)) { 'DESCONHECIDO' } else { $EffectiveBatchName }
+    $subject = "$subjectPrefix [Lote $batchLabel] Backup Hyper-V por exportacao - $ComputerName - $successCount/$($SelectedVMs.Count) VMs"
+
+    if ($DeferEmail) {
+        $NotificationStatus = 'DEFERRED_TO_WRAPPER'
+        Write-Log 'E-mail adiado para consolidacao pelo wrapper.'
+    }
+    elseif ($OverallStatus -in @('FAILED', 'PARTIAL_SUCCESS')) {
+        if ([string]::IsNullOrWhiteSpace($html)) {
+            try { $html = New-HtmlReport -Summary $summary }
+            catch { Add-UniqueDiagnosticFailure -List $DiagnosticFailures -Message "Falha ao gerar corpo do e-mail: $($_.Exception.Message)" }
+        }
+        if (-not [string]::IsNullOrWhiteSpace($html)) { Send-ReportEmail -Subject $subject -HtmlBody $html }
+    }
+    else {
+        $NotificationStatus = if ($SkipEmail) { 'SUPPRESSED' } else { 'NOT_REQUIRED' }
+        Write-Log "E-mail nao enviado (Status=$OverallStatus, SkipEmail=$SkipEmail)."
     }
 
     Remove-Lock
+
+    # SMTP e a primeira gravacao de relatorio podem adicionar diagnosticos. Recalcula
+    # somente estados sem falha de backup; codigo 1 sempre prevalece.
+    if (-not $backupFailed) {
+        $outcome = Get-BackupOutcome -VMResults $vmResultArray -WarningCount ($Warnings.Count + $DiagnosticFailures.Count)
+        $OverallStatus = $outcome.Status
+        $ExitCode = $outcome.ExitCode
+    }
+    $summary.Status = $OverallStatus
+    $summary.MailSent = $MailSent
+    $summary.MailError = $MailError
+    $summary.NotificationStatus = $NotificationStatus
+    $summary.DiagnosticFailures = $DiagnosticFailures.ToArray()
+    [void](Save-LocalReportSnapshots -Summary $summary)
+
     Write-Log "Fim da rotina. Status=$OverallStatus | ExitCode=$ExitCode | Duracao=$(Format-Duration $duration)."
     Write-Log ('=' * 74)
 }
