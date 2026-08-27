@@ -5,6 +5,8 @@
 param(
     [string]$TaskName = 'Backup Hyper-V - Cascata Noturna',
 
+    [string]$TaskPath = '\',
+
     # Prefixo das tarefas do modelo antigo (uma por lote, horarios independentes,
     # anterior a v1.2.0) - removidas automaticamente ao instalar a cascata unica.
     [string]$LegacyTaskNamePrefix = 'Backup Hyper-V - Lote'
@@ -17,6 +19,7 @@ $scriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $mainScript = Join-Path $scriptRoot 'Invoke-VMExportBackup.ps1'
 $cascadeScript = Join-Path $scriptRoot 'Invoke-CascadeBackup.ps1'
 $tierHelpersPath = Join-Path $scriptRoot 'TierHelpers.ps1'
+$scheduledTaskHelpersPath = Join-Path $scriptRoot 'ScheduledTaskHelpers.ps1'
 $configDir = Join-Path $scriptRoot 'Config'
 $tiersConfigPath = Join-Path $configDir 'Tiers.json'
 $settingsConfigPath = Join-Path $configDir 'Settings.json'
@@ -30,8 +33,13 @@ if (-not (Test-Path -LiteralPath $cascadeScript)) {
 if (-not (Test-Path -LiteralPath $tierHelpersPath)) {
     throw "Modulo de lotes nao encontrado: $tierHelpersPath"
 }
+if (-not (Test-Path -LiteralPath $scheduledTaskHelpersPath)) {
+    throw "Helper do Agendador nao encontrado: $scheduledTaskHelpersPath"
+}
 
 . $tierHelpersPath
+. $scheduledTaskHelpersPath
+$TaskPath = ConvertTo-ScheduledTaskPath -Path $TaskPath
 
 # A cascata precisa da config de lotes para saber a ordem e o horario de disparo -
 # diferente do script principal, aqui nao ha "modo sem lote" util.
@@ -129,17 +137,27 @@ $task = New-ScheduledTask `
     -Principal $principal `
     -Description "Roda a cascata noturna de backup Hyper-V ($tierNamesJoined) via Invoke-CascadeBackup.ps1: cada lote comeca assim que o anterior termina, classificacao automatica por tamanho, retencao propria por lote, e-mail so em falha."
 
-Register-ScheduledTask -TaskName $TaskName -InputObject $task -Force | Out-Null
+Register-ScheduledTask -TaskPath $TaskPath -TaskName $TaskName -InputObject $task -Force | Out-Null
 
-Write-Host "Tarefa criada/atualizada: $TaskName | Horario=$($tierDefinitions.CascadeStartTime) | ExecutionTimeLimit=$($tierDefinitions.CascadeExecutionTimeLimitHours)h | Ordem=$tierNamesJoined"
+Write-Host "Tarefa criada/atualizada: $TaskPath$TaskName | Horario=$($tierDefinitions.CascadeStartTime) | ExecutionTimeLimit=$($tierDefinitions.CascadeExecutionTimeLimitHours)h | Ordem=$tierNamesJoined"
+
+# Ao trocar TaskPath, remove copias anteriores de mesmo nome somente depois que a
+# nova tarefa foi registrada com sucesso. Isso evita duas cascatas concorrentes.
+$duplicateTasks = @(Get-ScheduledTask -ErrorAction SilentlyContinue | Where-Object {
+        $_.TaskName -eq $TaskName -and $_.TaskPath -ne $TaskPath
+    })
+foreach ($duplicate in $duplicateTasks) {
+    Write-Host "Removendo copia anterior da tarefa: $($duplicate.TaskPath)$($duplicate.TaskName)" -ForegroundColor Yellow
+    Unregister-ScheduledTask -TaskPath $duplicate.TaskPath -TaskName $duplicate.TaskName -Confirm:$false
+}
 
 # Migra hosts que ainda tem o modelo antigo (uma tarefa por lote, horarios
 # independentes, v1.1.0) removendo essas tarefas - deixa-las ativas rodaria o fluxo
 # antigo em paralelo com a cascata nova, competindo pelo mesmo lock.
 $legacyTasks = @(Get-ScheduledTask -ErrorAction SilentlyContinue | Where-Object { $_.TaskName -like "$LegacyTaskNamePrefix *" })
 foreach ($legacy in $legacyTasks) {
-    Write-Host "Removendo tarefa do modelo antigo (uma por lote): $($legacy.TaskName)" -ForegroundColor Yellow
-    Unregister-ScheduledTask -TaskName $legacy.TaskName -Confirm:$false
+    Write-Host "Removendo tarefa do modelo antigo (uma por lote): $($legacy.TaskPath)$($legacy.TaskName)" -ForegroundColor Yellow
+    Unregister-ScheduledTask -TaskPath $legacy.TaskPath -TaskName $legacy.TaskName -Confirm:$false
 }
 
 Write-Host ''
