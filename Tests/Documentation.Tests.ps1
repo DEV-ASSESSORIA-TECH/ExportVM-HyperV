@@ -18,7 +18,8 @@ Describe 'Documentacao de producao v2.0' {
         $readme | Should Match 'FailedPayloadKeepPerVM'
         $readme | Should Match '"SkipHash": true'
         $readme | Should Match 'SUCCESS_WITH_WARNINGS.+2'
-        $quick | Should Match 'MinFreeGB \+ 2 x SourceBytes'
+        $quick | Should Match '(?s)Espaço mínimo exigido antes de cada VM:.+MinFreeGB'
+        $quick | Should Not Match 'MinFreeGB \+ 2 x SourceBytes'
         (Get-Content -LiteralPath (Join-Path $repositoryRoot 'src\Invoke-VMExportBackup.ps1') -Raw) |
             Should Match '\[switch\]\$SkipHash\s*=\s*\$true'
     }

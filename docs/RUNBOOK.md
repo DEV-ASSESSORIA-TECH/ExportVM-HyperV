@@ -116,10 +116,12 @@ Falhas transitórias de processo, timeout, `Export-VM`, 7-Zip, hash ou I/O podem
 Antes de cada VM o requisito exato é:
 
 ```text
-MinFreeGB + 2 × SourceBytes
+MinFreeGB
 ```
 
-O fluxo aplica a retenção normal de `_FAILED` e, se necessário, remove outros payloads falhos do mais antigo para o mais novo. Se ainda faltar espaço, apenas a VM corrente falha e a execução continua. Backups válidos mantidos não participam dessa limpeza.
+Esse é um limite de admissão: a VM começa quando o espaço livre naquele instante é igual ou superior a `MinFreeGB`. O tamanho atual dos discos não altera o requisito e o consumo durante exportação ou compactação pode reduzir o espaço abaixo do mínimo até a avaliação da VM seguinte.
+
+O fluxo aplica primeiro a retenção normal de `_FAILED`. Se ainda estiver abaixo do mínimo, soma o tamanho dos payloads protegidos elegíveis. Quando o total não cobre o déficit, não apaga nenhum deles e apenas a VM corrente falha. Quando pode cobrir, remove do mais antigo para o mais novo, mede o ganho real após cada exclusão e para ao atingir o mínimo, ao não recuperar espaço ou quando os restantes deixam de ser suficientes. Backups válidos mantidos nunca participam dessa limpeza.
 
 ### Falha estrutural
 

@@ -86,13 +86,14 @@ Config\Settings.json deve usar:
   "FailedPayloadKeepPerVM": 3
   "SkipHash": true
 
-Espaço exigido antes de cada VM:
+Espaço mínimo exigido antes de cada VM:
 
-  MinFreeGB + 2 x SourceBytes
+  MinFreeGB
 
-Se faltar espaço, o script limpa primeiro os payloads falhos excedentes e depois,
-sob pressão, payloads falhos adicionais do mais antigo para o mais novo. Os três
-backups válidos por VM nunca entram nessa limpeza.
+O tamanho da VM não aumenta esse limite. Se faltar espaço, o script limpa primeiro
+os payloads falhos excedentes. Payloads protegidos só são removidos sob pressão se
+a soma deles puder atingir MinFreeGB; a remoção segue do mais antigo para o mais
+novo e para quando não recupera espaço. Backups válidos nunca entram nessa limpeza.
 
 Restauração
 -----------

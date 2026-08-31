@@ -21,7 +21,7 @@ O conteúdo de `src/` permanece coeso: no pacote publicado, seus scripts são co
 
 Em cada noite, `Invoke-CascadeBackup.ps1` cria um `BackupSetId` no formato `YYYY-MM-DD-xxxxxxxx` e executa os tiers configurados, por padrão `SMALL → MEDIUM → BIG`. Cada VM é processada em uma transação isolada:
 
-1. calcula o espaço necessário: `MinFreeGB + 2 × SourceBytes`;
+1. confirma que o destino tem pelo menos `MinFreeGB` livres;
 2. exporta com `Export-VM`;
 3. compacta em um `.partial.7z` exclusivo;
 4. executa obrigatoriamente `7z t`;
@@ -85,7 +85,7 @@ O valor do tier em `Config\Tiers.json` tem a precedência já existente. Execuç
 
 ### Falhas
 
-Cada ocorrência grava um `failure.json`. `FailedPayloadKeepPerVM` limita somente os diretórios `Payload` pesados; os JSON leves são preservados. Antes de cada VM a retenção normal é aplicada. Se ainda faltar espaço, payloads falhos adicionais são removidos globalmente do mais antigo para o mais novo até atingir a reserva. Essa limpeza nunca toca nos backups válidos mantidos.
+Cada ocorrência grava um `failure.json`. `FailedPayloadKeepPerVM` limita somente os diretórios `Payload` pesados; os JSON leves são preservados. Antes de cada VM a retenção normal é aplicada. `MinFreeGB` é o único limite de admissão: o tamanho da VM não aumenta essa exigência. Se o volume ficar abaixo do mínimo, a limpeza emergencial só começa quando a soma dos payloads elegíveis pode cobrir o déficit; caso contrário, eles são preservados e somente a VM corrente falha. Quando viável, os payloads são removidos globalmente do mais antigo para o mais novo, com conferência do espaço realmente recuperado após cada exclusão. Essa limpeza nunca toca nos backups válidos mantidos.
 
 Staging ilegível ou deixado por interrupção abrupta é movido para `_FAILED\_ORPHANED` na execução seguinte.
 
