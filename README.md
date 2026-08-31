@@ -1,4 +1,4 @@
-# VM Export Backup v2.0.1
+# VM Export Backup v2.0.2
 
 Backup completo de VMs Hyper-V por `Export-VM` e 7-Zip, com publicação e retenção independentes por VM. É uma solução de contingência: não é incremental e não substitui uma plataforma dedicada como Veeam ou Acronis.
 
@@ -187,7 +187,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\Invoke-Tests.p
 
 ## Empacotamento e release
 
-Gerar localmente `dist\VM-Export-Backup-2.0.1.zip` e seu SHA-256:
+Gerar localmente `dist\VM-Export-Backup-2.0.2.zip` e seu SHA-256:
 
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\Package.ps1
@@ -201,7 +201,7 @@ Para esta versão, depois do commit local:
 
 ```powershell
 git push origin main
-git push origin v2.0.1
+git push origin v2.0.2
 ```
 
 ## Restauração parcial

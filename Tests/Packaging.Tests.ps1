@@ -4,36 +4,36 @@ $projectRoot = Get-ProjectRoot
 $packageScript = Join-Path $projectRoot 'scripts\Package.ps1'
 $workflowPath = Join-Path $projectRoot '.github\workflows\release.yml'
 
-Describe 'Versionamento 2.0.1' {
+Describe 'Versionamento 2.0.2' {
     It 'mantem VERSION e ScriptVersion sincronizados' {
-        (Get-Content -LiteralPath (Join-Path $projectRoot 'VERSION') -Raw).Trim() | Should Be '2.0.1'
+        (Get-Content -LiteralPath (Join-Path $projectRoot 'VERSION') -Raw).Trim() | Should Be '2.0.2'
         Get-Content -LiteralPath (Join-Path $projectRoot 'src\Invoke-VMExportBackup.ps1') -Raw |
-            Should Match "(?m)^\`$ScriptVersion\s*=\s*'2\.0\.1'\s*$"
+            Should Match "(?m)^\`$ScriptVersion\s*=\s*'2\.0\.2'\s*$"
     }
 }
 
 Describe 'Pacote de release' {
     It 'gera ZIP instalavel e checksum sem arquivos de desenvolvimento' {
         $output = Join-Path $TestDrive 'dist'
-        $result = & $packageScript -Version '2.0.1' -OutputDirectory $output
+        $result = & $packageScript -Version '2.0.2' -OutputDirectory $output
 
         Test-Path -LiteralPath $result.ArchivePath -PathType Leaf | Should Be $true
         Test-Path -LiteralPath $result.ChecksumPath -PathType Leaf | Should Be $true
-        $result.Tag | Should Be 'v2.0.1'
+        $result.Tag | Should Be 'v2.0.2'
 
         Add-Type -AssemblyName System.IO.Compression.FileSystem
         $archive = [System.IO.Compression.ZipFile]::OpenRead($result.ArchivePath)
         try { $entries = @($archive.Entries | Select-Object -ExpandProperty FullName) }
         finally { $archive.Dispose() }
 
-        $entries -contains 'VM-Export-Backup-2.0.1\Invoke-VMExportBackup.ps1' | Should Be $true
-        $entries -contains 'VM-Export-Backup-2.0.1\Config\Settings.json' | Should Be $true
+        $entries -contains 'VM-Export-Backup-2.0.2\Invoke-VMExportBackup.ps1' | Should Be $true
+        $entries -contains 'VM-Export-Backup-2.0.2\Config\Settings.json' | Should Be $true
         @($entries | Where-Object { $_ -match '\\Tests\\|\\scripts\\|\.github' }).Count | Should Be 0
     }
 
     It 'recusa empacotar uma versao diferente de VERSION' {
         { & $packageScript -Version '2.0.0' -OutputDirectory (Join-Path $TestDrive 'invalid') } |
-            Should Throw "difere de VERSION '2.0.1'"
+            Should Throw "difere de VERSION '2.0.2'"
     }
 }
 

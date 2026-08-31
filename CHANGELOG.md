@@ -4,6 +4,16 @@ Histórico de versões. Para arquitetura/configuração atual veja [README.md](R
 
 ---
 
+## v2.0.2 — 2026-08-31
+
+### Corrigido
+
+- `MinFreeGB` volta a ser o único limite de espaço antes de cada VM, sem somar ou multiplicar o tamanho atual dos discos.
+- A limpeza `SPACE_PRESSURE` preserva payloads protegidos quando a soma elegível não pode cobrir o déficit e interrompe exclusões que não recuperam espaço.
+- Logs de limpeza passam a informar estimativa, ganho real e motivo de interrupção; falhas em `INITIALIZE` não alegam mais preservar um payload inexistente.
+
+---
+
 ## v2.0.1 — 2026-08-27
 
 ### Adicionado
