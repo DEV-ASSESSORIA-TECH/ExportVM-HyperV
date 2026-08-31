@@ -1299,14 +1299,25 @@ function Invoke-BackupExecutionV2 {
             -VMId ([string]$vm.VMId) -TierName $EffectiveBatchName -OccurrenceId $occurrenceId
 
         $failedEntries = @(Get-Schema2FailedPayloadEntries -RepositoryRoot $RepositoryRoot)
-        $space = Invoke-VMSpacePreparation -SourceBytes ([long]$vm.SourceBytes) -MinFreeGB $MinFreeGB `
+        $space = Invoke-VMSpacePreparation -MinFreeGB $MinFreeGB `
             -FailedPayloadEntries $failedEntries -KeepPerVM $FailedPayloadKeepPerVM `
             -GetFreeBytesAction { Get-FreeBytes }
         foreach ($spaceError in @($space.Errors)) { $Warnings.Add("Falha na limpeza de _FAILED: $spaceError") }
         foreach ($event in @($space.Events)) {
             if ($event.Success) {
-                Write-Log "Payload falho removido ($($event.Reason)): $($event.OccurrenceRoot) | livre antes=$(Format-Bytes $event.SpaceBeforeBytes) | depois=$(Format-Bytes $event.SpaceAfterBytes)." 'WARNING'
+                $expectedText = if ($event.PSObject.Properties.Name -contains 'PayloadBytesExpected') { " | payload estimado=$(Format-Bytes $event.PayloadBytesExpected) | recuperado real=$(Format-Bytes $event.BytesRecovered)" } else { '' }
+                Write-Log "Payload falho removido ($($event.Reason)): $($event.OccurrenceRoot) | livre antes=$(Format-Bytes $event.SpaceBeforeBytes) | depois=$(Format-Bytes $event.SpaceAfterBytes)$expectedText." 'WARNING'
             }
+        }
+        if ($space.EmergencyCleanupStatus -eq 'SKIPPED_INSUFFICIENT_CANDIDATES') {
+            $message = "Limpeza SPACE_PRESSURE nao executada antes de $($vm.Name): faltam $(Format-Bytes $space.MissingBytes), mas os payloads elegiveis somam apenas $(Format-Bytes $space.EligiblePayloadBytes). Minimo configurado=$(Format-Bytes $space.RequiredFreeBytes)."
+            Write-Log $message 'WARNING'
+            $Warnings.Add($message)
+        }
+        elseif ($space.EmergencyCleanupStatus -in @('STOPPED_NO_GAIN', 'STOPPED_INSUFFICIENT_REMAINING', 'EXHAUSTED')) {
+            $message = "Limpeza SPACE_PRESSURE interrompida antes de $($vm.Name): estado=$($space.EmergencyCleanupStatus) | minimo=$(Format-Bytes $space.RequiredFreeBytes) | livre=$(Format-Bytes $space.FinalFreeBytes)."
+            Write-Log $message 'WARNING'
+            $Warnings.Add($message)
         }
         if ($space.EmergencyDeletionOccurred) {
             $Warnings.Add("Pressao de espaco exigiu remover payloads falhos adicionais antes de $($vm.Name).")
@@ -1352,7 +1363,12 @@ function Invoke-BackupExecutionV2 {
             Write-Log "[$($vm.Name)] Falha isolada em $($result.CurrentStage): $($result.Error)" 'ERROR'
             try {
                 $failedPaths = Save-FailedVMTransaction -RepositoryRoot $RepositoryRoot -Context $context -Result $result
-                Write-Log "[$($vm.Name)] Payload falho preservado em $($failedPaths.OccurrenceRoot)." 'WARNING'
+                if (Test-Path -LiteralPath $failedPaths.PayloadRoot -PathType Container) {
+                    Write-Log "[$($vm.Name)] Payload falho preservado em $($failedPaths.OccurrenceRoot)." 'WARNING'
+                }
+                else {
+                    Write-Log "[$($vm.Name)] Registro da falha preservado em $($failedPaths.OccurrenceRoot); nenhum payload foi criado." 'WARNING'
+                }
             }
             catch {
                 $Warnings.Add("Falha ao preservar payload de $($vm.Name): $($_.Exception.Message)")
