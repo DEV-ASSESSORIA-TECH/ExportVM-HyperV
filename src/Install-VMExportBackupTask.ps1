@@ -5,11 +5,7 @@
 param(
     [string]$TaskName = 'Backup Hyper-V - Cascata Noturna',
 
-    [string]$TaskPath = '\',
-
-    # Prefixo das tarefas do modelo antigo (uma por lote, horarios independentes,
-    # anterior a v1.2.0) - removidas automaticamente ao instalar a cascata unica.
-    [string]$LegacyTaskNamePrefix = 'Backup Hyper-V - Lote'
+    [string]$TaskPath = '\'
 )
 
 Set-StrictMode -Version 2.0
@@ -151,17 +147,8 @@ foreach ($duplicate in $duplicateTasks) {
     Unregister-ScheduledTask -TaskPath $duplicate.TaskPath -TaskName $duplicate.TaskName -Confirm:$false
 }
 
-# Migra hosts que ainda tem o modelo antigo (uma tarefa por lote, horarios
-# independentes, v1.1.0) removendo essas tarefas - deixa-las ativas rodaria o fluxo
-# antigo em paralelo com a cascata nova, competindo pelo mesmo lock.
-$legacyTasks = @(Get-ScheduledTask -ErrorAction SilentlyContinue | Where-Object { $_.TaskName -like "$LegacyTaskNamePrefix *" })
-foreach ($legacy in $legacyTasks) {
-    Write-Host "Removendo tarefa do modelo antigo (uma por lote): $($legacy.TaskPath)$($legacy.TaskName)" -ForegroundColor Yellow
-    Unregister-ScheduledTask -TaskPath $legacy.TaskPath -TaskName $legacy.TaskName -Confirm:$false
-}
-
 Write-Host ''
-Write-Host "Resumo: 1 tarefa de cascata instalada, $($legacyTasks.Count) tarefa(s) do modelo antigo removida(s)."
+Write-Host 'Resumo: 1 tarefa de cascata instalada.'
 Write-Host "Conta: SYSTEM"
 Write-Host "Wrapper: $cascadeScript"
 Write-Host "Config de lotes: $tiersConfigPath"

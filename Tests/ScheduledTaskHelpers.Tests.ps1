@@ -23,10 +23,10 @@ Describe 'Pasta da tarefa agendada' {
         { ConvertTo-ScheduledTaskPath -Path 'TI\..\Backups' } | Should Throw 'TaskPath invalido'
     }
 
-    It 'registra e remove tarefas usando TaskPath explicitamente' {
+    It 'registra e remove copias da tarefa usando TaskPath explicitamente' {
         $source = Get-Content -LiteralPath $installerPath -Raw
         $source | Should Match 'Register-ScheduledTask\s+-TaskPath \$TaskPath'
         $source | Should Match 'Unregister-ScheduledTask -TaskPath \$duplicate\.TaskPath'
-        $source | Should Match 'Unregister-ScheduledTask -TaskPath \$legacy\.TaskPath'
+        $source | Should Not Match 'LegacyTaskNamePrefix|\$legacyTasks'
     }
 }

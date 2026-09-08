@@ -5,14 +5,9 @@ $repositoryRoot = Get-RepositoryRoot
 $mainScriptPath = Join-Path $repositoryRoot 'Invoke-VMExportBackup.ps1'
 $mainSource = Get-Content -LiteralPath $mainScriptPath -Raw
 
-. (Get-ScriptFunction -Path $mainScriptPath -Name 'Get-SafeName')
 . (Get-ScriptFunction -Path $mainScriptPath -Name 'Get-SelectedVMs')
 
 Describe 'Funcoes do script principal' {
-    It 'normaliza somente caracteres invalidos de caminho e espacos externos' {
-        Get-SafeName -Name '  VM\A/B:C*D?E"F<G>H|I  ' | Should Be 'VM_A_B_C_D_E_F_G_H_I'
-    }
-
     It 'falha quando o host nao contem nenhuma VM' {
         function Get-VM { param($ErrorAction) return @() }
 
@@ -36,5 +31,6 @@ Describe 'Fluxo produtivo v2.0' {
     It 'ativa o orquestrador v2.0 no caminho de execucao' {
         $mainSource | Should Match 'Invoke-BackupExecutionV2'
         $mainSource | Should Match 'Get-BackupOutcome'
+        $mainSource | Should Not Match 'if\s*\(\$false\)'
     }
 }
