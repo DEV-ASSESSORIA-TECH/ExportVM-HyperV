@@ -2,7 +2,7 @@ $here = Split-Path -Parent $MyInvocation.MyCommand.Path
 . (Join-Path $here 'TestHelpers.ps1')
 $repositoryRoot = Get-ProjectRoot
 
-Describe 'Documentacao de producao v2.0' {
+Describe 'Documentacao de producao v2.0.3' {
     $readme = Get-Content -LiteralPath (Join-Path $repositoryRoot 'README.md') -Raw
     $runbook = Get-Content -LiteralPath (Join-Path $repositoryRoot 'docs\RUNBOOK.md') -Raw
     $quick = Get-Content -LiteralPath (Join-Path $repositoryRoot 'docs\LEIA-ME.txt') -Raw
@@ -24,10 +24,10 @@ Describe 'Documentacao de producao v2.0' {
             Should Match '\[switch\]\$SkipHash\s*=\s*\$true'
     }
 
-    It 'explicita a incompatibilidade operacional com layouts antigos' {
-        $readme | Should Match 'não são migradas, contadas ou apagadas'
-        $runbook | Should Match 'Não existe migração automática'
+    It 'documenta a auditoria operacional atual' {
         $quick | Should Match 'Não existe _AUDIT'
+        $readme | Should Not Match 'Compatibilidade com versões anteriores'
+        $runbook | Should Not Match 'Migração da v1\.2 ou anterior'
     }
 
     It 'documenta instalacao em pasta personalizada do Agendador' {

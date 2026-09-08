@@ -1,4 +1,4 @@
-VM Export Backup v2.0.1
+VM Export Backup v2.0.3
 =======================
 
 Resumo rápido. A referência técnica está em ..\README.md e a operação/recuperação
@@ -13,7 +13,6 @@ O que mudou
 - _FAILED mantém failure.json e até 3 payloads pesados por VM.
 - SHA-256 fica desligado por padrão; 7z t, estrutura e tamanho continuam obrigatórios.
 - A cascata envia no máximo um alerta depois de todos os tiers.
-- Layouts antigos não são migrados, descobertos ou removidos automaticamente.
 
 Estados
 -------
@@ -100,10 +99,6 @@ Restauração
 Extraia o .7z da VM para uma pasta alternativa, importe o .vmcx escolhendo copiar
 a VM e gerar um novo identificador, e use um switch isolado antes de ligá-la.
 
-Compatibilidade
----------------
-Antes de ativar a v2.0, faça backup e remova manualmente os pontos antigos. Pastas
-_CASCATA_, _RUN_ e marcadores sem SchemaVersion 2 ficam fora da automação nova.
 
 Não existe _AUDIT. Logs\ e Reports\ são a auditoria operacional; os metadados de
 cada VM acompanham a retenção do arquivo correspondente.

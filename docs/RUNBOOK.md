@@ -1,4 +1,4 @@
-# RUNBOOK — VM Export Backup v2.0.1
+# RUNBOOK — VM Export Backup v2.0.3
 
 Guia de operação, diagnóstico e recuperação. A arquitetura e os parâmetros estão em [README.md](../README.md).
 
@@ -187,17 +187,3 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File '.\scripts\Invoke-Tests.
 ```
 
 Reexecute `Install-VMExportBackupTask.ps1` após mudar horário ou limite da cascata.
-
-## Migração da v1.2 ou anterior
-
-Não existe migração automática. Antes da ativação:
-
-1. pare/desabilite a tarefa antiga;
-2. faça uma cópia dos backups que ainda precisam ser preservados;
-3. remova manualmente layouts antigos quando estiver seguro;
-4. instale todos os scripts/helpers e `Config\Settings.json` schema 2 juntos;
-5. rode o plano e os testes;
-6. execute um tier pequeno e valide restauração;
-7. só então habilite a cascata definitiva.
-
-O v2.0 ignora integralmente layouts 1.x com nomes `_CASCATA_`, `_RUN_` e marcadores sem schema 2. Eles não contam para retenção e nunca são apagados pelo código novo.

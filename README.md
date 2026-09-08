@@ -1,4 +1,4 @@
-# VM Export Backup v2.0.2
+# VM Export Backup v2.0.3
 
 Backup completo de VMs Hyper-V por `Export-VM` e 7-Zip, com publicação e retenção independentes por VM. É uma solução de contingência: não é incremental e não substitui uma plataforma dedicada como Veeam ou Acronis.
 
@@ -187,7 +187,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\Invoke-Tests.p
 
 ## Empacotamento e release
 
-Gerar localmente `dist\VM-Export-Backup-2.0.2.zip` e seu SHA-256:
+Gerar localmente `dist\VM-Export-Backup-2.0.3.zip` e seu SHA-256:
 
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\Package.ps1
@@ -201,13 +201,9 @@ Para esta versão, depois do commit local:
 
 ```powershell
 git push origin main
-git push origin v2.0.2
+git push origin v2.0.3
 ```
 
 ## Restauração parcial
 
 Cada `.7z` aprovado é um ponto restaurável independente. Para recuperar uma VM de uma noite parcialmente bem-sucedida, selecione seu arquivo em `Archives`, extraia-o para uma área separada e importe o `.vmcx` no Hyper-V usando a opção de copiar e gerar novo identificador. Para teste, conecte primeiro a um switch isolado. O procedimento completo está no runbook.
-
-## Compatibilidade com versões anteriores
-
-O v2.0 descobre, retém e remove somente schema 2. Pastas antigas da linha 1.x com `_CASCATA_`, `_RUN_` ou marcadores sem `SchemaVersion: 2` ficam totalmente fora da automação: não são migradas, contadas ou apagadas. Faça backup e remoção manual desses layouts antes da ativação em produção.

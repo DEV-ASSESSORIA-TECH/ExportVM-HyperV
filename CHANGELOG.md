@@ -4,6 +4,16 @@ Histórico de versões. Para arquitetura/configuração atual veja [README.md](R
 
 ---
 
+## v2.0.3 — 2026-09-08
+
+### Alterado
+
+- Removido do script principal o fluxo v1.2 mantido sob `if ($false)`, junto das funções e do teste que existiam somente para sustentá-lo.
+- Removida do instalador a migração automática das tarefas agendadas anteriores à cascata única, pois o único host de produção já está atualizado.
+- Retiradas da documentação operacional as instruções de migração da linha 1.x e alinhadas as referências de versão em `README.md`, `LEIA-ME.txt` e `RUNBOOK.md`.
+
+---
+
 ## v2.0.2 — 2026-08-31
 
 ### Corrigido
