@@ -46,21 +46,6 @@ Exclusões de VMs, diagnóstico dos backups por e-mail, organização da instala
 - **Conteúdo dos erros no HTML:** mensagens e demais valores dinâmicos são escapados antes de entrar no relatório e no corpo do e-mail, preservando a exibição de caracteres especiais.
 - **Busca do consolidado:** os exemplos operacionais excluem arquivos `.plan.json`, evitando confundir o plano de seleção com o resultado final da cascata.
 
-### Compatibilidade e atualização
-
-- Backups schema 2 anteriores continuam legíveis pelos marcadores existentes; o novo checkpoint tem precedência quando presente. Não é necessário converter esses backups.
-- Os caminhos dos três scripts de entrada permanecem iguais. A reorganização, por si só, não exige recriar a tarefa agendada quando a pasta de instalação e sua ação continuam as mesmas.
-- Na atualização, suspenda o agendamento e aguarde o término das execuções; preserve `Config`, `Logs` e `Reports`, copie a pasta `Internal` com os scripts de entrada e remova as cópias antigas dos auxiliares/workers da raiz após conferir a instalação. A pasta local `Locks` antiga deixa de ser usada.
-- Todas as instalações que escrevem no mesmo repositório precisam ser atualizadas, pois as versões antigas não respeitam o novo bloqueio. A coordenação dos workers por Job Object é local: use um único host escritor por repositório.
-- SHA-256 continua opcional e desabilitado por padrão. O teste obrigatório do 7-Zip na recuperação não altera essa configuração. A proteção de publicação depende de o armazenamento respeitar flush e substituição atômica.
-
-### Validação
-
-- Suíte Pester validada no Windows PowerShell 5.1: **120 testes aprovados, nenhuma falha e nenhum teste omitido**, incluindo a integração com 7-Zip real.
-- Cenários cobertos incluem exclusões antes das consultas aos discos, plano compartilhado, `SKIPPED`, erros no relatório/e-mail, VM removida, resultados inválidos, disputa do lock, timeout, encerramento abrupto do dono e de seus descendentes, recuperação nas etapas da publicação e corrupção de arquivo mantendo o mesmo tamanho.
-- O teste com arquivo 7z real pode ser habilitado por `VMEXPORT_TEST_7ZIP`; sem essa variável, somente esse teste de integração é omitido. A suíte não baixa ferramentas automaticamente.
-- ZIP de distribuição conferido com 24 arquivos idênticos às fontes e checksum SHA-256 validado. Backup/restauração real no Hyper-V e entrega SMTP ainda exigem homologação no ambiente de destino.
-
 ---
 
 ## v2.0.3 — 2026-09-08
