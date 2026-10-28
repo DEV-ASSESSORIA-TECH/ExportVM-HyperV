@@ -54,11 +54,11 @@ Uma VM que desapareça após o planejamento gera `VM_NOT_FOUND` individual, sem 
 
 ## Concorrência e recuperação de publicação
 
-Cada execução real mantém um handle exclusivo em `<RepositoryRoot>\.VMExportBackup.lock`, adquirido por `OpenOrCreate` com `FileShare.None` após validar o destino. O bloqueio é compartilhado por instalações que usam o mesmo repositório e fica ativo até a finalização dos relatórios. A existência do arquivo não significa execução ativa: ele permanece no disco, e o Windows libera o handle quando o processo termina, inclusive abruptamente. Não apague o arquivo para tentar liberar um backup em andamento. O modo `PLAN` não adquire esse bloqueio nem altera o repositório.
+Cada execução real mantém um handle exclusivo em `<RepositoryRoot>\.VMExportBackup.lock`, adquirido por `OpenOrCreate` com `FileShare.None` após validar o destino. O bloqueio é compartilhado por instalações que usam o mesmo repositório e fica ativo até a finalização dos relatórios. A existência do arquivo não significa execução ativa: ele permanece no disco, e o Windows libera o handle quando o processo termina, inclusive abruptamente. Workers de exportação, compactação, teste e hash iniciam suspensos e entram em um Job Object antes de executar. O grupo encerra os descendentes se o dono morrer; um novo dono drena qualquer grupo remanescente antes de alterar o repositório. A identidade usa o arquivo de lock no volume, inclusive por caminhos alternativos no mesmo host. O destino deve ter um único host escritor: Job Objects não coordenam workers entre máquinas. Não apague o arquivo para tentar liberar um backup em andamento. O modo `PLAN` não adquire esse bloqueio nem altera o repositório.
 
 Antes de mover um arquivo aprovado, o script grava um registro persistente em `_PUBLISHING\<BackupSetId>\<Tier>\<VMIdentity>.json`. Arquivo e metadados são publicados por VM, seguidos de `PUBLISHED.marker.json`, um checkpoint substituído atomicamente com `File.Replace`. O checkpoint é atualizado a cada VM e tem precedência na descoberta sobre `COMPLETE.marker.json` e `PARTIAL.marker.json`, preservados como marcadores de apresentação. Repositórios anteriores sem checkpoint continuam sendo lidos pelos marcadores schema 2 existentes.
 
-Na próxima execução real, sob o bloqueio, as publicações pendentes são reconciliadas antes da seleção e do tratamento de staging órfão. A recuperação verifica os caminhos, o tamanho registrado e o SHA-256 quando habilitado. Ela é idempotente e não refaz a exportação. Uma publicação já aprovada pode ser concluída mesmo que a VM tenha sido excluída da seleção da nova noite. Em caso de divergência, o registro e os arquivos são preservados e a execução falha para inspeção, sem limpeza desse staging. Não remova `_PUBLISHING` manualmente.
+Na próxima execução real, sob o bloqueio, as publicações pendentes são reconciliadas antes da seleção e do tratamento de staging órfão. A recuperação verifica os caminhos, o tamanho registrado, o SHA-256 quando registrado e sempre repete o teste integral `7z t`, inclusive com `SkipHash` habilitado. O teste usa `IntegrityTimeoutHours`; suas saídas ficam em `Logs/Recovery-*.stdout.log` e `Logs/Recovery-*.stderr.log`. Ela é idempotente e não refaz a exportação. Uma publicação já aprovada pode ser concluída mesmo que a VM tenha sido excluída da seleção da nova noite. Em caso de divergência, o registro e os arquivos são preservados e a execução falha para inspeção, sem limpeza desse staging. Não remova `_PUBLISHING` manualmente.
 
 Durante uma execução ou após recuperação de uma interrupção, o checkpoint pode indicar `PARTIAL_SUCCESS` com os arquivos aprovados até aquele momento. Isso não afirma que todas as VMs planejadas foram processadas. O relatório final da execução informa os totais de sucesso e falha. A proteção contra interrupção depende de o armazenamento respeitar as operações de flush e substituição atômica; ela não substitui testes de restauração nem protege contra falhas físicas do volume.
 
@@ -234,6 +234,8 @@ Testes no diretório do projeto:
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\Invoke-Tests.ps1
 ```
+
+Para incluir o teste de recuperação com um arquivo 7z real, defina `VMEXPORT_TEST_7ZIP` com o caminho absoluto de `7z.exe` ou `7zr.exe` antes de executar a suíte. Sem essa variável, somente esse teste de integração é omitido; a suíte não baixa ferramentas.
 
 ## Empacotamento e release
 

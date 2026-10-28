@@ -6,6 +6,8 @@ Histórico de versões. Para arquitetura/configuração atual veja [README.md](R
 
 ## v2.1.0 — 2026-10-28
 
+- Workers iniciam suspensos e entram em Job Object antes da execução; queda do dono encerra descendentes e o próximo dono aguarda o grupo terminar antes de reutilizar o repositório no mesmo host.
+- Recuperação de publicação repete obrigatoriamente `7z t`, mesmo com `SkipHash`, antes de concluir o manifesto e remover o journal; corrupção do mesmo tamanho preserva a pendência para inspeção.
 - Bloqueio por handle exclusivo dentro do repositório, compartilhado entre instalações e liberado pelo Windows ao encerrar o processo; lock local antigo deixa de ser usado.
 - Publicação com journal persistente em `_PUBLISHING`, checkpoint atômico `PUBLISHED.marker.json` por VM e reconciliação idempotente antes do tratamento de staging órfão. Repositórios schema 2 anteriores continuam legíveis.
 - VM removida após o planejamento gera falha individual e inventário mínimo, preservando as demais VMs do lote.

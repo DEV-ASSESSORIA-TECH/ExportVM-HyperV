@@ -9,7 +9,9 @@ Versão preparada em 28/10/2026. Compatível com os backups schema 2 existentes.
 - VM removida após o planejamento falha individualmente, preservando o processamento das demais.
 - Resultados de lote ausentes/inválidos e falhas de inicialização geram relatório de falha e tentativa de alerta.
 - Bloqueio exclusivo por repositório, compartilhado entre instalações e liberado pelo Windows após término abrupto.
+- Workers e descendentes vinculados ao dono por Job Object, com entrada suspensa e drenagem antes de reutilizar o repositório. Use um único host escritor por destino.
 - Publicação com registro persistente em `_PUBLISHING`, checkpoint atômico por VM e recuperação idempotente na próxima execução real.
+- Recuperação exige novo teste integral `7z t`, mesmo com hash desabilitado, com timeout e logs próprios; divergências preservam a pendência para inspeção.
 
 Antes de atualizar, pare os backups e suspenda o agendamento. Preserve a configuração local, copie a pasta `Internal` junto dos três scripts e atualize todas as instalações que escrevem no mesmo destino. Consulte o [runbook](RUNBOOK.md) antes de intervir em publicações pendentes.
 

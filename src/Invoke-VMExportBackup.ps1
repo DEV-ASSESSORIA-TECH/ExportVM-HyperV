@@ -424,6 +424,19 @@ function Get-DirectorySize {
     return [long]$measure.Sum
 }
 
+function Test-RecoveryArchive {
+    param([Parameter(Mandatory = $true)][string]$ArchivePath)
+    $prefix = Join-Path $LogDir ("Recovery-$([guid]::NewGuid().ToString('N'))")
+    $arguments = @('t', '-bd', '-bb1', '-bso1', '-bse1', '--', (Quote-Argument $ArchivePath)) -join ' '
+    $process = Invoke-MonitoredProcess -DisplayName '7-Zip validar recuperacao' -FilePath $SevenZipPath `
+        -ArgumentString $arguments -Timeout ([timespan]::FromHours($IntegrityTimeoutHours)) `
+        -StdOutPath "$prefix.stdout.log" -StdErrPath "$prefix.stderr.log"
+    if ($process.TimedOut) { throw (New-Object System.TimeoutException('Validacao da recuperacao excedeu o timeout.')) }
+    if ($null -eq $process.ExitCode -or $process.ExitCode -ne 0) {
+        throw "Integridade da recuperacao reprovada pelo 7-Zip. ExitCode=$($process.ExitCode). $($process.StdErrTail) $($process.StdOutTail). Logs: $prefix"
+    }
+}
+
 function Get-SevenZipArchiveStructure {
     param(
         [Parameter(Mandatory = $true)]
@@ -1362,7 +1375,7 @@ try {
 
     if ($Execute) {
         Acquire-Lock
-        foreach ($recovered in @(Repair-PendingVMBackupPublications -RepositoryRoot $RepositoryRoot)) {
+        foreach ($recovered in @(Repair-PendingVMBackupPublications -RepositoryRoot $RepositoryRoot -ValidateArchiveAction { param($archive) Test-RecoveryArchive -ArchivePath $archive })) {
             $Warnings.Add("Publicacao interrompida recuperada: $($recovered.Name).")
             Write-Log "Publicacao interrompida recuperada: $($recovered.Name) | $($recovered.ArchivePath)." 'WARNING'
         }

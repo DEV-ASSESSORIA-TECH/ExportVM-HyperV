@@ -41,8 +41,11 @@ Publicação recuperável
 _PUBLISHING guarda registros das publicações aprovadas ainda pendentes.
 PUBLISHED.marker.json é o checkpoint de descoberta, atualizado a cada VM.
 A próxima execução real reconcilia pendências antes de tratar staging órfão.
+A recuperação sempre repete 7z t, mesmo com SkipHash; saídas em Logs/Recovery-*.log.
 Não apague registros pendentes nem o arquivo de lock para contornar uma falha.
 O arquivo de lock permanece; o Windows libera o bloqueio quando o processo termina.
+Workers e descendentes são encerrados com o dono; novo dono aguarda o grupo terminar.
+Use um único host escritor por repositório.
 VM removida após o plano falha individualmente; resultado de lote ausente/inválido
 é falha e gera tentativa de alerta, assim como falhas de inicialização.
 

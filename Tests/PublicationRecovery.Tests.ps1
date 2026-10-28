@@ -1,4 +1,4 @@
-$here = Split-Path -Parent $MyInvocation.MyCommand.Path
+﻿$here = Split-Path -Parent $MyInvocation.MyCommand.Path
 . (Join-Path $here 'TestHelpers.ps1')
 $repositoryRoot = Get-RepositoryRoot
 foreach ($helper in @('RepositoryHelpers', 'RetentionHelpers', 'PublishingHelpers', 'VMTransactionHelpers')) {
@@ -23,7 +23,69 @@ function New-TestPublication {
     }
 }
 
+$fixtureValidator = { param($archive) if ((Get-Content -LiteralPath $archive -Raw).Trim() -cne 'arquivo aprovado') { throw 'Integridade reprovada' } }
+
 Describe 'Recuperacao idempotente da publicacao' {
+    It 'aprova 7z real e rejeita corrupcao do mesmo tamanho sem hash' -Skip:([string]::IsNullOrWhiteSpace($env:VMEXPORT_TEST_7ZIP)) {
+        $main = Join-Path $repositoryRoot 'Invoke-VMExportBackup.ps1'
+        foreach ($name in @('Invoke-MonitoredProcess', 'Test-RecoveryArchive', 'Quote-Argument', 'Format-Duration', 'Format-Bytes', 'Get-TailText')) {
+            . (Get-ScriptFunction -Path $main -Name $name)
+        }
+        function Write-Log { param($Message, $Level) }
+        $SevenZipPath = $env:VMEXPORT_TEST_7ZIP
+        $IntegrityTimeoutHours = 1; $HeartbeatSeconds = 30; $LogDir = $TestDrive
+        foreach ($corrupt in @($false, $true)) {
+            $repo = Join-Path $TestDrive "real7z-$corrupt"
+            $fixture = New-TestPublication -Root $repo
+            Remove-Item -LiteralPath $fixture.Context.ArchivePath
+            $payload = Join-Path $TestDrive 'data.txt'
+            Set-Content -LiteralPath $payload -Value 'dados de teste para validacao'
+            & $SevenZipPath a -bd -- $fixture.Context.ArchivePath $payload | Out-Null
+            $LASTEXITCODE | Should Be 0
+            { Publish-VMTransactionResult -Context $fixture.Context -Result $fixture.Result -PathModel $fixture.Paths `
+                -AfterStep { throw 'interrompido' } } | Should Throw
+            if ($corrupt) {
+                $bytes = [IO.File]::ReadAllBytes($fixture.Context.ArchivePath)
+                $bytes[0] = $bytes[0] -bxor 1
+                [IO.File]::WriteAllBytes($fixture.Context.ArchivePath, $bytes)
+            }
+            $script:RepositoryLock = Enter-BackupRepositoryLock -RepositoryRoot $repo -RunId recovery
+            try {
+                $validate = { param($archive) Test-RecoveryArchive -ArchivePath $archive }
+                if ($corrupt) {
+                    { Repair-PendingVMBackupPublications -RepositoryRoot $repo -ValidateArchiveAction $validate } | Should Throw 'Integridade'
+                    @(Get-Schema2ValidBackupEntries -RepositoryRoot $repo).Count | Should Be 0
+                    @(Get-ChildItem -LiteralPath (Join-Path $repo '_PUBLISHING') -Recurse -Filter '*.json').Count | Should Be 1
+                } else {
+                    @(Repair-PendingVMBackupPublications -RepositoryRoot $repo -ValidateArchiveAction $validate).Count | Should Be 1
+                    @(Get-Schema2ValidBackupEntries -RepositoryRoot $repo).Count | Should Be 1
+                }
+            } finally { Exit-BackupRepositoryLock $script:RepositoryLock; $script:RepositoryLock = $null }
+        }
+    }
+
+    It 'recusa recuperacao sem validador e preserva o journal' {
+        $repo = Join-Path $TestDrive 'no-validator'
+        $fixture = New-TestPublication -Root $repo
+        { Publish-VMTransactionResult -Context $fixture.Context -Result $fixture.Result -PathModel $fixture.Paths `
+            -AfterStep { throw 'interrompido' } } | Should Throw
+        { Repair-PendingVMBackupPublications -RepositoryRoot $repo } | Should Throw 'exige validacao'
+        @(Get-ChildItem -LiteralPath (Join-Path $repo '_PUBLISHING') -Recurse -Filter '*.json').Count | Should Be 1
+        @(Get-Schema2ValidBackupEntries -RepositoryRoot $repo).Count | Should Be 0
+    }
+
+    It 'revalida arquivo sem hash e reprova alteracao do mesmo tamanho' {
+        $repo = Join-Path $TestDrive 'same-length-no-hash'
+        $fixture = New-TestPublication -Root $repo
+        { Publish-VMTransactionResult -Context $fixture.Context -Result $fixture.Result -PathModel $fixture.Paths `
+            -AfterStep { throw 'interrompido' } } | Should Throw
+        $bytes = [IO.File]::ReadAllBytes($fixture.Context.ArchivePath)
+        $bytes[0] = $bytes[0] -bxor 1
+        [IO.File]::WriteAllBytes($fixture.Context.ArchivePath, $bytes)
+        { Repair-PendingVMBackupPublications -RepositoryRoot $repo -ValidateArchiveAction $fixtureValidator } | Should Throw 'Integridade'
+        @(Get-ChildItem -LiteralPath (Join-Path $repo '_PUBLISHING') -Recurse -Filter '*.json').Count | Should Be 1
+        @(Get-Schema2ValidBackupEntries -RepositoryRoot $repo).Count | Should Be 0
+    }
     It 'preserva VMs ja publicadas ao recuperar a seguinte e mantem a retencao' {
         $repo = Join-Path $TestDrive 'multiple'
         $first = New-TestPublication -Root $repo
@@ -31,7 +93,7 @@ Describe 'Recuperacao idempotente da publicacao' {
         $second = New-TestPublication -Root $repo -Name OUTRA -VMId bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb
         { Publish-VMTransactionResult -Context $second.Context -Result $second.Result -PathModel $second.Paths -KeepRestorePoints 5 `
             -AfterStep { param($Step) if ($Step -eq 'ARCHIVE_MOVED') { throw 'interrompido' } } } | Should Throw
-        @(Repair-PendingVMBackupPublications -RepositoryRoot $repo).Count | Should Be 1
+        @(Repair-PendingVMBackupPublications -RepositoryRoot $repo -ValidateArchiveAction $fixtureValidator).Count | Should Be 1
         @(Get-Schema2ValidBackupEntries -RepositoryRoot $repo).Count | Should Be 2
         $tiers = @(Get-Schema2BackupTiers -RepositoryRoot $repo)
         $tiers[0].Manifest.KeepRestorePoints | Should Be 5
@@ -47,7 +109,7 @@ Describe 'Recuperacao idempotente da publicacao' {
         $bytes = [IO.File]::ReadAllBytes($fixture.Context.ArchivePath)
         $bytes[0] = $bytes[0] -bxor 1
         [IO.File]::WriteAllBytes($fixture.Context.ArchivePath, $bytes)
-        { Repair-PendingVMBackupPublications -RepositoryRoot $repo } | Should Throw 'Hash'
+        { Repair-PendingVMBackupPublications -RepositoryRoot $repo -ValidateArchiveAction $fixtureValidator } | Should Throw 'Hash'
         @(Get-Schema2ValidBackupEntries -RepositoryRoot $repo).Count | Should Be 0
     }
     foreach ($phase in @('PREPARED', 'METADATA_MOVED', 'ARCHIVE_MOVED', 'MANIFEST_COMMITTED')) {
@@ -56,11 +118,11 @@ Describe 'Recuperacao idempotente da publicacao' {
             $fixture = New-TestPublication -Root $repo
             { Publish-VMTransactionResult -Context $fixture.Context -Result $fixture.Result -PathModel $fixture.Paths `
                 -AfterStep { param($Step) if ($Step -eq $phase) { throw 'interrupcao simulada' } } } | Should Throw 'interrupcao simulada'
-            @(Repair-PendingVMBackupPublications -RepositoryRoot $repo).Count | Should Be 1
+            @(Repair-PendingVMBackupPublications -RepositoryRoot $repo -ValidateArchiveAction $fixtureValidator).Count | Should Be 1
             $valid = @(Get-Schema2ValidBackupEntries -RepositoryRoot $repo)
             $valid.Count | Should Be 1
             Test-Path -LiteralPath $valid[0].MetadataPath | Should Be $true
-            @(Repair-PendingVMBackupPublications -RepositoryRoot $repo).Count | Should Be 0
+            @(Repair-PendingVMBackupPublications -RepositoryRoot $repo -ValidateArchiveAction $fixtureValidator).Count | Should Be 0
             @(Get-ChildItem -LiteralPath (Join-Path $repo '_PUBLISHING') -File -Recurse -Filter '*.json').Count | Should Be 0
         }
     }
@@ -71,7 +133,7 @@ Describe 'Recuperacao idempotente da publicacao' {
         { Publish-VMTransactionResult -Context $fixture.Context -Result $fixture.Result -PathModel $fixture.Paths `
             -AfterStep { param($Step) if ($Step -eq 'PREPARED') { throw 'interrompido' } } } | Should Throw
         Add-Content -LiteralPath $fixture.Context.ArchivePath -Value 'alterado'
-        { Repair-PendingVMBackupPublications -RepositoryRoot $repo } | Should Throw 'Tamanho'
+        { Repair-PendingVMBackupPublications -RepositoryRoot $repo -ValidateArchiveAction $fixtureValidator } | Should Throw 'Tamanho'
         @(Get-Schema2ValidBackupEntries -RepositoryRoot $repo).Count | Should Be 0
         @(Get-ChildItem -LiteralPath (Join-Path $repo '_PUBLISHING') -Recurse -File -Filter '*.json').Count | Should Be 1
     }
@@ -85,7 +147,7 @@ Describe 'Recuperacao idempotente da publicacao' {
         $state = Get-Content -LiteralPath $journal.FullName -Raw | ConvertFrom-Json
         $state.SourceVMRoot = Join-Path $TestDrive 'outside'
         Write-DurablePublicationJson -Value $state -Path $journal.FullName
-        { Repair-PendingVMBackupPublications -RepositoryRoot $repo } | Should Throw 'raiz permitida'
+        { Repair-PendingVMBackupPublications -RepositoryRoot $repo -ValidateArchiveAction $fixtureValidator } | Should Throw 'raiz permitida'
         Test-Path -LiteralPath $fixture.Context.ArchivePath | Should Be $true
     }
 
@@ -125,7 +187,7 @@ Publish-VMTransactionResult -Context $data.Context -Result $data.Result -PathMod
             Stop-Process -Id $process.Id -Force
             [void]$process.WaitForExit(5000)
             $lock = Enter-BackupRepositoryLock -RepositoryRoot $repo -RunId recovery
-            try { @(Repair-PendingVMBackupPublications -RepositoryRoot $repo).Count | Should Be 1 }
+            try { @(Repair-PendingVMBackupPublications -RepositoryRoot $repo -ValidateArchiveAction $fixtureValidator).Count | Should Be 1 }
             finally { Exit-BackupRepositoryLock -Lock $lock }
             @(Get-Schema2ValidBackupEntries -RepositoryRoot $repo).Count | Should Be 1
         }

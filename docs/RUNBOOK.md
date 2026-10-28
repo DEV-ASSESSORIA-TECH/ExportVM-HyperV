@@ -108,12 +108,17 @@ Staging sem publicação pendente é preservado na próxima execução em `_FAIL
 Confira `_PUBLISHING` antes de mover ou apagar qualquer staging. A próxima execução
 real tenta completar automaticamente cada publicação aprovada, sob bloqueio exclusivo,
 antes de iniciar novos backups. Tamanho, caminhos e SHA-256 (quando habilitado) são
-verificados. Divergências fazem a execução falhar e preservam os dados para inspeção.
+verificados. O teste integral `7z t` é obrigatório na recuperação mesmo com SkipHash
+habilitado, respeita IntegrityTimeoutHours e grava Logs/Recovery-*.stdout.log e *.stderr.log.
+Divergências fazem a execução falhar e preservam os dados para inspeção.
 Não remova registros para contornar uma falha de recuperação.
 
 O arquivo `.VMExportBackup.lock` permanece depois do término; sua presença não indica
 um lock preso. O bloqueio real é o handle exclusivo, liberado pelo Windows ao encerrar
 o processo. Confira os processos ativos e os logs. Não apague o arquivo durante um backup.
+Workers e seus descendentes pertencem a um Job Object e são encerrados se o dono morrer.
+Antes de reutilizar o destino, o novo dono aguarda o grupo remanescente terminar.
+Use um único host escritor por repositório; Job Objects são locais ao host.
 Somente execuções reais adquirem o bloqueio; o plano não altera o repositório.
 
 Um checkpoint parcial recuperado pode conter apenas as VMs publicadas antes da queda.

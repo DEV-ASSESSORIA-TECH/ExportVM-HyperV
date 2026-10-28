@@ -19,7 +19,8 @@ function Write-DurablePublicationJson {
 
 function Complete-VMBackupPublication {
     param([Parameter(Mandatory = $true)][string]$RepositoryRoot, [Parameter(Mandatory = $true)][string]$JournalPath,
-        [scriptblock]$AfterStep = { param($Step) })
+        [scriptblock]$AfterStep = { param($Step) }, [switch]$Recovery,
+        [scriptblock]$ValidateArchiveAction)
 
     [void](Assert-PathIsBelowRoot -Root (Join-Path $RepositoryRoot '_PUBLISHING') -Path $JournalPath)
     $journal = Get-Content -LiteralPath $JournalPath -Raw -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop
@@ -46,6 +47,10 @@ function Complete-VMBackupPublication {
     if ((Get-Item -LiteralPath $archive -ErrorAction Stop).Length -ne [long]$journal.ArchiveBytes) { throw "Tamanho do arquivo publicado diverge do registro: $archive" }
     $hash = Get-OptionalPropertyValue -InputObject $journal.Result -Name SHA256
     if (-not [string]::IsNullOrWhiteSpace([string]$hash) -and (Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash -ine $hash) { throw "Hash do arquivo publicado diverge do registro: $archive" }
+    if ($Recovery) {
+        if ($null -eq $ValidateArchiveAction) { throw 'Recuperacao exige validacao de integridade do arquivo pelo 7-Zip.' }
+        & $ValidateArchiveAction $archive | Out-Null
+    }
     $result = $journal.Result
     $result.ArchivePath = $archive; $result.MetadataPath = $metadata
     $result.Archive = "Archives\$identity.7z"; $result.Metadata = "Metadata\$identity"
@@ -96,11 +101,11 @@ function Publish-VMTransactionResult {
 }
 
 function Repair-PendingVMBackupPublications {
-    param([Parameter(Mandatory = $true)][string]$RepositoryRoot)
+    param([Parameter(Mandatory = $true)][string]$RepositoryRoot, [scriptblock]$ValidateArchiveAction)
     $pending = Join-Path $RepositoryRoot '_PUBLISHING'
     if (-not (Test-Path -LiteralPath $pending)) { return @() }
     foreach ($journal in @(Get-ChildItem -LiteralPath $pending -File -Recurse -Filter '*.json' -ErrorAction Stop | Sort-Object FullName)) {
-        Complete-VMBackupPublication -RepositoryRoot $RepositoryRoot -JournalPath $journal.FullName
+        Complete-VMBackupPublication -RepositoryRoot $RepositoryRoot -JournalPath $journal.FullName -Recovery -ValidateArchiveAction $ValidateArchiveAction
     }
 }
 
