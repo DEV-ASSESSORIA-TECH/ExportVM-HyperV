@@ -1,4 +1,4 @@
-# Changelog — VM Export Backup
+﻿# Changelog — VM Export Backup
 
 Histórico de versões. Para arquitetura/configuração atual veja [README.md](README.md); para operação do dia a dia, [RUNBOOK.md](docs/RUNBOOK.md).
 
@@ -6,19 +6,62 @@ Histórico de versões. Para arquitetura/configuração atual veja [README.md](R
 
 ## v2.1.0 — 2026-10-28
 
-- Workers iniciam suspensos e entram em Job Object antes da execução; queda do dono encerra descendentes e o próximo dono aguarda o grupo terminar antes de reutilizar o repositório no mesmo host.
-- Recuperação de publicação repete obrigatoriamente `7z t`, mesmo com `SkipHash`, antes de concluir o manifesto e remover o journal; corrupção do mesmo tamanho preserva a pendência para inspeção.
-- Bloqueio por handle exclusivo dentro do repositório, compartilhado entre instalações e liberado pelo Windows ao encerrar o processo; lock local antigo deixa de ser usado.
-- Publicação com journal persistente em `_PUBLISHING`, checkpoint atômico `PUBLISHED.marker.json` por VM e reconciliação idempotente antes do tratamento de staging órfão. Repositórios schema 2 anteriores continuam legíveis.
-- VM removida após o planejamento gera falha individual e inventário mínimo, preservando as demais VMs do lote.
-- Resultados de lote ausentes, inválidos ou com contagens malformadas geram falha; erros de inicialização também passam por relatório e tentativa de alerta.
-- Corrigidas a documentação de `SKIPPED` e a busca do consolidado para excluir `.plan.json`. Atualizados runbook, guia rápido e notas de release.
-- Pacote passa a incluir a licença MIT; testes cobrem concorrência e recuperação com processos reais encerrados abruptamente.
-- Exclusão persistente por `ExcludeVMId`, com avisos para nomes/IDs ausentes e seleção única da cascata antes da consulta aos discos.
-- Lotes sem VMs elegíveis passam a `SKIPPED`, com justificativa e exclusões no consolidado.
-- Relatórios de falha incluem tentativas, espaço exigido/disponível em GB e log do lote; logs recebem o RunId curto.
-- Auxiliares reorganizados em `Internal/Helpers` e `Internal/Workers`; somente os três scripts de entrada permanecem na raiz da instalação.
-- Atualizadas as referências nos scripts, nos testes, na documentação e no pacote ZIP para preservar a estrutura interna.
+Exclusões de VMs, diagnóstico dos backups por e-mail, organização da instalação e proteção contra concorrência e interrupções durante a publicação.
+
+### Adicionado
+
+- **Exclusão por nome:** `ExcludeVMName` em `Config\Settings.json` e parâmetro equivalente no script principal. A comparação usa o nome completo, sem diferenciar maiúsculas/minúsculas e sem interpretar curingas.
+- **Exclusão por identificador:** `ExcludeVMId` aceita o GUID completo da VM e mantém a exclusão após renomeações. As listas de nomes e IDs se somam: corresponder a qualquer uma delas exclui a VM, inclusive quando ela é solicitada explicitamente por `-VMName`.
+- **Avisos de exclusões ausentes:** nomes ou IDs configurados que não existem no host aparecem no log, no relatório e no alerta por e-mail das execuções reais, mesmo quando os demais backups têm sucesso.
+- **Estado `SKIPPED`:** lotes sem VMs elegíveis registram a justificativa e as exclusões no resultado e no consolidado, sem executar backup ou retenção daquele lote. Se todos os lotes forem ignorados, a cascata também fica `SKIPPED`, com código 0 sem avisos ou 2 com avisos.
+- **Motivo específico da falha no e-mail:** o corpo HTML informa o erro global do lote e o motivo de cada VM que falhou, como falta de espaço, acesso negado ou timeout, conforme o erro capturado. O alerta consolidado permite identificar o lote e a VM afetados sem depender apenas da abertura do log.
+- **Contexto de diagnóstico no relatório e no e-mail:** etapa, classificação da falha, tentativas, espaço mínimo exigido e espaço disponível em GB, quando registrados, além do caminho do log do lote. Os campos usam rótulos em português.
+- **Plano único da cascata:** a seleção, as exclusões e a classificação por lote são persistidas em `Reports\Cascade-<BackupSetId>.plan.json`; os processos dos lotes resolvem as VMs pelo VMId desse plano.
+- **Journal de publicação:** `_PUBLISHING` registra de forma persistente as publicações aprovadas ainda pendentes, com origem, destino, identidade da VM, tamanho e resultado necessários para retomá-las após uma interrupção.
+- **Checkpoint por VM:** `PUBLISHED.marker.json` é atualizado atomicamente a cada publicação e passa a ser a referência principal de descoberta dos arquivos válidos, inclusive durante a troca dos marcadores finais do lote.
+- **Grupo de processos por repositório:** workers de exportação, compactação, teste e hash são criados suspensos e vinculados a um Job Object antes de executar código; seus descendentes permanecem no grupo.
+
+### Alterado
+
+- **Seleção antes dos discos:** as exclusões são aplicadas antes das consultas de tamanho e da classificação nos lotes, evitando consultar os discos das VMs ignoradas. A cascata reutiliza o plano compartilhado em vez de recalcular a seleção em cada lote.
+- **Nomes dos logs e relatórios diretos:** o prefixo genérico `VMExportBackup` dá lugar ao nome do lote, como `SMALL`, `MEDIUM` ou `BIG`; execuções avulsas usam `ADHOC` ou `ALL`. Os nomes incluem data, hora e oito caracteres do `RunId` para reduzir colisões entre execuções iniciadas no mesmo segundo. O log da cascata também recebe o RunId curto.
+- **Raiz da instalação:** permanecem somente `Invoke-VMExportBackup.ps1`, `Invoke-CascadeBackup.ps1` e `Install-VMExportBackupTask.ps1`. Auxiliares ficam em `Internal\Helpers` e workers em `Internal\Workers`.
+- **Referências internas:** scripts de entrada, instalador, testes e empacotamento passam a usar os novos caminhos; o ZIP preserva a árvore `Internal` completa.
+- **Bloqueio compartilhado pelo destino:** o lock local antigo é substituído por `<RepositoryRoot>\.VMExportBackup.lock`, aberto com `OpenOrCreate` e `FileShare.None`. O handle exclusivo é mantido durante a execução real e a finalização dos relatórios; o arquivo permanece após o término. O modo `PLAN` não adquire o bloqueio nem altera o repositório de backups.
+- **Retomada antes de novos backups:** sob o bloqueio, a execução reconcilia publicações pendentes antes de tratar staging órfão. A recuperação é idempotente, preserva VMs já publicadas e a retenção registrada, e não repete a exportação. Uma publicação anteriormente aprovada pode ser concluída mesmo que a VM esteja excluída da nova seleção.
+- **Integridade obrigatória na recuperação:** antes de concluir uma publicação pendente, são verificados caminhos, tamanho registrado e SHA-256 quando registrado, e sempre é repetido `7z t`, mesmo com `SkipHash: true`. O teste respeita `IntegrityTimeoutHours` e grava saídas em `Logs\Recovery-*.stdout.log` e `Logs\Recovery-*.stderr.log`.
+- **Documentação e distribuição:** README, runbook, guia rápido e notas da v2.1.0 documentam exclusões, estados, diagnósticos, nova estrutura, bloqueio e recuperação. O pacote passa a incluir a licença MIT.
+
+### Corrigido
+
+- **Corrida ao adquirir o lock:** a aquisição passa a ocorrer em uma única operação de abertura exclusiva, eliminando a janela entre verificar a existência do bloqueio e gravá-lo.
+- **Workers sobreviventes ao processo principal:** encerramento abrupto do dono fecha o Job Object e encerra os descendentes. Antes de entregar o repositório a uma nova execução no mesmo host, o grupo remanescente é encerrado e drenado; o timeout do monitor também encerra o grupo completo.
+- **Arquivos fora da descoberta após uma queda:** interrupções entre mover metadados, mover o arquivo e gravar o manifesto passam a ser recuperáveis pelo journal e pelo checkpoint, sem perder a referência das publicações aprovadas.
+- **Corrupção de mesmo tamanho com hash desabilitado:** a recuperação deixa de depender apenas da quantidade de bytes e exige aprovação no teste integral do 7-Zip. Divergência, timeout, código de saída desconhecido ou diferente de zero impedem a conclusão e preservam a pendência para inspeção.
+- **Limpeza de publicação pendente:** falhas durante a publicação preservam o journal e os dados necessários à retomada, evitando mover ou apagar esse staging como se fosse apenas uma transação falha ou órfã.
+- **VM removida após o planejamento:** a ausência gera resultado individual `VM_NOT_FOUND` e inventário mínimo, sem nova tentativa para essa falha determinística e sem interromper o processamento das demais VMs.
+- **Falso sucesso com zero backups:** lotes totalmente excluídos deixam de retornar `SUCCESS`; o estado e a justificativa `SKIPPED` são preservados na finalização e no consolidado.
+- **Resultado de lote ausente ou inválido:** JSON ilegível, campos obrigatórios ausentes ou contagens malformadas geram falha no consolidado, mesmo quando o processo filho retorna código zero.
+- **Falhas de inicialização sem alerta:** erros de configuração, planejamento ou carregamento de helpers passam pelo registro do resultado de falha e pela tentativa de envio do alerta consolidado, com fallback quando os helpers de relatório não estão disponíveis.
+- **Conteúdo dos erros no HTML:** mensagens e demais valores dinâmicos são escapados antes de entrar no relatório e no corpo do e-mail, preservando a exibição de caracteres especiais.
+- **Busca do consolidado:** os exemplos operacionais excluem arquivos `.plan.json`, evitando confundir o plano de seleção com o resultado final da cascata.
+
+### Compatibilidade e atualização
+
+- Backups schema 2 anteriores continuam legíveis pelos marcadores existentes; o novo checkpoint tem precedência quando presente. Não é necessário converter esses backups.
+- Os caminhos dos três scripts de entrada permanecem iguais. A reorganização, por si só, não exige recriar a tarefa agendada quando a pasta de instalação e sua ação continuam as mesmas.
+- Na atualização, suspenda o agendamento e aguarde o término das execuções; preserve `Config`, `Logs` e `Reports`, copie a pasta `Internal` com os scripts de entrada e remova as cópias antigas dos auxiliares/workers da raiz após conferir a instalação. A pasta local `Locks` antiga deixa de ser usada.
+- Todas as instalações que escrevem no mesmo repositório precisam ser atualizadas, pois as versões antigas não respeitam o novo bloqueio. A coordenação dos workers por Job Object é local: use um único host escritor por repositório.
+- SHA-256 continua opcional e desabilitado por padrão. O teste obrigatório do 7-Zip na recuperação não altera essa configuração. A proteção de publicação depende de o armazenamento respeitar flush e substituição atômica.
+
+### Validação
+
+- Suíte Pester validada no Windows PowerShell 5.1: **120 testes aprovados, nenhuma falha e nenhum teste omitido**, incluindo a integração com 7-Zip real.
+- Cenários cobertos incluem exclusões antes das consultas aos discos, plano compartilhado, `SKIPPED`, erros no relatório/e-mail, VM removida, resultados inválidos, disputa do lock, timeout, encerramento abrupto do dono e de seus descendentes, recuperação nas etapas da publicação e corrupção de arquivo mantendo o mesmo tamanho.
+- O teste com arquivo 7z real pode ser habilitado por `VMEXPORT_TEST_7ZIP`; sem essa variável, somente esse teste de integração é omitido. A suíte não baixa ferramentas automaticamente.
+- ZIP de distribuição conferido com 24 arquivos idênticos às fontes e checksum SHA-256 validado. Backup/restauração real no Hyper-V e entrega SMTP ainda exigem homologação no ambiente de destino.
+
+---
 
 ## v2.0.3 — 2026-09-08
 
