@@ -1,4 +1,4 @@
-VM Export Backup v2.0.3
+﻿VM Export Backup v2.1.0
 =======================
 
 Resumo rápido. A referência técnica está em ..\README.md e a operação/recuperação
@@ -7,7 +7,8 @@ detalhada neste diretório em RUNBOOK.md.
 Instalação: somente Invoke-CascadeBackup.ps1, Invoke-VMExportBackup.ps1 e
 Install-VMExportBackupTask.ps1 ficam na raiz. Helpers ficam em Internal\Helpers
 e workers em Internal\Workers. Copie a pasta Internal inteira junto dos scripts.
-Config, Logs, Reports e Locks continuam na raiz. Para atualizar uma instalação
+Config, Logs e Reports continuam na raiz. A pasta Locks antiga deixa de ser usada.
+O bloqueio exclusivo fica no repositório (.VMExportBackup.lock). Para atualizar uma instalação
 antiga preservando a configuração local, siga a seção de organização do README.
 
 O que mudou
@@ -35,6 +36,16 @@ A cascata fixa a seleção e os lotes em Reports\Cascade-<id>.plan.json antes do
 Lotes SKIPPED exibem a justificativa no consolidado, sem backup ou retenção.
 Logs usam lote, data/hora e RunId curto para distinguir execuções no mesmo segundo.
 
+Publicação recuperável
+----------------------
+_PUBLISHING guarda registros das publicações aprovadas ainda pendentes.
+PUBLISHED.marker.json é o checkpoint de descoberta, atualizado a cada VM.
+A próxima execução real reconcilia pendências antes de tratar staging órfão.
+Não apague registros pendentes nem o arquivo de lock para contornar uma falha.
+O arquivo de lock permanece; o Windows libera o bloqueio quando o processo termina.
+VM removida após o plano falha individualmente; resultado de lote ausente/inválido
+é falha e gera tentativa de alerta, assim como falhas de inicialização.
+
 Estrutura resumida
 ------------------
 F:\HyperV-Exports\
@@ -53,6 +64,7 @@ F:\HyperV-Exports\
         SRV-AD--11111111\
         _Tier\
       COMPLETE.marker.json ou PARTIAL.marker.json
+      PUBLISHED.marker.json (checkpoint de descoberta na v2.1.0)
 
 Comandos
 --------

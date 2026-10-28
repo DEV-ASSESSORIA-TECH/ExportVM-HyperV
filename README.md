@@ -1,4 +1,4 @@
-# VM Export Backup v2.0.3
+﻿# VM Export Backup v2.1.0
 
 Backup completo de VMs Hyper-V por `Export-VM` e 7-Zip, com publicação e retenção independentes por VM. É uma solução de contingência: não é incremental e não substitui uma plataforma dedicada como Veeam ou Acronis.
 
@@ -28,13 +28,12 @@ VMsBackups/
   Config/
   Logs/               criado durante a execução
   Reports/            criado durante a execução
-  Locks/              criado durante a execução
   docs/
 ```
 
 Os scripts resolvem os caminhos a partir da própria instalação, independentemente da pasta atual do terminal. A pasta `Internal` deve ser copiada junto com os scripts de entrada; seus arquivos não devem ser executados diretamente.
 
-Ao atualizar uma instalação existente, pare as execuções, preserve o conteúdo de `Config`, `Logs`, `Reports` e `Locks`, e copie os scripts de entrada junto com a pasta `Internal` do novo pacote. Após conferir a cópia, remova da raiz as cópias antigas dos nove arquivos `*Helpers.ps1`, de `Export-VMWorker.ps1` e de `Get-FileHashWorker.ps1`; os arquivos usados passam a estar em `Internal/Helpers` e `Internal/Workers`. Como os scripts de entrada mantêm os nomes e caminhos, a tarefa agendada existente não precisa ser recriada por causa desta reorganização.
+Ao atualizar uma instalação existente, pare as execuções e desative temporariamente o agendamento, preserve `Config`, `Logs` e `Reports`, e copie os scripts de entrada junto com a pasta `Internal` do novo pacote. Após conferir a cópia, remova da raiz as cópias antigas dos nove arquivos `*Helpers.ps1`, de `Export-VMWorker.ps1` e de `Get-FileHashWorker.ps1`. A pasta local `Locks` das versões antigas deixa de ser usada. Os scripts de entrada mantêm os nomes e caminhos; a tarefa existente não precisa ser recriada por causa desta reorganização. Todas as instalações que escrevem no mesmo repositório devem ser atualizadas: versões antigas não respeitam o novo bloqueio. Reative o agendamento após a conferência.
 
 ## Comportamento principal
 
@@ -51,10 +50,24 @@ Em cada noite, `Invoke-CascadeBackup.ps1` cria um `BackupSetId` no formato `YYYY
 
 Uma falha não desfaz arquivos já publicados e não impede as VMs ou tiers seguintes. O wrapper consolida os resultados depois de todos os tiers e envia no máximo um alerta de falha por noite.
 
+Uma VM que desapareça após o planejamento gera `VM_NOT_FOUND` individual, sem impedir as demais. Resultado ausente, malformado ou desconhecido de um lote representa falha, mesmo se o processo terminar com código 0. Falhas de inicialização também geram relatório e tentativa de alerta; o envio depende da disponibilidade de SMTP e dos destinatários configurados.
+
+## Concorrência e recuperação de publicação
+
+Cada execução real mantém um handle exclusivo em `<RepositoryRoot>\.VMExportBackup.lock`, adquirido por `OpenOrCreate` com `FileShare.None` após validar o destino. O bloqueio é compartilhado por instalações que usam o mesmo repositório e fica ativo até a finalização dos relatórios. A existência do arquivo não significa execução ativa: ele permanece no disco, e o Windows libera o handle quando o processo termina, inclusive abruptamente. Não apague o arquivo para tentar liberar um backup em andamento. O modo `PLAN` não adquire esse bloqueio nem altera o repositório.
+
+Antes de mover um arquivo aprovado, o script grava um registro persistente em `_PUBLISHING\<BackupSetId>\<Tier>\<VMIdentity>.json`. Arquivo e metadados são publicados por VM, seguidos de `PUBLISHED.marker.json`, um checkpoint substituído atomicamente com `File.Replace`. O checkpoint é atualizado a cada VM e tem precedência na descoberta sobre `COMPLETE.marker.json` e `PARTIAL.marker.json`, preservados como marcadores de apresentação. Repositórios anteriores sem checkpoint continuam sendo lidos pelos marcadores schema 2 existentes.
+
+Na próxima execução real, sob o bloqueio, as publicações pendentes são reconciliadas antes da seleção e do tratamento de staging órfão. A recuperação verifica os caminhos, o tamanho registrado e o SHA-256 quando habilitado. Ela é idempotente e não refaz a exportação. Uma publicação já aprovada pode ser concluída mesmo que a VM tenha sido excluída da seleção da nova noite. Em caso de divergência, o registro e os arquivos são preservados e a execução falha para inspeção, sem limpeza desse staging. Não remova `_PUBLISHING` manualmente.
+
+Durante uma execução ou após recuperação de uma interrupção, o checkpoint pode indicar `PARTIAL_SUCCESS` com os arquivos aprovados até aquele momento. Isso não afirma que todas as VMs planejadas foram processadas. O relatório final da execução informa os totais de sucesso e falha. A proteção contra interrupção depende de o armazenamento respeitar as operações de flush e substituição atômica; ela não substitui testes de restauração nem protege contra falhas físicas do volume.
+
 ## Layout schema 2
 
 ```text
 F:\HyperV-Exports\
+├── .VMExportBackup.lock
+├── _PUBLISHING\
 ├── _STAGING\
 ├── _FAILED\
 │   ├── SRV-ERP--aaaaaaaa\
@@ -71,8 +84,10 @@ F:\HyperV-Exports\
     │   │   ├── SRV-AD--11111111\
     │   │   ├── SRV-DOCS--22222222\
     │   │   └── _Tier\
+    │   ├── PUBLISHED.marker.json
     │   └── COMPLETE.marker.json
     ├── MEDIUM\
+    │   ├── PUBLISHED.marker.json
     │   └── PARTIAL.marker.json
     └── BIG\
         └── ...
@@ -80,7 +95,7 @@ F:\HyperV-Exports\
 
 O nome visível usa `<nome-seguro>--<VMId-curto>`. O manifest grava o `VMId` completo, que é a identidade usada na retenção. Renomear uma VM ou movê-la de tier não cria um novo histórico de retenção.
 
-Um tier com todas as VMs aprovadas recebe `COMPLETE.marker.json`. Se ao menos uma VM for publicada e outra falhar, recebe `PARTIAL.marker.json`. Ambos usam `SchemaVersion: 2`.
+Ao finalizar normalmente, um tier com todas as VMs aprovadas recebe `COMPLETE.marker.json`. Se ao menos uma VM for publicada e outra falhar, recebe `PARTIAL.marker.json`. O checkpoint `PUBLISHED.marker.json` e os dois marcadores usam `SchemaVersion: 2`.
 
 ## Estados e códigos
 
@@ -193,7 +208,7 @@ sem as barras externas:
 Ao mudar `TaskPath`, o instalador registra primeiro a nova tarefa e depois remove
 outras cópias com o mesmo `TaskName`, evitando duas cascatas concorrentes. A pasta
 do Agendador é independente da pasta física dos scripts. `Config`, `Logs`,
-`Reports`, `Locks` e os helpers continuam sendo localizados relativamente ao
+`Reports` e os helpers continuam sendo localizados relativamente ao
 diretório do próprio script.
 
 Plano de um tier:
@@ -222,21 +237,21 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\Invoke-Tests.p
 
 ## Empacotamento e release
 
-Gerar localmente `dist\VM-Export-Backup-2.0.3.zip` e seu SHA-256:
+Gerar localmente `dist\VM-Export-Backup-2.1.0.zip` e seu SHA-256:
 
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\Package.ps1
 ```
 
-`Package.ps1` exige que `VERSION`, o parâmetro `-Version` e `$ScriptVersion` sejam iguais. O ZIP contém somente os arquivos de instalação e documentação; testes, workflow e ferramentas de desenvolvimento ficam fora.
+`Package.ps1` exige que `VERSION`, o parâmetro `-Version` e `$ScriptVersion` sejam iguais. O ZIP contém os arquivos de instalação, documentação e licença MIT; testes, workflow e ferramentas de desenvolvimento ficam fora. As notas da versão estão em [RELEASE-v2.1.0.md](docs/RELEASE-v2.1.0.md).
 
 O workflow `.github/workflows/release.yml` não é CI: ele não executa testes. Ao receber uma tag `vMAJOR.MINOR.PATCH`, gera o pacote e usa o token padrão do GitHub para publicar uma release com ZIP, checksum e notas automáticas. A tag precisa existir no remoto; o workflow usa `--verify-tag`.
 
-Para esta versão, depois do commit local:
+Preparar a versão localmente não faz push nem publica uma release. Após revisar o commit e a tag local `v2.1.0`, a publicação pode ser disparada manualmente pelo responsável:
 
 ```powershell
 git push origin main
-git push origin v2.0.3
+git push origin v2.1.0
 ```
 
 ## Restauração parcial

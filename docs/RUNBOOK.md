@@ -1,4 +1,4 @@
-# RUNBOOK — VM Export Backup v2.0.3
+﻿# RUNBOOK — VM Export Backup v2.1.0
 
 Guia de operação, diagnóstico e recuperação. A arquitetura e os parâmetros estão em [README.md](../README.md).
 
@@ -8,7 +8,9 @@ Na raiz ficam somente os três scripts de entrada: `Invoke-CascadeBackup.ps1`,
 `Invoke-VMExportBackup.ps1` e `Install-VMExportBackupTask.ps1`. Os auxiliares ficam
 em `Internal\Helpers` e os processos de exportação/hash em `Internal\Workers`.
 Copie sempre a pasta `Internal` junto com os scripts. `Config`, `Logs`, `Reports`
-e `Locks` continuam na raiz da instalação, e os comandos da tarefa permanecem iguais.
+continuam na raiz da instalação, e os comandos da tarefa permanecem iguais. O
+bloqueio ativo fica no repositório, em `.VMExportBackup.lock`; a pasta local `Locks`
+antiga deixa de ser usada.
 
 Para atualizar a estrutura antiga, siga as instruções de atualização no README,
 preservando a configuração local e removendo apenas as cópias antigas dos auxiliares
@@ -80,12 +82,15 @@ Get-ChildItem 'F:\HyperV-Exports' -Directory |
     Select-Object -First 3 Name, LastWriteTime
 ```
 
-Dentro do `BackupSetId`, cada tier publicado deve ter `Archives`, `Metadata` e exatamente um marcador:
+Dentro do `BackupSetId`, cada tier publicado deve ter `Archives`, `Metadata` e o
+checkpoint `PUBLISHED.marker.json` nas publicações da v2.1.0. Ele tem precedência
+para descoberta. Ao final normal há também um dos marcadores de apresentação:
 
 - `COMPLETE.marker.json`: todas as VMs do tier foram publicadas;
-- `PARTIAL.marker.json`: algumas VMs foram publicadas e outras falharam.
+- `PARTIAL.marker.json`: publicação parcial; pode refletir falhas ou uma execução interrompida antes da conclusão.
 
 O marcador e os resultados devem ter `SchemaVersion: 2`.
+Os backups anteriores sem checkpoint continuam válidos pelos marcadores existentes.
 
 ### 4. Conferir staging e falhas
 
@@ -94,7 +99,26 @@ Get-ChildItem 'F:\HyperV-Exports\_STAGING' -Directory -ErrorAction SilentlyConti
 Get-ChildItem 'F:\HyperV-Exports\_FAILED' -Directory -ErrorAction SilentlyContinue
 ```
 
-`_STAGING` deve ficar vazio fora da execução. Staging interrompido é recuperado na próxima execução em `_FAILED\_ORPHANED`.
+`_STAGING` normalmente fica vazio fora da execução. Se houver registro em
+`_PUBLISHING`, o staging correspondente deve permanecer até a reconciliação.
+Staging sem publicação pendente é preservado na próxima execução em `_FAILED\_ORPHANED`.
+
+### Publicação interrompida ou bloqueio ocupado
+
+Confira `_PUBLISHING` antes de mover ou apagar qualquer staging. A próxima execução
+real tenta completar automaticamente cada publicação aprovada, sob bloqueio exclusivo,
+antes de iniciar novos backups. Tamanho, caminhos e SHA-256 (quando habilitado) são
+verificados. Divergências fazem a execução falhar e preservam os dados para inspeção.
+Não remova registros para contornar uma falha de recuperação.
+
+O arquivo `.VMExportBackup.lock` permanece depois do término; sua presença não indica
+um lock preso. O bloqueio real é o handle exclusivo, liberado pelo Windows ao encerrar
+o processo. Confira os processos ativos e os logs. Não apague o arquivo durante um backup.
+Somente execuções reais adquirem o bloqueio; o plano não altera o repositório.
+
+Um checkpoint parcial recuperado pode conter apenas as VMs publicadas antes da queda.
+Use seus resultados para restaurar uma VM aprovada, sem interpretar esse estado como
+confirmação de backup de todas as VMs daquela noite.
 
 Em `_FAILED\<nome--VMId>\<ocorrência>`, `failure.json` é permanente até intervenção manual. `Payload` é pesado e sujeito à retenção de `FailedPayloadKeepPerVM` e à limpeza por pressão de espaço.
 
@@ -172,7 +196,7 @@ Os relatórios são gravados antes do anexo e regravados depois do SMTP com:
 
 Uma noite parcial não invalida as VMs aprovadas.
 
-1. Localize o resultado pelo `VMId` completo no marcador do tier.
+1. Localize o resultado pelo `VMId` completo em `PUBLISHED.marker.json`; para backups anteriores sem checkpoint, use o marcador `COMPLETE` ou `PARTIAL` do tier.
 2. Confirme que `Success` é `true` e obtenha o path relativo `Archive`.
 3. Copie o `.7z` para uma área de restauração fora do repositório ativo.
 4. Execute opcionalmente um novo `7z t` antes de extrair.

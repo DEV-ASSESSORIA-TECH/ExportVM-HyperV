@@ -1,48 +1,52 @@
-$here = Split-Path -Parent $MyInvocation.MyCommand.Path
+﻿$here = Split-Path -Parent $MyInvocation.MyCommand.Path
 . (Join-Path $here 'TestHelpers.ps1')
 $projectRoot = Get-ProjectRoot
 $packageScript = Join-Path $projectRoot 'scripts\Package.ps1'
 $workflowPath = Join-Path $projectRoot '.github\workflows\release.yml'
 
-Describe 'Versionamento 2.0.3' {
+Describe 'Versionamento 2.1.0' {
     It 'mantem VERSION e ScriptVersion sincronizados' {
-        (Get-Content -LiteralPath (Join-Path $projectRoot 'VERSION') -Raw).Trim() | Should Be '2.0.3'
+        (Get-Content -LiteralPath (Join-Path $projectRoot 'VERSION') -Raw).Trim() | Should Be '2.1.0'
         Get-Content -LiteralPath (Join-Path $projectRoot 'src\Invoke-VMExportBackup.ps1') -Raw |
-            Should Match "(?m)^\`$ScriptVersion\s*=\s*'2\.0\.3'\s*$"
+            Should Match "(?m)^\`$ScriptVersion\s*=\s*'2\.1\.0'\s*$"
     }
 }
 
 Describe 'Pacote de release' {
     It 'gera ZIP instalavel e checksum sem arquivos de desenvolvimento' {
         $output = Join-Path $TestDrive 'dist'
-        $result = & $packageScript -Version '2.0.3' -OutputDirectory $output
+        $result = & $packageScript -Version '2.1.0' -OutputDirectory $output
 
         Test-Path -LiteralPath $result.ArchivePath -PathType Leaf | Should Be $true
         Test-Path -LiteralPath $result.ChecksumPath -PathType Leaf | Should Be $true
-        $result.Tag | Should Be 'v2.0.3'
+        $result.Tag | Should Be 'v2.1.0'
 
         Add-Type -AssemblyName System.IO.Compression.FileSystem
         $archive = [System.IO.Compression.ZipFile]::OpenRead($result.ArchivePath)
         try { $entries = @($archive.Entries | Select-Object -ExpandProperty FullName) }
         finally { $archive.Dispose() }
 
-        $entries -contains 'VM-Export-Backup-2.0.3\Invoke-VMExportBackup.ps1' | Should Be $true
-        $entries -contains 'VM-Export-Backup-2.0.3\Config\Settings.json' | Should Be $true
+        $entries -contains 'VM-Export-Backup-2.1.0\Invoke-VMExportBackup.ps1' | Should Be $true
+        $entries -contains 'VM-Export-Backup-2.1.0\Config\Settings.json' | Should Be $true
+        $entries -contains 'VM-Export-Backup-2.1.0\LICENSE' | Should Be $true
+        $entries -contains 'VM-Export-Backup-2.1.0\docs\RELEASE-v2.1.0.md' | Should Be $true
+        $actualHash = (Get-FileHash -LiteralPath $result.ArchivePath -Algorithm SHA256).Hash
+        (Get-Content -LiteralPath $result.ChecksumPath -Raw).Split(' ')[0] | Should Be $actualHash
         $entryPoints = @('Invoke-VMExportBackup.ps1', 'Invoke-CascadeBackup.ps1', 'Install-VMExportBackupTask.ps1')
-        $rootScripts = @($entries | Where-Object { $_ -match '^VM-Export-Backup-2\.0\.3\\[^\\]+\.ps1$' })
+        $rootScripts = @($entries | Where-Object { $_ -match '^VM-Export-Backup-2\.1\.0\\[^\\]+\.ps1$' })
         $rootScripts.Count | Should Be 3
         foreach ($entryPoint in $entryPoints) {
-            $entries -contains "VM-Export-Backup-2.0.3\$entryPoint" | Should Be $true
+            $entries -contains "VM-Export-Backup-2.1.0\$entryPoint" | Should Be $true
         }
         $internalFiles = @(Get-ChildItem -LiteralPath (Join-Path $projectRoot 'src\Internal') -File -Recurse -Filter '*.ps1')
         $internalFiles.Count | Should Be 11
         foreach ($internalFile in $internalFiles) {
             $relative = $internalFile.FullName.Substring((Join-Path $projectRoot 'src').Length + 1)
-            $entries -contains "VM-Export-Backup-2.0.3\$relative" | Should Be $true
+            $entries -contains "VM-Export-Backup-2.1.0\$relative" | Should Be $true
         }
         $extractRoot = Join-Path $TestDrive 'extracted'
         [System.IO.Compression.ZipFile]::ExtractToDirectory($result.ArchivePath, $extractRoot)
-        $installedRoot = Join-Path $extractRoot 'VM-Export-Backup-2.0.3'
+        $installedRoot = Join-Path $extractRoot 'VM-Export-Backup-2.1.0'
         foreach ($entryPoint in $entryPoints) {
             $source = Get-Content -LiteralPath (Join-Path $installedRoot $entryPoint) -Raw
             $references = [regex]::Matches($source, "'(Internal\\[^']+\.ps1)'")
@@ -61,7 +65,7 @@ Describe 'Pacote de release' {
 
     It 'recusa empacotar uma versao diferente de VERSION' {
         { & $packageScript -Version '2.0.0' -OutputDirectory (Join-Path $TestDrive 'invalid') } |
-            Should Throw "difere de VERSION '2.0.3'"
+            Should Throw "difere de VERSION '2.1.0'"
     }
 }
 

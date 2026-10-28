@@ -83,7 +83,7 @@ Set-StrictMode -Version 2.0
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
 
-$ScriptVersion = '2.0.3'
+$ScriptVersion = '2.1.0'
 $RunId = [guid]::NewGuid().ToString('N')
 $RunStart = Get-Date
 $Mode = if ($Execute) { 'EXECUTE' } else { 'PLAN' }
@@ -92,7 +92,6 @@ $ScriptPath = if (-not [string]::IsNullOrWhiteSpace($PSCommandPath)) { $PSComman
 $ScriptRoot = Split-Path -Parent $ScriptPath
 $LogDir = Join-Path $ScriptRoot 'Logs'
 $ReportDir = Join-Path $ScriptRoot 'Reports'
-$LockDir = Join-Path $ScriptRoot 'Locks'
 $ConfigDir = Join-Path $ScriptRoot 'Config'
 $WorkerPath = Join-Path $ScriptRoot 'Internal\Workers\Export-VMWorker.ps1'
 $HashWorkerPath = Join-Path $ScriptRoot 'Internal\Workers\Get-FileHashWorker.ps1'
@@ -117,7 +116,6 @@ if (-not [string]::IsNullOrWhiteSpace($ResultPath)) {
     $JsonPath = [System.IO.Path]::GetFullPath($ResultPath)
     $HtmlPath = [System.IO.Path]::ChangeExtension($JsonPath, '.html')
 }
-$LockPath = Join-Path $LockDir 'VMExportBackup.lock.json'
 # RepositoryRoot/StagingRoot/FailedRoot/RestorePointName/StagingPoint/FinalPoint sao
 # calculados mais adiante, depois do merge de Config\Settings.json e da resolucao do
 # lote (BatchName), pois RestorePointName agora incorpora o nome do lote. Inicializados
@@ -162,7 +160,7 @@ foreach ($dir in @($LogDir, $ReportDir)) {
         catch { $DiagnosticFailures.Add("Nao foi possivel criar o diretorio de observabilidade '$dir': $($_.Exception.Message)") }
     }
 }
-foreach ($dir in @($LockDir, $ConfigDir)) {
+foreach ($dir in @($ConfigDir)) {
     if (-not (Test-Path -LiteralPath $dir)) {
         New-Item -ItemType Directory -Path $dir -Force -ErrorAction Stop | Out-Null
     }

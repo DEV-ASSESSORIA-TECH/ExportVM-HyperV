@@ -4,8 +4,14 @@ Histórico de versões. Para arquitetura/configuração atual veja [README.md](R
 
 ---
 
-## Não publicado
+## v2.1.0 — 2026-10-28
 
+- Bloqueio por handle exclusivo dentro do repositório, compartilhado entre instalações e liberado pelo Windows ao encerrar o processo; lock local antigo deixa de ser usado.
+- Publicação com journal persistente em `_PUBLISHING`, checkpoint atômico `PUBLISHED.marker.json` por VM e reconciliação idempotente antes do tratamento de staging órfão. Repositórios schema 2 anteriores continuam legíveis.
+- VM removida após o planejamento gera falha individual e inventário mínimo, preservando as demais VMs do lote.
+- Resultados de lote ausentes, inválidos ou com contagens malformadas geram falha; erros de inicialização também passam por relatório e tentativa de alerta.
+- Corrigidas a documentação de `SKIPPED` e a busca do consolidado para excluir `.plan.json`. Atualizados runbook, guia rápido e notas de release.
+- Pacote passa a incluir a licença MIT; testes cobrem concorrência e recuperação com processos reais encerrados abruptamente.
 - Exclusão persistente por `ExcludeVMId`, com avisos para nomes/IDs ausentes e seleção única da cascata antes da consulta aos discos.
 - Lotes sem VMs elegíveis passam a `SKIPPED`, com justificativa e exclusões no consolidado.
 - Relatórios de falha incluem tentativas, espaço exigido/disponível em GB e log do lote; logs recebem o RunId curto.

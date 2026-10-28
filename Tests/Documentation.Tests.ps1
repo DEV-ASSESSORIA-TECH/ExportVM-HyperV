@@ -1,11 +1,25 @@
-$here = Split-Path -Parent $MyInvocation.MyCommand.Path
+﻿$here = Split-Path -Parent $MyInvocation.MyCommand.Path
 . (Join-Path $here 'TestHelpers.ps1')
 $repositoryRoot = Get-ProjectRoot
 
-Describe 'Documentacao de producao v2.0.3' {
+Describe 'Documentacao de producao v2.1.0' {
     $readme = Get-Content -LiteralPath (Join-Path $repositoryRoot 'README.md') -Raw
     $runbook = Get-Content -LiteralPath (Join-Path $repositoryRoot 'docs\RUNBOOK.md') -Raw
     $quick = Get-Content -LiteralPath (Join-Path $repositoryRoot 'docs\LEIA-ME.txt') -Raw
+
+    It 'documenta v2.1.0 bloqueio recuperacao e estados sem instrucoes obsoletas' {
+        $readme | Should Match 'v2\.1\.0'
+        $runbook | Should Match 'v2\.1\.0'
+        $quick | Should Match 'v2\.1\.0'
+        $readme | Should Match 'FileShare.None'
+        $readme | Should Match '_PUBLISHING'
+        $readme | Should Match 'PUBLISHED.marker.json'
+        $readme | Should Match '\| `SKIPPED` \|'
+        $readme | Should Not Match 'tier vazio'
+        $runbook | Should Not Match 'tier estava vazio'
+        $runbook | Should Match 'plan\\\.json'
+        Test-Path -LiteralPath (Join-Path $repositoryRoot 'docs\RELEASE-v2.1.0.md') | Should Be $true
+    }
 
     It 'documenta layout identidade e restauracao parcial' {
         $readme | Should Match 'BackupSetId'

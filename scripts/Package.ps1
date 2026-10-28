@@ -52,13 +52,13 @@ try {
     Copy-Item -LiteralPath (Join-Path $sourceRoot 'Config') -Destination $packageRoot -Recurse -Force -ErrorAction Stop
     Copy-Item -LiteralPath (Join-Path $sourceRoot 'Internal') -Destination $packageRoot -Recurse -Force -ErrorAction Stop
     Copy-Item -LiteralPath (Join-Path $projectRoot 'docs') -Destination $packageRoot -Recurse -Force -ErrorAction Stop
-    foreach ($name in @('README.md', 'CHANGELOG.md', 'VERSION')) {
+    foreach ($name in @('README.md', 'CHANGELOG.md', 'VERSION', 'LICENSE')) {
         Copy-Item -LiteralPath (Join-Path $projectRoot $name) -Destination $packageRoot -Force -ErrorAction Stop
     }
 
     $required = @(
         'Invoke-VMExportBackup.ps1', 'Invoke-CascadeBackup.ps1', 'Install-VMExportBackupTask.ps1',
-        'Config\Settings.json', 'Config\Tiers.json', 'README.md', 'VERSION'
+        'Config\Settings.json', 'Config\Tiers.json', 'README.md', 'VERSION', 'LICENSE'
     )
     $required += @(Get-ChildItem -LiteralPath (Join-Path $sourceRoot 'Internal') -File -Filter '*.ps1' -Recurse |
         ForEach-Object { $_.FullName.Substring($sourceRoot.Length + 1) })
@@ -85,6 +85,10 @@ try {
 }
 finally {
     if (Test-Path -LiteralPath $temporaryRoot -PathType Container) {
+        $tempPrefix = [System.IO.Path]::GetFullPath([System.IO.Path]::GetTempPath()).TrimEnd('\') + '\'
+        $resolvedTemporaryRoot = [System.IO.Path]::GetFullPath($temporaryRoot)
+        if (-not $resolvedTemporaryRoot.StartsWith($tempPrefix, [System.StringComparison]::OrdinalIgnoreCase) -or
+            (Split-Path -Leaf $resolvedTemporaryRoot) -notlike 'vm-export-package-*') { throw 'Diretorio temporario fora da raiz esperada; limpeza cancelada.' }
         Remove-Item -LiteralPath $temporaryRoot -Recurse -Force -ErrorAction SilentlyContinue
     }
 }
