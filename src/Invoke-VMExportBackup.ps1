@@ -1009,6 +1009,10 @@ function Invoke-ConfiguredVMTransaction {
         WaitAction = { param($seconds) Write-Log "[$($VM.Name)] Falha transitoria; nova tentativa em $seconds segundos." 'WARNING'; Start-Sleep -Seconds $seconds }
     }
     if ($null -ne $hashAction) { $parameters.HashAction = $hashAction }
+    if ($VM.PSObject.Properties.Name -contains 'SelectionError') {
+        $selectionError = $VM.SelectionError
+        $parameters.InitializeAction = { param($ctx) Throw-VMFailure -Message $selectionError -FailureKind 'VM_NOT_FOUND' -Retryable $false }
+    }
     $result = Invoke-VMTransaction @parameters
 
     $result | Add-Member -NotePropertyName State -NotePropertyValue ([string]$VM.State) -Force
@@ -1076,10 +1080,18 @@ function Invoke-BackupExecutionV2 {
         $context = New-VMTransactionContext -StagingRoot $StagingPoint -VMName $vm.Name `
             -VMId ([string]$vm.VMId) -TierName $EffectiveBatchName -OccurrenceId $occurrenceId
 
-        $failedEntries = @(Get-Schema2FailedPayloadEntries -RepositoryRoot $RepositoryRoot)
-        $space = Invoke-VMSpacePreparation -MinFreeGB $MinFreeGB `
-            -FailedPayloadEntries $failedEntries -KeepPerVM $FailedPayloadKeepPerVM `
-            -GetFreeBytesAction { Get-FreeBytes }
+        if ($vm.PSObject.Properties.Name -contains 'SelectionError') {
+            $space = [pscustomobject]@{
+                Sufficient = $true; RequiredFreeBytes = [long]($MinFreeGB * 1GB); FinalFreeBytes = Get-FreeBytes
+                Errors = @(); Events = @(); EmergencyCleanupStatus = 'NOT_REQUIRED'; EmergencyDeletionOccurred = $false
+            }
+        }
+        else {
+            $failedEntries = @(Get-Schema2FailedPayloadEntries -RepositoryRoot $RepositoryRoot)
+            $space = Invoke-VMSpacePreparation -MinFreeGB $MinFreeGB `
+                -FailedPayloadEntries $failedEntries -KeepPerVM $FailedPayloadKeepPerVM `
+                -GetFreeBytesAction { Get-FreeBytes }
+        }
         foreach ($spaceError in @($space.Errors)) { $Warnings.Add("Falha na limpeza de _FAILED: $spaceError") }
         foreach ($event in @($space.Events)) {
             if ($event.Success) {

@@ -141,6 +141,10 @@ Describe 'Plano unico de selecao e exclusoes antes dos discos' {
         $big.Count | Should Be 1
         $big[0].Name | Should Be 'GRANDE'
         @(Resolve-VMSelectionPlan -Plan $plan -AllVMs $vms -BatchName MEDIUM).Count | Should Be 0
-        { Resolve-VMSelectionPlan -Plan $plan -AllVMs @() -BatchName SMALL } | Should Throw 'VM do plano nao encontrada'
+        $missing = @(Resolve-VMSelectionPlan -Plan $plan -AllVMs @($vms[1]) -BatchName ALL)
+        $missing.Count | Should Be 2
+        $unavailable = @($missing | Where-Object { $_.PSObject.Properties.Name -contains 'SelectionError' })
+        $unavailable.Count | Should Be 1
+        $unavailable[0].SelectionError | Should Match 'VM do plano nao encontrada'
     }
 }

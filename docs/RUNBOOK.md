@@ -64,6 +64,7 @@ removida depois. Confirme que a pasta personalizada já existe no Agendador.
 
 ```powershell
 Get-ChildItem 'C:\Scripts\WindowsServerBackup\Reports\Cascade-*.json' |
+    Where-Object { $_.Name -notmatch '\.plan\.json$' } |
     Sort-Object LastWriteTime -Descending |
     Select-Object -First 1
 ```
@@ -113,7 +114,9 @@ Ao menos uma VM foi publicada e ao menos uma falhou. Os arquivos aprovados estã
 
 ### `FAILED`
 
-Nenhuma VM válida foi publicada, o tier estava vazio ou ocorreu erro fatal. Código 1.
+Houve falha de backup ou erro fatal. Na cascata, indica que ao menos um lote falhou,
+mesmo que outros tenham publicado backups válidos. Código 1. Lotes sem VMs elegíveis
+usam `SKIPPED`, com justificativa no consolidado.
 
 Falha de backup prevalece sobre falha de observabilidade: se ambas ocorrerem, o código continua 1.
 

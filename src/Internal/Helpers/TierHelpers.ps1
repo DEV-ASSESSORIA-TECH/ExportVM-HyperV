@@ -144,7 +144,12 @@ function Resolve-VMSelectionPlan {
     foreach ($entry in @($Plan.VMs)) {
         if ($BatchName -notin @('ALL', 'ADHOC') -and $entry.Tier -ne $BatchName) { continue }
         $vm = $AllVMs | Where-Object { ([guid]$_.VMId) -eq ([guid]$entry.VMId) } | Select-Object -First 1
-        if ($null -eq $vm) { throw "VM do plano nao encontrada no host: $($entry.Name) (VMId=$($entry.VMId))." }
+        if ($null -eq $vm) {
+            $vm = [pscustomobject]@{
+                Name = $entry.Name; VMId = $entry.VMId; State = 'Missing'
+                SelectionError = "VM do plano nao encontrada no host: $($entry.Name) (VMId=$($entry.VMId))."
+            }
+        }
         Add-Member -InputObject $vm -NotePropertyName SourceBytes -NotePropertyValue ([long]$entry.SourceBytes) -Force
         Add-Member -InputObject $vm -NotePropertyName Tier -NotePropertyValue $entry.Tier -Force
         $selected.Add($vm)

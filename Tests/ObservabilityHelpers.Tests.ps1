@@ -104,6 +104,7 @@ Describe 'Precedencia da cascata noturna' {
     It 'trata codigo de processo desconhecido como falha' {
         $outcome = Get-NightlyCascadeOutcome -TierExecutions @([pscustomobject]@{ Status = ''; ExitCode = 17 })
         $outcome.ExitCode | Should Be 1
+        (Get-NightlyCascadeOutcome -TierExecutions @([pscustomobject]@{ Status = 'UNKNOWN'; ExitCode = 0 })).ExitCode | Should Be 1
     }
 }
 

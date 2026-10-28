@@ -89,7 +89,8 @@ Um tier com todas as VMs aprovadas recebe `COMPLETE.marker.json`. Se ao menos um
 | `SUCCESS` | 0 | Todas as VMs aprovadas, sem avisos operacionais |
 | `SUCCESS_WITH_WARNINGS` | 2 | Backups aprovados, mas houve aviso ou falha de observabilidade |
 | `PARTIAL_SUCCESS` | 1 | Ao menos uma VM publicada e ao menos uma VM falhou |
-| `FAILED` | 1 | Nenhuma VM válida foi publicada, tier vazio ou erro fatal |
+| `FAILED` | 1 | Falha de backup ou erro fatal; na cascata, ao menos um lote falhou |
+| `SKIPPED` | 0 ou 2 | Lote sem VMs elegíveis; código 2 quando há avisos |
 | `PLAN` | 0 | Validação sem `-Execute` |
 
 Falha de backup sempre prevalece sobre avisos. Falhas de log, JSON, HTML ou SMTP não removem nem invalidam arquivos publicados.

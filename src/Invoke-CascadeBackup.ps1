@@ -43,6 +43,14 @@ foreach ($dir in @($LogDir, $ReportDir)) {
 
 $RunId = [guid]::NewGuid().ToString('N')
 $LogPath = Join-Path $LogDir "Cascade-$((Get-Date).ToString('yyyy-MM-dd_HH-mm-ss'))-$($RunId.Substring(0, 8)).log"
+$BackupSetId = '{0}-{1}' -f (Get-Date).ToString('yyyy-MM-dd'), $RunId.Substring(0, 8)
+$CascadeJsonPath = Join-Path $ReportDir "Cascade-$BackupSetId.json"
+$CascadeHtmlPath = Join-Path $ReportDir "Cascade-$BackupSetId.html"
+$MailSent = $false; $MailError = $null; $NotificationStatus = 'NOT_REQUIRED'
+$SmtpServer = '192.168.4.10'; $SmtpPort = 25
+$MailFrom = 'alertas@assessoriatech.com'; $MailTo = @('suporte@assessoriatech.com')
+$cascadeStartedAt = Get-Date
+$selectionPlan = $null; $selectionWarningCount = 0; $SelectionPlanPath = $null
 
 function Write-CascadeLog {
     param(
@@ -125,13 +133,17 @@ $diagnostics</body></html>
 function Save-CascadeSnapshots {
     param([Parameter(Mandatory = $true)]$Summary)
     $html = $null
-    try { Write-JsonSnapshot -Value $Summary -Path $CascadeJsonPath -Depth 15 }
-    catch { Add-UniqueDiagnosticFailure -List $DiagnosticFailures -Message "Falha ao gravar JSON consolidado: $($_.Exception.Message)" }
+    try {
+        if (Get-Command Write-JsonSnapshot -ErrorAction SilentlyContinue) { Write-JsonSnapshot -Value $Summary -Path $CascadeJsonPath -Depth 15 }
+        else { $Summary | ConvertTo-Json -Depth 15 | Set-Content -LiteralPath $CascadeJsonPath -Encoding UTF8 -ErrorAction Stop }
+    }
+    catch { $DiagnosticFailures.Add("Falha ao gravar JSON consolidado: $($_.Exception.Message)") }
     try {
         $html = New-CascadeHtmlReport -Summary $Summary
-        Write-TextSnapshot -Value $html -Path $CascadeHtmlPath
+        if (Get-Command Write-TextSnapshot -ErrorAction SilentlyContinue) { Write-TextSnapshot -Value $html -Path $CascadeHtmlPath }
+        else { Set-Content -LiteralPath $CascadeHtmlPath -Value $html -Encoding UTF8 -ErrorAction Stop }
     }
-    catch { Add-UniqueDiagnosticFailure -List $DiagnosticFailures -Message "Falha ao gravar HTML consolidado: $($_.Exception.Message)" }
+    catch { $DiagnosticFailures.Add("Falha ao gravar HTML consolidado: $($_.Exception.Message)") }
     return $html
 }
 
@@ -163,7 +175,7 @@ function Send-CascadeEmail {
     }
     catch {
         $script:MailError = $_.Exception.Message; $script:NotificationStatus = 'FAILED'
-        Add-UniqueDiagnosticFailure -List $DiagnosticFailures -Message "Falha SMTP consolidada: $($script:MailError)"
+        $DiagnosticFailures.Add("Falha SMTP consolidada: $($script:MailError)")
         Write-CascadeLog "Falha ao enviar alerta consolidado: $($script:MailError)" 'WARNING'
     }
     finally {
@@ -176,29 +188,6 @@ function Send-CascadeEmail {
 Write-CascadeLog ('=' * 74)
 Write-CascadeLog 'Inicio da cascata noturna (Invoke-CascadeBackup.ps1).'
 
-if (-not (Test-Path -LiteralPath $MainScript -PathType Leaf)) {
-    Write-CascadeLog "Script principal nao encontrado: $MainScript" 'ERROR'
-    exit 1
-}
-if (-not (Test-Path -LiteralPath $TierHelpersPath -PathType Leaf)) {
-    Write-CascadeLog "Modulo de lotes nao encontrado: $TierHelpersPath" 'ERROR'
-    exit 1
-}
-if (-not (Test-Path -LiteralPath $RepositoryHelpersPath -PathType Leaf)) {
-    Write-CascadeLog "Modulo de repositorio nao encontrado: $RepositoryHelpersPath" 'ERROR'
-    exit 1
-}
-if (-not (Test-Path -LiteralPath $ObservabilityHelpersPath -PathType Leaf)) {
-    Write-CascadeLog "Modulo de observabilidade nao encontrado: $ObservabilityHelpersPath" 'ERROR'
-    exit 1
-}
-
-. $TierHelpersPath
-. $RepositoryHelpersPath
-. $ObservabilityHelpersPath
-
-$SmtpServer = '192.168.4.10'; $SmtpPort = 25
-$MailFrom = 'alertas@assessoriatech.com'; $MailTo = @('suporte@assessoriatech.com')
 $settings = $null
 if (Test-Path -LiteralPath $SettingsConfigPath -PathType Leaf) {
     try {
@@ -208,26 +197,41 @@ if (Test-Path -LiteralPath $SettingsConfigPath -PathType Leaf) {
         }
         $MailTo = @($MailTo)
     }
-    catch { Add-UniqueDiagnosticFailure -List $DiagnosticFailures -Message "Falha ao ler SMTP de Settings.json: $($_.Exception.Message)" }
+    catch { $DiagnosticFailures.Add("Falha ao ler SMTP de Settings.json: $($_.Exception.Message)") }
 }
+
+try {
+if (-not (Test-Path -LiteralPath $MainScript -PathType Leaf)) {
+    throw "Script principal nao encontrado: $MainScript"
+}
+if (-not (Test-Path -LiteralPath $TierHelpersPath -PathType Leaf)) {
+    throw "Modulo de lotes nao encontrado: $TierHelpersPath"
+}
+if (-not (Test-Path -LiteralPath $RepositoryHelpersPath -PathType Leaf)) {
+    throw "Modulo de repositorio nao encontrado: $RepositoryHelpersPath"
+}
+if (-not (Test-Path -LiteralPath $ObservabilityHelpersPath -PathType Leaf)) {
+    throw "Modulo de observabilidade nao encontrado: $ObservabilityHelpersPath"
+}
+
+. $TierHelpersPath
+. $RepositoryHelpersPath
+. $ObservabilityHelpersPath
 
 try {
     $tierDefinitions = Get-TierDefinitions -Path $TiersConfigPath
 }
 catch {
-    Write-CascadeLog "Falha ao carregar $TiersConfigPath : $($_.Exception.Message)" 'ERROR'
-    exit 1
+    throw "Falha ao carregar $TiersConfigPath : $($_.Exception.Message)"
 }
 
 if ($null -eq $tierDefinitions) {
-    Write-CascadeLog "$TiersConfigPath nao encontrado. A cascata precisa da config de lotes para saber a ordem e a lista de lotes a rodar." 'ERROR'
-    exit 1
+    throw "$TiersConfigPath nao encontrado. A cascata precisa da config de lotes."
 }
 
 # BackupSetId gerado uma unica vez, antes do primeiro lote - garante que os tres
 # processos publiquem na mesma pasta mesmo que a cascata atravesse a virada do dia
 # (ex.: BIG terminando de madrugada do dia seguinte).
-$BackupSetId = New-BackupSetId
 Write-CascadeLog "BackupSetId: $BackupSetId"
 Write-CascadeLog "Ordem dos lotes: $(($tierDefinitions.Tiers | Select-Object -ExpandProperty Name) -join ' -> ')"
 
@@ -280,9 +284,18 @@ foreach ($tier in $tierDefinitions.Tiers) {
     $tierResult = $null
     try {
         $tierResult = Get-Content -LiteralPath $tierResultPath -Raw -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop
+        foreach ($property in @('Status', 'SuccessCount', 'FailureCount')) {
+            if ($null -eq $tierResult -or $tierResult.PSObject.Properties.Name -notcontains $property) { throw "Resultado do lote sem '$property'." }
+        }
+        if ($tierResult.Status -notin @('SUCCESS', 'SUCCESS_WITH_WARNINGS', 'PARTIAL_SUCCESS', 'FAILED', 'SKIPPED')) { throw 'Status de lote desconhecido.' }
     }
     catch {
         Add-UniqueDiagnosticFailure -List $DiagnosticFailures -Message "Resultado do tier '$($tier.Name)' indisponivel: $($_.Exception.Message)"
+        $exitCode = 1
+        $tierResult = [pscustomobject]@{
+            Status = 'FAILED'; SuccessCount = 0; FailureCount = 0; LogPath = $LogPath
+            Error = "Resultado ausente ou invalido do lote '$($tier.Name)': $($_.Exception.Message)"
+        }
     }
     $tierStatus = if ($null -ne $tierResult) { [string]$tierResult.Status } elseif ($exitCode -eq 1) { 'FAILED' } else { 'UNKNOWN' }
     $TierExecutions.Add([pscustomobject][ordered]@{
@@ -306,9 +319,21 @@ foreach ($tier in $tierDefinitions.Tiers) {
     }
 }
 
+}
+catch {
+    $fatalError = $_.Exception.Message
+    Write-CascadeLog $fatalError 'ERROR'
+    $TierExecutions.Add([pscustomobject]@{
+        TierName = 'INICIALIZACAO'; Status = 'FAILED'; ExitCode = 1; SuccessCount = 0; FailureCount = 0
+        ResultPath = $CascadeJsonPath; Result = [pscustomobject]@{ Error = $fatalError; LogPath = $LogPath }
+    })
+}
+
 Write-CascadeLog ('-' * 74)
 $tierExecutionArray = $TierExecutions.ToArray()
-$outcome = Get-NightlyCascadeOutcome -TierExecutions $tierExecutionArray -DiagnosticFailureCount ($DiagnosticFailures.Count + $selectionWarningCount)
+$outcome = if (Get-Command Get-NightlyCascadeOutcome -ErrorAction SilentlyContinue) {
+    Get-NightlyCascadeOutcome -TierExecutions $tierExecutionArray -DiagnosticFailureCount ($DiagnosticFailures.Count + $selectionWarningCount)
+} else { [pscustomobject]@{ Status = 'FAILED'; ExitCode = 1 } }
 $summary = [ordered]@{
     SchemaVersion = 2; BackupSetId = $BackupSetId; Status = $outcome.Status; ExitCode = $outcome.ExitCode
     StartedAt = $cascadeStartedAt.ToString('o'); FinishedAt = (Get-Date).ToString('o')
@@ -324,7 +349,7 @@ if ($outcome.ExitCode -eq 1 -or $selectionWarningCount -gt 0) {
     $NotificationStatus = 'PENDING'
     if ([string]::IsNullOrWhiteSpace($html)) {
         try { $html = New-CascadeHtmlReport -Summary $summary }
-        catch { Add-UniqueDiagnosticFailure -List $DiagnosticFailures -Message "Falha ao gerar corpo consolidado: $($_.Exception.Message)" }
+        catch { $DiagnosticFailures.Add("Falha ao gerar corpo consolidado: $($_.Exception.Message)") }
     }
     if (-not [string]::IsNullOrWhiteSpace($html)) {
         $prefix = if ($outcome.ExitCode -eq 1) { '[FALHA]' } else { '[AVISO]' }
@@ -332,7 +357,9 @@ if ($outcome.ExitCode -eq 1 -or $selectionWarningCount -gt 0) {
     }
 }
 
-$outcome = Get-NightlyCascadeOutcome -TierExecutions $tierExecutionArray -DiagnosticFailureCount ($DiagnosticFailures.Count + $selectionWarningCount)
+$outcome = if (Get-Command Get-NightlyCascadeOutcome -ErrorAction SilentlyContinue) {
+    Get-NightlyCascadeOutcome -TierExecutions $tierExecutionArray -DiagnosticFailureCount ($DiagnosticFailures.Count + $selectionWarningCount)
+} else { [pscustomobject]@{ Status = 'FAILED'; ExitCode = 1 } }
 $summary.Status = $outcome.Status; $summary.ExitCode = $outcome.ExitCode
 $summary.FinishedAt = (Get-Date).ToString('o'); $summary.DiagnosticFailures = $DiagnosticFailures.ToArray()
 $summary.NotificationStatus = $NotificationStatus; $summary.MailSent = $MailSent; $summary.MailError = $MailError

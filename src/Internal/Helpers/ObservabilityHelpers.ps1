@@ -26,7 +26,7 @@ function Get-NightlyCascadeOutcome {
         $exitCode = [int]$execution.ExitCode
         $status = [string]$execution.Status
         if ($status -ne 'SKIPPED') { $allSkipped = $false }
-        if ($exitCode -eq 1 -or $status -in @('FAILED', 'PARTIAL_SUCCESS')) {
+        if ($exitCode -eq 1 -or $status -notin @('SUCCESS', 'SUCCESS_WITH_WARNINGS', 'SKIPPED')) {
             $hasBackupFailure = $true
         }
         elseif ($exitCode -eq 2 -or $status -eq 'SUCCESS_WITH_WARNINGS') {
