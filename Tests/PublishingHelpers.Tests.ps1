@@ -10,8 +10,8 @@ Describe 'Publicacao independente por VM' {
         $repo = Join-Path $TestDrive 'repo'
         $context = [pscustomobject]@{
             VMName = 'SRV-ERP'; VMId = 'aaaaaaaabbbbccccddddeeeeeeeeeeee'; VMIdentity = 'SRV-ERP--aaaaaaaa'; TierName = 'SMALL'
-            VMRoot = Join-Path $TestDrive 'staging\vm'; PayloadRoot = Join-Path $TestDrive 'staging\vm\Payload'
-            MetadataRoot = Join-Path $TestDrive 'staging\vm\Metadata'; ArchivePath = Join-Path $TestDrive 'staging\vm\Payload\SRV-ERP--aaaaaaaa.7z'
+            VMRoot = Join-Path $repo '_STAGING\vm'; PayloadRoot = Join-Path $repo '_STAGING\vm\Payload'
+            MetadataRoot = Join-Path $repo '_STAGING\vm\Metadata'; ArchivePath = Join-Path $repo '_STAGING\vm\Payload\SRV-ERP--aaaaaaaa.7z'
             OccurrenceId = 'occ-1'
         }
         New-Item -ItemType Directory -Path $context.MetadataRoot -Force | Out-Null

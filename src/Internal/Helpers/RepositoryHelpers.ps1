@@ -231,6 +231,9 @@ function Get-Schema2BackupTiers {
                 (Join-Path $tierDirectory.FullName 'PARTIAL.marker.json')
             ) | Where-Object { Test-Path -LiteralPath $_ -PathType Leaf })
 
+            $checkpoint = Join-Path $tierDirectory.FullName 'PUBLISHED.marker.json'
+            if (Test-Path -LiteralPath $checkpoint -PathType Leaf) { $markers = @($checkpoint) }
+
             if ($markers.Count -ne 1) { continue }
 
             try {

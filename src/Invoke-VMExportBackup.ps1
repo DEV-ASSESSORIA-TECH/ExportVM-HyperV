@@ -151,6 +151,7 @@ $SkipReason = $null
 $InitialFreeGB = $null
 $FinalFreeGB = $null
 $RepositoryPublished = $false
+$PublicationPending = $false
 $OverallStatus = 'FAILED'
 $TierDefinitions = $null
 $EffectiveBatchName = $null
@@ -1118,19 +1119,28 @@ function Invoke-BackupExecutionV2 {
         $result | Add-Member -NotePropertyName RunId -NotePropertyValue $RunId -Force
         if ($result.Success) {
             try {
-                [void](Publish-VMTransactionResult -Context $context -Result $result -PathModel $BackupSetPathModel)
-                Write-Log "[$($vm.Name)] Publicada atomicamente em $($result.ArchivePath)." 'SUCCESS'
+                [void](Publish-VMTransactionResult -Context $context -Result $result -PathModel $BackupSetPathModel -KeepRestorePoints $KeepRestorePoints)
+                Write-Log "[$($vm.Name)] Publicada com checkpoint recuperavel em $($result.ArchivePath)." 'SUCCESS'
             }
             catch {
                 $result.Success = $false; $result.Status = 'FAILED'; $result.CurrentStage = 'PUBLISH'
                 $result.FailureKind = 'PUBLISH_IO'; $result.Retryable = $false
                 $result.ErrorType = $_.Exception.GetType().FullName; $result.Error = $_.Exception.Message
                 $result.FinishedAt = (Get-Date).ToString('o')
+                $journalPath = Join-Path $RepositoryRoot "_PUBLISHING\$BackupSetId\$($BackupSetPathModel.TierName)\$($context.VMIdentity).json"
+                $pending = Test-Path -LiteralPath $journalPath
+                $result | Add-Member -NotePropertyName PublicationPending -NotePropertyValue $pending -Force
+                if ($pending) { $script:PublicationPending = $true }
             }
         }
 
         if (-not $result.Success) {
             Write-Log "[$($vm.Name)] Falha isolada em $($result.CurrentStage): $($result.Error)" 'ERROR'
+            if ($result.PSObject.Properties.Name -contains 'PublicationPending' -and $result.PublicationPending) {
+                Write-Log "[$($vm.Name)] Publicacao pendente preservada em _PUBLISHING; staging sera reconciliado na proxima execucao." 'WARNING'
+                $VMResults.Add($result)
+                continue
+            }
             try {
                 $failedPaths = Save-FailedVMTransaction -RepositoryRoot $RepositoryRoot -Context $context -Result $result
                 if (Test-Path -LiteralPath $failedPaths.PayloadRoot -PathType Container) {
@@ -1208,7 +1218,7 @@ function Invoke-BackupExecutionV2 {
         }
     }
 
-    if (Test-Path -LiteralPath $StagingPoint -PathType Container) {
+    if (-not $PublicationPending -and (Test-Path -LiteralPath $StagingPoint -PathType Container)) {
         Remove-Item -LiteralPath $StagingPoint -Recurse -Force -ErrorAction Stop
     }
     $outcome = Get-BackupOutcome -VMResults $vmResultArray -WarningCount $Warnings.Count
@@ -1344,7 +1354,13 @@ try {
         throw "Volume $BackupDrive nao esta saudavel. HealthStatus=$($volume.HealthStatus)."
     }
 
-    if ($Execute) { Acquire-Lock }
+    if ($Execute) {
+        Acquire-Lock
+        foreach ($recovered in @(Repair-PendingVMBackupPublications -RepositoryRoot $RepositoryRoot)) {
+            $Warnings.Add("Publicacao interrompida recuperada: $($recovered.Name).")
+            Write-Log "Publicacao interrompida recuperada: $($recovered.Name) | $($recovered.ArchivePath)." 'WARNING'
+        }
+    }
     $InitialFreeGB = Get-FreeGB
     Write-Log "Destino: $BackupDrive | Rotulo=$($volume.FileSystemLabel) | Sistema=$($volume.FileSystem) | Saude=$($volume.HealthStatus) | Livre=${InitialFreeGB}GB."
 
@@ -1380,7 +1396,7 @@ catch {
         Write-Log ("Pilha: " + ($_.ScriptStackTrace -replace "`r?`n", ' | ')) 'ERROR'
     }
 
-    if ($Execute -and -not [string]::IsNullOrWhiteSpace($StagingPoint) -and (Test-Path -LiteralPath $StagingPoint)) {
+    if ($Execute -and -not $PublicationPending -and -not [string]::IsNullOrWhiteSpace($StagingPoint) -and (Test-Path -LiteralPath $StagingPoint)) {
         try {
             $orphanRoot = Join-Path $FailedRoot '_ORPHANED'
             if (-not (Test-Path -LiteralPath $orphanRoot -PathType Container)) {
