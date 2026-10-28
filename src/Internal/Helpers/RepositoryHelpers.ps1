@@ -1,5 +1,36 @@
 #requires -Version 5.1
 
+function Enter-BackupRepositoryLock {
+    param([Parameter(Mandatory = $true)][string]$RepositoryRoot, [string]$RunId)
+
+    if (-not (Test-Path -LiteralPath $RepositoryRoot -PathType Container)) {
+        New-Item -ItemType Directory -Path $RepositoryRoot -Force -ErrorAction Stop | Out-Null
+    }
+    $path = Join-Path $RepositoryRoot '.VMExportBackup.lock'
+    $stream = $null
+    try {
+        # OpenOrCreate + FileShare.None adquirem o bloqueio em uma unica operacao.
+        $stream = [System.IO.File]::Open($path, [System.IO.FileMode]::OpenOrCreate, [System.IO.FileAccess]::ReadWrite, [System.IO.FileShare]::None)
+        $metadata = [ordered]@{ Pid = $PID; RunId = $RunId; HostName = $env:COMPUTERNAME; AcquiredAt = (Get-Date).ToString('o') } | ConvertTo-Json
+        $bytes = [System.Text.Encoding]::UTF8.GetBytes($metadata)
+        $stream.SetLength(0)
+        $stream.Write($bytes, 0, $bytes.Length)
+        $stream.Flush($true)
+        return [pscustomobject]@{ Path = $path; Stream = $stream }
+    }
+    catch {
+        if ($null -ne $stream) { $stream.Dispose() }
+        throw "Nao foi possivel adquirir bloqueio exclusivo do repositorio '$RepositoryRoot'. Outra execucao pode estar ativa ou o destino indisponivel. $($_.Exception.Message)"
+    }
+}
+
+function Exit-BackupRepositoryLock {
+    param([AllowNull()]$Lock)
+    if ($null -ne $Lock) { $Lock.Stream.Dispose() }
+    # O arquivo permanece: excluir depois de fechar criaria uma nova corrida.
+    # O handle, liberado tambem pelo SO ao encerrar o processo, e o bloqueio real.
+}
+
 # Funcoes puras de nomes, paths, manifests e descoberta do repositorio schema 2.
 # Este arquivo e carregado via dot-source pelos scripts produtivos e pelos testes.
 

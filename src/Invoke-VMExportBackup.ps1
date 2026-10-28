@@ -134,6 +134,7 @@ $BackupSetPathModel = $null
 $CurrentStage = 'Inicializacao'
 $ExitCode = 1
 $LockAcquired = $false
+$RepositoryLock = $null
 $MailSent = $false
 $MailError = $null
 $GlobalError = $null
@@ -499,43 +500,18 @@ function Get-SevenZipArchiveStructure {
 }
 
 function Acquire-Lock {
-    if (Test-Path -LiteralPath $LockPath) {
-        $existing = $null
-        try {
-            $existing = Get-Content -LiteralPath $LockPath -Raw | ConvertFrom-Json
-        }
-        catch {
-            $Warnings.Add("Lock anterior ilegivel removido: $LockPath")
-        }
-
-        if ($null -ne $existing -and $existing.Pid) {
-            $active = Get-Process -Id ([int]$existing.Pid) -ErrorAction SilentlyContinue
-            if ($null -ne $active) {
-                throw "Ja existe uma execucao ativa. PID=$($existing.Pid), RunId=$($existing.RunId), inicio=$($existing.StartTime)."
-            }
-        }
-
-        Remove-Item -LiteralPath $LockPath -Force -ErrorAction SilentlyContinue
-    }
-
-    [ordered]@{
-        Pid = $PID
-        RunId = $RunId
-        StartTime = $RunStart.ToString('o')
-        Script = $ScriptPath
-    } | ConvertTo-Json | Set-Content -LiteralPath $LockPath -Encoding UTF8
-
+    $script:RepositoryLock = Enter-BackupRepositoryLock -RepositoryRoot $RepositoryRoot -RunId $RunId
     $script:LockAcquired = $true
-    Write-Log "Lock criado: $LockPath | PID=$PID."
+    Write-Log "Bloqueio exclusivo adquirido: $($script:RepositoryLock.Path) | PID=$PID."
 }
 
 function Remove-Lock {
-    if ($script:LockAcquired -and (Test-Path -LiteralPath $LockPath)) {
-        Remove-Item -LiteralPath $LockPath -Force -ErrorAction SilentlyContinue
-        Write-Log "Lock removido: $LockPath."
+    if ($script:LockAcquired) {
+        Exit-BackupRepositoryLock -Lock $script:RepositoryLock
+        $script:LockAcquired = $false
+        Write-Log 'Bloqueio exclusivo do repositorio liberado.'
     }
 }
-
 function Get-SelectedVMs {
     $all = @(Get-VM -ErrorAction Stop | Sort-Object Name)
     if (-not [string]::IsNullOrWhiteSpace($SelectionPlanPath)) {
@@ -1283,8 +1259,6 @@ Write-Log "Modo: $Mode"
 Write-Log ('=' * 74)
 
 try {
-    Acquire-Lock
-
     foreach ($helperPath in @(
         $TierHelpersPath, $RepositoryHelpersPath, $RetentionHelpersPath, $SpaceHelpersPath,
         $FailureHelpersPath, $TransactionHelpersPath, $PublishingHelpersPath, $ObservabilityHelpersPath
@@ -1370,6 +1344,7 @@ try {
         throw "Volume $BackupDrive nao esta saudavel. HealthStatus=$($volume.HealthStatus)."
     }
 
+    if ($Execute) { Acquire-Lock }
     $InitialFreeGB = Get-FreeGB
     Write-Log "Destino: $BackupDrive | Rotulo=$($volume.FileSystemLabel) | Sistema=$($volume.FileSystem) | Saude=$($volume.HealthStatus) | Livre=${InitialFreeGB}GB."
 
@@ -1436,6 +1411,7 @@ catch {
     $ExitCode = 1
 }
 finally {
+    try {
     Write-Stage -Number 9 -Total 9 -Title 'Gerar relatorios e enviar e-mail'
 
     try { $FinalFreeGB = Get-FreeGB } catch { }
@@ -1534,7 +1510,6 @@ finally {
         Write-Log "E-mail nao enviado (Status=$OverallStatus, SkipEmail=$SkipEmail)."
     }
 
-    Remove-Lock
 
     # SMTP e a primeira gravacao de relatorio podem adicionar diagnosticos. Recalcula
     # somente estados sem falha de backup; codigo 1 sempre prevalece.
@@ -1554,6 +1529,8 @@ finally {
 
     Write-Log "Fim da rotina. Status=$OverallStatus | ExitCode=$ExitCode | Duracao=$(Format-Duration $duration)."
     Write-Log ('=' * 74)
+    }
+    finally { Remove-Lock }
 }
 
 exit $ExitCode

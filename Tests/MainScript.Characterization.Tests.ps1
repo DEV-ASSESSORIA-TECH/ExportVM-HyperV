@@ -37,7 +37,7 @@ function Get-Volume {
     [pscustomobject]@{ SizeRemaining = 300GB; FileSystemLabel = 'BACKUP-HYPERV'; HealthStatus = 'Healthy'; FileSystem = 'NTFS' }
 }
 & (Join-Path $PSScriptRoot 'skip-app\Invoke-VMExportBackup.ps1') -BatchName ALL -Execute -SkipEmail `
-    -BackupDrive ([System.IO.Path]::GetPathRoot($PSScriptRoot).TrimEnd('\')) -RepositoryFolder 'NoBackupExpected' `
+    -BackupDrive ([System.IO.Path]::GetPathRoot($PSScriptRoot).TrimEnd('\')) -RepositoryFolder ((Join-Path $PSScriptRoot 'NoBackupExpected').Substring(3)) `
     -ExcludeVMId '11111111-1111-1111-1111-111111111111' -SevenZipPath (Join-Path $PSHOME 'powershell.exe') `
     -ResultPath (Join-Path $PSScriptRoot 'skipped-result.json')
 '@ | Set-Content -LiteralPath $harness -Encoding UTF8
