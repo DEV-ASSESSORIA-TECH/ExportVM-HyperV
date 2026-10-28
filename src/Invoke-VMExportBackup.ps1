@@ -282,107 +282,107 @@ function Invoke-MonitoredProcess {
         }
     }
 
-    $process = Start-Process `
-        -FilePath $FilePath `
-        -ArgumentList $ArgumentString `
-        -PassThru `
-        -WindowStyle Hidden `
-        -RedirectStandardOutput $StdOutPath `
-        -RedirectStandardError $StdErrPath
+    if ($null -eq $script:RepositoryLock) { throw 'Processo externo exige bloqueio e Job Object do repositorio.' }
+    $process = Start-BackupJobProcess -Job $script:RepositoryLock.Job -FilePath $FilePath `
+        -ArgumentString $ArgumentString -StdOutPath $StdOutPath -StdErrPath $StdErrPath
+    try {
+        Write-Log "$DisplayName iniciado. PID=$($process.Id) | Timeout=$(Format-Duration $Timeout)."
 
-    Write-Log "$DisplayName iniciado. PID=$($process.Id) | Timeout=$(Format-Duration $Timeout)."
+        $watch = [System.Diagnostics.Stopwatch]::StartNew()
+        $lastTail = ''
+        $timedOut = $false
+        $pollSeconds = 2
+        $nextHeartbeatSeconds = [double]$HeartbeatSeconds
 
-    $watch = [System.Diagnostics.Stopwatch]::StartNew()
-    $lastTail = ''
-    $timedOut = $false
-    $pollSeconds = 2
-    $nextHeartbeatSeconds = [double]$HeartbeatSeconds
-
-    # O processo e consultado a cada 2 segundos. O heartbeat continua no intervalo
-    # configurado, mas processos rapidos nao ficam artificialmente presos por 30 s.
-    while ($true) {
-        try {
-            $process.Refresh()
-            if ($process.HasExited) { break }
-        }
-        catch {
-            break
-        }
-
-        if ($watch.Elapsed -ge $Timeout) {
-            $timedOut = $true
-            Write-Log "$DisplayName excedeu o timeout de $(Format-Duration $Timeout). Encerrando PID $($process.Id)." 'ERROR'
-            try { Stop-Process -Id $process.Id -Force -ErrorAction Stop } catch { }
-            break
-        }
-
-        if ($watch.Elapsed.TotalSeconds -ge $nextHeartbeatSeconds) {
-            $cpuSeconds = $null
-            $workingSet = $null
+        # O processo e consultado a cada 2 segundos. O heartbeat continua no intervalo
+        # configurado, mas processos rapidos nao ficam artificialmente presos por 30 s.
+        while ($true) {
             try {
-                $processInfo = Get-Process -Id $process.Id -ErrorAction Stop
-                $cpuSeconds = [math]::Round($processInfo.CPU, 1)
-                $workingSet = Format-Bytes $processInfo.WorkingSet64
+                $process.Refresh()
+                if ($process.HasExited) { break }
             }
             catch {
-                # O processo pode ter terminado entre as consultas.
+                break
             }
 
-            $parts = New-Object System.Collections.Generic.List[string]
-            $parts.Add("$DisplayName")
-            $parts.Add("decorrido=$(Format-Duration $watch.Elapsed)")
-            $parts.Add("PID=$($process.Id)")
-            if ($null -ne $cpuSeconds) { $parts.Add("CPU=${cpuSeconds}s") }
-            if ($null -ne $workingSet) { $parts.Add("RAM=$workingSet") }
-            Write-Log ($parts -join ' | ') 'WAIT'
-
-            $tail = Get-TailText -Path $StdOutPath -Lines 3
-            if (-not [string]::IsNullOrWhiteSpace($tail) -and $tail -ne $lastTail) {
-                Write-Log "$DisplayName saida: $tail" 'INFO'
-                $lastTail = $tail
+            if ($watch.Elapsed -ge $Timeout) {
+                $timedOut = $true
+                Write-Log "$DisplayName excedeu o timeout de $(Format-Duration $Timeout). Encerrando PID $($process.Id)." 'ERROR'
+                $script:RepositoryLock.Job.Stop(10000)
+                break
             }
 
-            $nextHeartbeatSeconds += [double]$HeartbeatSeconds
+            if ($watch.Elapsed.TotalSeconds -ge $nextHeartbeatSeconds) {
+                $cpuSeconds = $null
+                $workingSet = $null
+                try {
+                    $processInfo = Get-Process -Id $process.Id -ErrorAction Stop
+                    $cpuSeconds = [math]::Round($processInfo.CPU, 1)
+                    $workingSet = Format-Bytes $processInfo.WorkingSet64
+                }
+                catch {
+                    # O processo pode ter terminado entre as consultas.
+                }
+
+                $parts = New-Object System.Collections.Generic.List[string]
+                $parts.Add("$DisplayName")
+                $parts.Add("decorrido=$(Format-Duration $watch.Elapsed)")
+                $parts.Add("PID=$($process.Id)")
+                if ($null -ne $cpuSeconds) { $parts.Add("CPU=${cpuSeconds}s") }
+                if ($null -ne $workingSet) { $parts.Add("RAM=$workingSet") }
+                Write-Log ($parts -join ' | ') 'WAIT'
+
+                $tail = Get-TailText -Path $StdOutPath -Lines 3
+                if (-not [string]::IsNullOrWhiteSpace($tail) -and $tail -ne $lastTail) {
+                    Write-Log "$DisplayName saida: $tail" 'INFO'
+                    $lastTail = $tail
+                }
+
+                $nextHeartbeatSeconds += [double]$HeartbeatSeconds
+            }
+
+            Start-Sleep -Seconds $pollSeconds
         }
 
-        Start-Sleep -Seconds $pollSeconds
+        # WaitForExit() sem limite pode aguardar varios minutos pelos handles dos arquivos
+        # redirecionados, mesmo depois de powershell.exe ja ter encerrado. Usamos apenas uma
+        # espera curta e limitada para consolidar o objeto Process.
+        try {
+            $process.Refresh()
+            if (-not $process.HasExited) {
+                [void]$process.WaitForExit(5000)
+            }
+            else {
+                [void]$process.WaitForExit(1000)
+            }
+            $process.Refresh()
+        }
+        catch { }
+
+        $watch.Stop()
+
+        $exit = $null
+        try { $exit = $process.ExitCode } catch { }
+
+        $stdout = Get-TailText -Path $StdOutPath -Lines 30
+        $stderr = Get-TailText -Path $StdErrPath -Lines 30
+
+        Write-Log "$DisplayName finalizado. Duracao=$(Format-Duration $watch.Elapsed) | ExitCode=$(if ($null -eq $exit) { 'indisponivel' } else { $exit })." 'INFO'
+
+        return [pscustomobject]@{
+            DisplayName = $DisplayName
+            ProcessId = $process.Id
+            ExitCode = $exit
+            TimedOut = $timedOut
+            Duration = $watch.Elapsed
+            StdOutPath = $StdOutPath
+            StdErrPath = $StdErrPath
+            StdOutTail = $stdout
+            StdErrTail = $stderr
+        }
     }
-
-    # WaitForExit() sem limite pode aguardar varios minutos pelos handles dos arquivos
-    # redirecionados, mesmo depois de powershell.exe ja ter encerrado. Usamos apenas uma
-    # espera curta e limitada para consolidar o objeto Process.
-    try {
-        $process.Refresh()
-        if (-not $process.HasExited) {
-            [void]$process.WaitForExit(5000)
-        }
-        else {
-            [void]$process.WaitForExit(1000)
-        }
-        $process.Refresh()
-    }
-    catch { }
-
-    $watch.Stop()
-
-    $exit = $null
-    try { $exit = $process.ExitCode } catch { }
-
-    $stdout = Get-TailText -Path $StdOutPath -Lines 30
-    $stderr = Get-TailText -Path $StdErrPath -Lines 30
-
-    Write-Log "$DisplayName finalizado. Duracao=$(Format-Duration $watch.Elapsed) | ExitCode=$(if ($null -eq $exit) { 'indisponivel' } else { $exit })." 'INFO'
-
-    return [pscustomobject]@{
-        DisplayName = $DisplayName
-        ProcessId = $process.Id
-        ExitCode = $exit
-        TimedOut = $timedOut
-        Duration = $watch.Elapsed
-        StdOutPath = $StdOutPath
-        StdErrPath = $StdErrPath
-        StdOutTail = $stdout
-        StdErrTail = $stderr
+    finally {
+        try { $script:RepositoryLock.Job.Stop(10000) } finally { $process.Dispose() }
     }
 }
 

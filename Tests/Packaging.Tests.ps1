@@ -23,7 +23,7 @@ Describe 'Pacote de release' {
 
         Add-Type -AssemblyName System.IO.Compression.FileSystem
         $archive = [System.IO.Compression.ZipFile]::OpenRead($result.ArchivePath)
-        try { $entries = @($archive.Entries | Select-Object -ExpandProperty FullName) }
+        try { $entries = @($archive.Entries | ForEach-Object { $_.FullName.Replace('/', '\') }) }
         finally { $archive.Dispose() }
 
         $entries -contains 'VM-Export-Backup-2.1.0\Invoke-VMExportBackup.ps1' | Should Be $true
@@ -39,7 +39,7 @@ Describe 'Pacote de release' {
             $entries -contains "VM-Export-Backup-2.1.0\$entryPoint" | Should Be $true
         }
         $internalFiles = @(Get-ChildItem -LiteralPath (Join-Path $projectRoot 'src\Internal') -File -Recurse -Filter '*.ps1')
-        $internalFiles.Count | Should Be 11
+        $internalFiles.Count | Should Be 12
         foreach ($internalFile in $internalFiles) {
             $relative = $internalFile.FullName.Substring((Join-Path $projectRoot 'src').Length + 1)
             $entries -contains "VM-Export-Backup-2.1.0\$relative" | Should Be $true

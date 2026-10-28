@@ -1,5 +1,7 @@
 #requires -Version 5.1
 
+. (Join-Path $PSScriptRoot 'ProcessHelpers.ps1')
+
 function Enter-BackupRepositoryLock {
     param([Parameter(Mandatory = $true)][string]$RepositoryRoot, [string]$RunId)
 
@@ -8,17 +10,21 @@ function Enter-BackupRepositoryLock {
     }
     $path = Join-Path $RepositoryRoot '.VMExportBackup.lock'
     $stream = $null
+    $job = $null
     try {
         # OpenOrCreate + FileShare.None adquirem o bloqueio em uma unica operacao.
         $stream = [System.IO.File]::Open($path, [System.IO.FileMode]::OpenOrCreate, [System.IO.FileAccess]::ReadWrite, [System.IO.FileShare]::None)
-        $metadata = [ordered]@{ Pid = $PID; RunId = $RunId; HostName = $env:COMPUTERNAME; AcquiredAt = (Get-Date).ToString('o') } | ConvertTo-Json
+        Initialize-BackupProcessSupport
+        $job = [VMExportBackup.ProcessJob]::ForRepository($stream.SafeFileHandle.DangerousGetHandle())
+        $metadata = [ordered]@{ Pid = $PID; RunId = $RunId; JobName = $job.Name; HostName = $env:COMPUTERNAME; AcquiredAt = (Get-Date).ToString('o') } | ConvertTo-Json
         $bytes = [System.Text.Encoding]::UTF8.GetBytes($metadata)
         $stream.SetLength(0)
         $stream.Write($bytes, 0, $bytes.Length)
         $stream.Flush($true)
-        return [pscustomobject]@{ Path = $path; Stream = $stream }
+        return [pscustomobject]@{ Path = $path; Stream = $stream; Job = $job }
     }
     catch {
+        if ($null -ne $job) { $job.Dispose() }
         if ($null -ne $stream) { $stream.Dispose() }
         throw "Nao foi possivel adquirir bloqueio exclusivo do repositorio '$RepositoryRoot'. Outra execucao pode estar ativa ou o destino indisponivel. $($_.Exception.Message)"
     }
@@ -26,7 +32,10 @@ function Enter-BackupRepositoryLock {
 
 function Exit-BackupRepositoryLock {
     param([AllowNull()]$Lock)
-    if ($null -ne $Lock) { $Lock.Stream.Dispose() }
+    if ($null -ne $Lock) {
+        try { $Lock.Job.Stop(10000) }
+        finally { $Lock.Job.Dispose(); $Lock.Stream.Dispose() }
+    }
     # O arquivo permanece: excluir depois de fechar criaria uma nova corrida.
     # O handle, liberado tambem pelo SO ao encerrar o processo, e o bloqueio real.
 }
