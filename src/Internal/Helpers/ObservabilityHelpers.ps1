@@ -21,9 +21,11 @@ function Get-NightlyCascadeOutcome {
 
     $hasBackupFailure = $false
     $hasWarning = $DiagnosticFailureCount -gt 0
+    $allSkipped = $TierExecutions.Count -gt 0
     foreach ($execution in $TierExecutions) {
         $exitCode = [int]$execution.ExitCode
         $status = [string]$execution.Status
+        if ($status -ne 'SKIPPED') { $allSkipped = $false }
         if ($exitCode -eq 1 -or $status -in @('FAILED', 'PARTIAL_SUCCESS')) {
             $hasBackupFailure = $true
         }
@@ -36,8 +38,30 @@ function Get-NightlyCascadeOutcome {
     }
 
     if ($hasBackupFailure) { return [pscustomobject]@{ Status = 'FAILED'; ExitCode = 1 } }
+    if ($allSkipped) { return [pscustomobject]@{ Status = 'SKIPPED'; ExitCode = $(if ($hasWarning) { 2 } else { 0 }) } }
     if ($hasWarning) { return [pscustomobject]@{ Status = 'SUCCESS_WITH_WARNINGS'; ExitCode = 2 } }
     return [pscustomobject]@{ Status = 'SUCCESS'; ExitCode = 0 }
+}
+
+function Format-VMFailureDetails {
+    param([Parameter(Mandatory = $true)]$Result, [string]$LogPath)
+
+    $parts = New-Object System.Collections.Generic.List[string]
+    $labels = [ordered]@{
+        CurrentStage = 'Etapa'; FailedStage = 'Etapa'; FailureKind = 'Classificacao'
+        Attempts = 'Tentativas'; RequiredFreeGB = 'Espaco minimo exigido'
+        AvailableFreeGB = 'Espaco disponivel'; Error = 'Motivo'
+    }
+    foreach ($field in $labels.Keys) {
+        if ($Result.PSObject.Properties.Name -notcontains $field -or $null -eq $Result.$field) { continue }
+        $value = [string]$Result.$field
+        if ([string]::IsNullOrWhiteSpace($value)) { continue }
+        if ($field -in @('RequiredFreeGB', 'AvailableFreeGB')) { $value = '{0:N2} GB' -f [double]$Result.$field }
+        $parts.Add("$($labels[$field]): $value")
+    }
+    if ($parts.Count -eq 0) { $parts.Add('Motivo indisponivel; consulte o log do lote.') }
+    if (-not [string]::IsNullOrWhiteSpace($LogPath)) { $parts.Add("Log do lote: $LogPath") }
+    return $parts -join ' | '
 }
 
 function Write-JsonSnapshot {

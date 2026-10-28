@@ -37,6 +37,13 @@ Get-ScheduledTask -TaskPath '\ASSESSORIA SCF\' -TaskName 'BACKUP-VM' |
 
 O wrapper continua os tiers posteriores mesmo que um anterior falhe.
 
+`SKIPPED` indica lote sem VMs elegíveis, com justificativa no consolidado. Se todos
+os lotes forem ignorados, a cascata também fica `SKIPPED` (código 0, ou 2 com avisos).
+As exclusões por nome/VMId são aplicadas antes dos discos no plano único da noite,
+salvo em `Reports\Cascade-<BackupSetId>.plan.json`. Confira os avisos de exclusões
+ausentes; eles geram e-mail de aviso mesmo quando os backups restantes têm sucesso.
+O VMId pode ser consultado com `Get-VM | Select-Object Name, VMId`.
+
 ### Pasta personalizada no Agendador
 
 A pasta lógica do Agendador é independente da pasta física da instalação. Para

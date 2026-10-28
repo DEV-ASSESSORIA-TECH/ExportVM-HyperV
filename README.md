@@ -126,6 +126,7 @@ Desativar SHA-256 não desativa as validações obrigatórias: `7z t`, estrutura
 {
   "SchemaVersion": 2,
   "ExcludeVMName": [],
+  "ExcludeVMId": [],
   "BackupDrive": "F:",
   "ExpectedVolumeLabel": "BACKUP-HYPERV",
   "RepositoryFolder": "HyperV-Exports",
@@ -139,9 +140,16 @@ Desativar SHA-256 não desativa as validações obrigatórias: `7z t`, estrutura
 
 Os demais campos de timeout, 7-Zip e SMTP permanecem no arquivo entregue. Um parâmetro explícito na linha de comando vence o valor do JSON.
 
-Para ignorar uma VM em todos os lotes da cascata, configure `"ExcludeVMName": ["VM-SEM-BACKUP"]` em `Config\Settings.json`. Use os nomes exatos do Hyper-V; a comparação ignora maiúsculas/minúsculas e não interpreta curingas. A exclusão também prevalece quando a VM é solicitada por `-VMName`. Os nomes ignorados ficam no log e no campo `ExcludedVMs` do JSON. Se todas as VMs selecionadas forem excluídas, o lote termina com sucesso sem executar backup ou retenção.
+Para ignorar uma VM em todos os lotes da cascata, configure `"ExcludeVMName": ["VM-SEM-BACKUP"]` em `Config\Settings.json`. Use os nomes exatos do Hyper-V; a comparação ignora maiúsculas/minúsculas e não interpreta curingas. A exclusão também prevalece quando a VM é solicitada por `-VMName`.
+
+Prefira `"ExcludeVMId": ["11111111-1111-1111-1111-111111111111"]` para manter a exclusão após renomear a VM. Consulte o identificador real com `Get-VM | Select-Object Name, VMId`. As duas listas se somam: basta corresponder ao nome ou ao VMId para excluir. O identificador sobrevive à renomeação; uma VM recriada com outro VMId exige atualizar a lista. Nomes ou IDs configurados que não existem no host geram aviso no log, no relatório e no e-mail de aviso, inclusive se os backups restantes tiverem sucesso. `-SkipEmail` continua disponível nas execuções diretas.
+
+A cascata cria um plano único em `Reports\Cascade-<BackupSetId>.plan.json`, aplicando exclusões antes de consultar discos e classificando somente as VMs elegíveis. Os processos filhos usam o mesmo plano e resolvem as VMs por VMId; alterações de tamanho durante a noite não mudam o lote escolhido. VMs criadas depois do planejamento entram na próxima cascata. Uma VM planejada que desapareça gera falha explícita. Os nomes ignorados ficam em `ExcludedVMs`, e os identificadores e regras em `ExcludedVMDetails` nos resultados dos lotes.
+
+Um lote sem VMs elegíveis termina com `SKIPPED`, justificativa em `SkipReason` e nenhum backup ou retenção. Se todos os lotes forem ignorados, o consolidado também será `SKIPPED`; lotes vazios não transformam uma cascata com backups bem-sucedidos em falha. O código é `0`, ou `2` se houver avisos. Uma falha em qualquer lote continua prevalecendo com código `1`.
 
 Em uma execução avulsa, `-ExcludeVMName 'VM-SEM-BACKUP'` substitui a lista do JSON; `-ExcludeVMName @()` limpa essa lista somente para a execução atual.
+O mesmo vale para `-ExcludeVMId '<GUID>'` e `-ExcludeVMId @()`; cada parâmetro substitui somente a respectiva lista.
 
 `Config\Tiers.json` usa schema 2 e define faixas contínuas de tamanho, retenção, `CascadeStartTime` e `CascadeExecutionTimeLimitHours`. O início padrão permanece às 21:00.
 
@@ -153,8 +161,8 @@ São retentáveis: timeout/processo, `Export-VM`, 7-Zip, hash opcional e I/O tra
 
 - Execução direta: pode alertar imediatamente em `FAILED` ou `PARTIAL_SUCCESS`; `-SkipEmail` força silêncio.
 - Cascata: cada tier usa `-DeferEmail` e grava um resultado determinístico em `Reports`; o wrapper executa todos os tiers e envia no máximo um alerta consolidado.
-- O corpo do alerta consolidado inclui os motivos das falhas por lote e VM, como falta de espaço, além da etapa e classificação disponíveis.
-- Logs e relatórios avulsos usam o lote como prefixo: `BIG-2026-10-28_21-00-00.log`, `MEDIUM-...` ou `SMALL-...`. Execuções manuais usam `ADHOC` (seleção por VM) ou `ALL`; o log geral permanece `Cascade-...`. Relatórios da cascata preservam o nome `BackupSet-<id>-<lote>.result.json/html`.
+- O corpo do alerta consolidado inclui os motivos das falhas por lote e VM, etapa, classificação, tentativas, espaço mínimo exigido/disponível em GB e caminho do log. O espaço exigido corresponde a `MinFreeGB`; o disponível é registrado na preparação ou, em falhas da transação, consultado novamente ao término dela.
+- Logs e relatórios avulsos usam o lote e oito caracteres do `RunId`: `BIG-2026-10-28_21-00-00-a1b2c3d4.log`, `MEDIUM-...` ou `SMALL-...`. Execuções manuais usam `ADHOC` (seleção por VM) ou `ALL`; o log geral usa `Cascade-<data-hora>-<RunId-curto>.log`. Relatórios da cascata preservam o nome `BackupSet-<id>-<lote>.result.json/html`.
 - JSON e HTML são gravados por snapshot atômico antes de serem anexados.
 - Depois da tentativa SMTP, os relatórios locais são regravados com `NotificationStatus`, `MailSent` e `MailError`.
 - `DiagnosticFailures` registra falhas não bloqueantes de observabilidade.

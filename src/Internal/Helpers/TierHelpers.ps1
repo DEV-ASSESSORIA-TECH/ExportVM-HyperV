@@ -71,7 +71,85 @@ function Assert-SettingsSchemaV2 {
             }
         }
     }
+    if ($properties -contains 'ExcludeVMId') {
+        if ($ConfigObject.ExcludeVMId -isnot [System.Array]) { throw 'ExcludeVMId deve ser uma lista JSON de GUIDs.' }
+        foreach ($id in $ConfigObject.ExcludeVMId) {
+            $parsed = [guid]::Empty
+            if ($id -isnot [string] -or -not [guid]::TryParse($id, [ref]$parsed) -or $parsed -eq [guid]::Empty) {
+                throw 'ExcludeVMId deve conter somente GUIDs validos e nao vazios.'
+            }
+        }
+    }
     return $true
+}
+
+function New-VMSelectionPlan {
+    param(
+        [object[]]$AllVMs = @(),
+        $TierDefinitions,
+        [string[]]$ExcludeVMName = @(),
+        [string[]]$ExcludeVMId = @(),
+        [string[]]$RequestedNames = @(),
+        [string]$BackupSetId,
+        [scriptblock]$GetSizeAction = { param($Name) Get-VMSourceSize -Name $Name }
+    )
+
+    if ($AllVMs.Count -eq 0) { throw 'Nenhuma VM encontrada no host.' }
+    $RequestedNames = @($RequestedNames | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+    $ids = @($ExcludeVMId | ForEach-Object {
+        $id = [guid]$_
+        if ($id -eq [guid]::Empty) { throw 'ExcludeVMId nao aceita GUID vazio.' }
+        $id.ToString('D')
+    })
+    $warnings = New-Object System.Collections.Generic.List[string]
+    foreach ($name in $ExcludeVMName) {
+        if (@($AllVMs | Where-Object { $_.Name -ieq $name }).Count -eq 0) {
+            $warnings.Add("Exclusao por nome nao encontrada no host: '$name'. Verifique se a VM foi renomeada; prefira ExcludeVMId.")
+        }
+    }
+    foreach ($id in $ids) {
+        if (@($AllVMs | Where-Object { ([guid]$_.VMId).ToString('D') -eq $id }).Count -eq 0) {
+            $warnings.Add("Exclusao por VMId nao encontrada no host: '$id'.")
+        }
+    }
+    foreach ($name in $RequestedNames) {
+        if (@($AllVMs | Where-Object { $_.Name -ieq $name }).Count -eq 0) { throw "VM solicitada nao encontrada: $name" }
+    }
+    $included = New-Object System.Collections.Generic.List[object]
+    $excluded = New-Object System.Collections.Generic.List[object]
+    foreach ($vm in @($AllVMs | Sort-Object Name)) {
+        $id = ([guid]$vm.VMId).ToString('D')
+        $reason = if ($ids -contains $id) { 'ExcludeVMId' } elseif ($ExcludeVMName -icontains $vm.Name) { 'ExcludeVMName' } else { $null }
+        if ($reason) {
+            $excluded.Add([pscustomobject]@{ Name = $vm.Name; VMId = $id; Reason = $reason })
+            continue
+        }
+        if ($RequestedNames.Count -gt 0 -and $RequestedNames -inotcontains $vm.Name) { continue }
+        $size = [long](& $GetSizeAction $vm.Name)
+        $tier = if ($null -ne $TierDefinitions) { Resolve-VMTier -SizeBytes $size -TierDefinitions $TierDefinitions } else { $null }
+        $included.Add([pscustomobject]@{ Name = $vm.Name; VMId = $id; SourceBytes = $size; Tier = $tier })
+    }
+    return [pscustomobject][ordered]@{
+        SchemaVersion = 2; BackupSetId = $BackupSetId; ComputerName = $env:COMPUTERNAME
+        CreatedAt = (Get-Date).ToString('o'); VMs = $included.ToArray()
+        ExcludedVMs = $excluded.ToArray(); Warnings = $warnings.ToArray()
+    }
+}
+
+function Resolve-VMSelectionPlan {
+    param([Parameter(Mandatory = $true)]$Plan, [object[]]$AllVMs = @(), [string]$BatchName)
+
+    if ($Plan.SchemaVersion -ne 2) { throw 'Plano de selecao deve usar SchemaVersion 2.' }
+    $selected = New-Object System.Collections.Generic.List[object]
+    foreach ($entry in @($Plan.VMs)) {
+        if ($BatchName -notin @('ALL', 'ADHOC') -and $entry.Tier -ne $BatchName) { continue }
+        $vm = $AllVMs | Where-Object { ([guid]$_.VMId) -eq ([guid]$entry.VMId) } | Select-Object -First 1
+        if ($null -eq $vm) { throw "VM do plano nao encontrada no host: $($entry.Name) (VMId=$($entry.VMId))." }
+        Add-Member -InputObject $vm -NotePropertyName SourceBytes -NotePropertyValue ([long]$entry.SourceBytes) -Force
+        Add-Member -InputObject $vm -NotePropertyName Tier -NotePropertyValue $entry.Tier -Force
+        $selected.Add($vm)
+    }
+    return $selected.ToArray()
 }
 
 function Get-TierDefinitions {

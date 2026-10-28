@@ -27,6 +27,13 @@ SUCCESS_WITH_WARNINGS    codigo 2
 PARTIAL_SUCCESS          codigo 1
 FAILED                   codigo 1
 PLAN                     codigo 0
+SKIPPED                  codigo 0 (ou 2 com avisos); lote sem VMs elegíveis
+
+Exclusões: use ExcludeVMName e/ou ExcludeVMId em Config\Settings.json.
+VMId mantém a exclusão após renomear. Nomes/IDs ausentes geram aviso por e-mail.
+A cascata fixa a seleção e os lotes em Reports\Cascade-<id>.plan.json antes dos discos.
+Lotes SKIPPED exibem a justificativa no consolidado, sem backup ou retenção.
+Logs usam lote, data/hora e RunId curto para distinguir execuções no mesmo segundo.
 
 Estrutura resumida
 ------------------

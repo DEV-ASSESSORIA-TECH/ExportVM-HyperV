@@ -6,6 +6,9 @@ Histórico de versões. Para arquitetura/configuração atual veja [README.md](R
 
 ## Não publicado
 
+- Exclusão persistente por `ExcludeVMId`, com avisos para nomes/IDs ausentes e seleção única da cascata antes da consulta aos discos.
+- Lotes sem VMs elegíveis passam a `SKIPPED`, com justificativa e exclusões no consolidado.
+- Relatórios de falha incluem tentativas, espaço exigido/disponível em GB e log do lote; logs recebem o RunId curto.
 - Auxiliares reorganizados em `Internal/Helpers` e `Internal/Workers`; somente os três scripts de entrada permanecem na raiz da instalação.
 - Atualizadas as referências nos scripts, nos testes, na documentação e no pacote ZIP para preservar a estrutura interna.
 

@@ -41,7 +41,8 @@ foreach ($dir in @($LogDir, $ReportDir)) {
     }
 }
 
-$LogPath = Join-Path $LogDir "Cascade-$((Get-Date).ToString('yyyy-MM-dd_HH-mm-ss')).log"
+$RunId = [guid]::NewGuid().ToString('N')
+$LogPath = Join-Path $LogDir "Cascade-$((Get-Date).ToString('yyyy-MM-dd_HH-mm-ss'))-$($RunId.Substring(0, 8)).log"
 
 function Write-CascadeLog {
     param(
@@ -69,25 +70,24 @@ function New-CascadeHtmlReport {
     $rows = New-Object System.Text.StringBuilder
     $failureRows = New-Object System.Text.StringBuilder
     foreach ($execution in $TierExecutions) {
-        [void]$rows.AppendLine("<tr><td>$(ConvertTo-CascadeHtmlText $execution.TierName)</td><td>$(ConvertTo-CascadeHtmlText $execution.Status)</td><td>$(ConvertTo-CascadeHtmlText $execution.ExitCode)</td><td>$(ConvertTo-CascadeHtmlText $execution.SuccessCount)</td><td>$(ConvertTo-CascadeHtmlText $execution.FailureCount)</td><td>$(ConvertTo-CascadeHtmlText $execution.ResultPath)</td></tr>")
         $result = $execution.Result
+        $skipReason = ''; $tierLogPath = ''
+        if ($null -ne $result) {
+            if ($result.PSObject.Properties.Name -contains 'SkipReason') { $skipReason = [string]$result.SkipReason }
+            if ($result.PSObject.Properties.Name -contains 'LogPath') { $tierLogPath = [string]$result.LogPath }
+        }
+        [void]$rows.AppendLine("<tr><td>$(ConvertTo-CascadeHtmlText $execution.TierName)</td><td>$(ConvertTo-CascadeHtmlText $execution.Status)</td><td>$(ConvertTo-CascadeHtmlText $execution.ExitCode)</td><td>$(ConvertTo-CascadeHtmlText $execution.SuccessCount)</td><td>$(ConvertTo-CascadeHtmlText $execution.FailureCount)</td><td>$(ConvertTo-CascadeHtmlText $skipReason)</td><td>$(ConvertTo-CascadeHtmlText $tierLogPath)</td><td>$(ConvertTo-CascadeHtmlText $execution.ResultPath)</td></tr>")
         if ($null -eq $result) {
             [void]$failureRows.AppendLine("<tr><td>$(ConvertTo-CascadeHtmlText $execution.TierName)</td><td>Lote</td><td>Resultado indisponivel; consulte o log do lote. Codigo de saida: $(ConvertTo-CascadeHtmlText $execution.ExitCode).</td></tr>")
             continue
         }
         if ($result.PSObject.Properties.Name -contains 'Error' -and -not [string]::IsNullOrWhiteSpace($result.Error)) {
-            [void]$failureRows.AppendLine("<tr><td>$(ConvertTo-CascadeHtmlText $execution.TierName)</td><td>Lote</td><td>$(ConvertTo-CascadeHtmlText $result.Error)</td></tr>")
+            [void]$failureRows.AppendLine("<tr><td>$(ConvertTo-CascadeHtmlText $execution.TierName)</td><td>Lote</td><td>$(ConvertTo-CascadeHtmlText ($result.Error + ' | Log do lote: ' + $tierLogPath))</td></tr>")
         }
         if ($result.PSObject.Properties.Name -contains 'VMResults') {
             foreach ($vm in @($result.VMResults | Where-Object { -not $_.Success })) {
-                $details = New-Object System.Collections.Generic.List[string]
-                foreach ($field in @('CurrentStage', 'FailedStage', 'FailureKind', 'Error')) {
-                    if ($vm.PSObject.Properties.Name -contains $field -and -not [string]::IsNullOrWhiteSpace([string]$vm.$field)) {
-                        $details.Add("${field}: $($vm.$field)")
-                    }
-                }
-                if ($details.Count -eq 0) { $details.Add('Motivo indisponivel; consulte o log do lote.') }
-                [void]$failureRows.AppendLine("<tr><td>$(ConvertTo-CascadeHtmlText $execution.TierName)</td><td>$(ConvertTo-CascadeHtmlText $vm.Name)</td><td>$(ConvertTo-CascadeHtmlText ($details -join ' | '))</td></tr>")
+                $details = Format-VMFailureDetails -Result $vm -LogPath $tierLogPath
+                [void]$failureRows.AppendLine("<tr><td>$(ConvertTo-CascadeHtmlText $execution.TierName)</td><td>$(ConvertTo-CascadeHtmlText $vm.Name)</td><td>$(ConvertTo-CascadeHtmlText $details)</td></tr>")
             }
         }
     }
@@ -97,13 +97,27 @@ function New-CascadeHtmlReport {
     $diagnostics = if ($DiagnosticFailures.Count -gt 0) {
         '<h2>Falhas de observabilidade</h2><ul>' + (($DiagnosticFailures | ForEach-Object { '<li>' + (ConvertTo-CascadeHtmlText $_) + '</li>' }) -join '') + '</ul>'
     } else { '' }
+    $selectionHtml = ''
+    $hasSelection = if ($Summary -is [System.Collections.IDictionary]) { $Summary.Contains('SelectionPlan') } else { $Summary.PSObject.Properties.Name -contains 'SelectionPlan' }
+    if ($hasSelection -and $null -ne $Summary.SelectionPlan) {
+        $selection = $Summary.SelectionPlan
+        if (@($selection.Warnings).Count -gt 0) {
+            $selectionHtml += '<h2>Avisos de exclusao</h2><ul>' + (($selection.Warnings | ForEach-Object { '<li>' + (ConvertTo-CascadeHtmlText $_) + '</li>' }) -join '') + '</ul>'
+        }
+        if (@($selection.ExcludedVMs).Count -gt 0) {
+            $selectionHtml += '<h2>VMs ignoradas antes da classificacao</h2><ul>' + (($selection.ExcludedVMs | ForEach-Object {
+                '<li>' + (ConvertTo-CascadeHtmlText ("$($_.Name) | VMId: $($_.VMId) | Regra: $($_.Reason)")) + '</li>'
+            }) -join '') + '</ul>'
+        }
+    }
     return @"
 <!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Cascata Backup Hyper-V</title>
 <style>body{font-family:Segoe UI,Arial,sans-serif;margin:24px;color:#222}table{border-collapse:collapse;width:100%}th,td{border:1px solid #ccc;padding:7px;text-align:left}th{background:#f2f2f2}</style></head>
 <body><h1>Cascata Backup Hyper-V</h1><p>Status: <strong>$(ConvertTo-CascadeHtmlText $Summary.Status)</strong></p>
 <p>BackupSetId: $(ConvertTo-CascadeHtmlText $Summary.BackupSetId)</p>
 $failures
-<table><tr><th>Tier</th><th>Status</th><th>Codigo</th><th>Sucessos</th><th>Falhas</th><th>Resultado</th></tr>$($rows.ToString())</table>
+<table><tr><th>Lote</th><th>Status</th><th>Codigo</th><th>Sucessos</th><th>Falhas</th><th>Justificativa</th><th>Log do lote</th><th>Resultado</th></tr>$($rows.ToString())</table>
+$selectionHtml
 $diagnostics</body></html>
 "@
 }
@@ -185,6 +199,7 @@ if (-not (Test-Path -LiteralPath $ObservabilityHelpersPath -PathType Leaf)) {
 
 $SmtpServer = '192.168.4.10'; $SmtpPort = 25
 $MailFrom = 'alertas@assessoriatech.com'; $MailTo = @('suporte@assessoriatech.com')
+$settings = $null
 if (Test-Path -LiteralPath $SettingsConfigPath -PathType Leaf) {
     try {
         $settings = Get-Content -LiteralPath $SettingsConfigPath -Raw -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop
@@ -220,8 +235,37 @@ $CascadeJsonPath = Join-Path $ReportDir "Cascade-$BackupSetId.json"
 $CascadeHtmlPath = Join-Path $ReportDir "Cascade-$BackupSetId.html"
 $MailSent = $false; $MailError = $null; $NotificationStatus = 'NOT_REQUIRED'
 $cascadeStartedAt = Get-Date
+$selectionPlan = $null
+$selectionWarningCount = 0
+$SelectionPlanPath = Join-Path $ReportDir "Cascade-$BackupSetId.plan.json"
+$planReady = $false
+try {
+    $excludeNames = @(); $excludeIds = @()
+    if (Test-Path -LiteralPath $SettingsConfigPath -PathType Leaf) {
+        if ($null -eq $settings) { throw 'Settings.json invalido; planejamento cancelado para preservar as exclusoes.' }
+        [void](Assert-SettingsSchemaV2 -ConfigObject $settings)
+        if ($settings.PSObject.Properties.Name -contains 'ExcludeVMName') { $excludeNames = @($settings.ExcludeVMName) }
+        if ($settings.PSObject.Properties.Name -contains 'ExcludeVMId') { $excludeIds = @($settings.ExcludeVMId) }
+    }
+    Import-Module Hyper-V -ErrorAction Stop
+    $selectionPlan = New-VMSelectionPlan -AllVMs @(Get-VM -ErrorAction Stop) -TierDefinitions $tierDefinitions `
+        -ExcludeVMName $excludeNames -ExcludeVMId $excludeIds -BackupSetId $BackupSetId
+    Write-JsonSnapshot -Value $selectionPlan -Path $SelectionPlanPath
+    $selectionWarningCount = @($selectionPlan.Warnings).Count
+    foreach ($warning in $selectionPlan.Warnings) { Write-CascadeLog $warning 'WARNING' }
+    $planReady = $true
+}
+catch {
+    $planError = $_.Exception.Message
+    Write-CascadeLog "Falha no planejamento: $planError" 'ERROR'
+    $TierExecutions.Add([pscustomobject]@{
+        TierName = 'PLANEJAMENTO'; Status = 'FAILED'; ExitCode = 1; SuccessCount = 0; FailureCount = 0
+        ResultPath = $SelectionPlanPath; Result = [pscustomobject]@{ Error = $planError; LogPath = $LogPath }
+    })
+}
 
 foreach ($tier in $tierDefinitions.Tiers) {
+    if (-not $planReady) { break }
     Write-CascadeLog ('-' * 74)
     Write-CascadeLog "Lote '$($tier.Name)': iniciando."
     $tierStart = Get-Date
@@ -229,7 +273,7 @@ foreach ($tier in $tierDefinitions.Tiers) {
     $safeTierName = ConvertTo-RepositorySafeName -Name $tier.Name
     $tierResultPath = Join-Path $ReportDir "BackupSet-$BackupSetId-$safeTierName.result.json"
     & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $MainScript -BatchName $tier.Name -Execute `
-        -BackupSetId $BackupSetId -DeferEmail -ResultPath $tierResultPath
+        -BackupSetId $BackupSetId -SelectionPlanPath $SelectionPlanPath -DeferEmail -ResultPath $tierResultPath
     $exitCode = $LASTEXITCODE
 
     $tierDuration = (Get-Date) - $tierStart
@@ -248,7 +292,10 @@ foreach ($tier in $tierDefinitions.Tiers) {
         Duration = $tierDuration.ToString('hh\:mm\:ss'); ResultPath = $tierResultPath; Result = $tierResult
     })
 
-    if ($exitCode -eq 0) {
+    if ($tierStatus -eq 'SKIPPED') {
+        Write-CascadeLog "Lote '$($tier.Name)': SKIPPED. $($tierResult.SkipReason)" 'INFO'
+    }
+    elseif ($exitCode -eq 0) {
         Write-CascadeLog "Lote '$($tier.Name)': concluido com sucesso. Duracao=$($tierDuration.ToString('hh\:mm\:ss'))." 'SUCCESS'
     }
     elseif ($exitCode -eq 2) {
@@ -261,29 +308,31 @@ foreach ($tier in $tierDefinitions.Tiers) {
 
 Write-CascadeLog ('-' * 74)
 $tierExecutionArray = $TierExecutions.ToArray()
-$outcome = Get-NightlyCascadeOutcome -TierExecutions $tierExecutionArray -DiagnosticFailureCount $DiagnosticFailures.Count
+$outcome = Get-NightlyCascadeOutcome -TierExecutions $tierExecutionArray -DiagnosticFailureCount ($DiagnosticFailures.Count + $selectionWarningCount)
 $summary = [ordered]@{
     SchemaVersion = 2; BackupSetId = $BackupSetId; Status = $outcome.Status; ExitCode = $outcome.ExitCode
     StartedAt = $cascadeStartedAt.ToString('o'); FinishedAt = (Get-Date).ToString('o')
     TierExecutions = $tierExecutionArray; DiagnosticFailures = $DiagnosticFailures.ToArray()
+    SelectionPlan = $selectionPlan; SelectionPlanPath = $SelectionPlanPath; RunId = $RunId
     NotificationStatus = $NotificationStatus; MailSent = $MailSent; MailError = $MailError
     LogPath = $LogPath; JsonPath = $CascadeJsonPath; HtmlPath = $CascadeHtmlPath
 }
 $html = Save-CascadeSnapshots -Summary $summary
 
 # Um alerta, somente depois de todos os tiers. Os filhos sempre usam -DeferEmail.
-if ($outcome.ExitCode -eq 1) {
+if ($outcome.ExitCode -eq 1 -or $selectionWarningCount -gt 0) {
     $NotificationStatus = 'PENDING'
     if ([string]::IsNullOrWhiteSpace($html)) {
         try { $html = New-CascadeHtmlReport -Summary $summary }
         catch { Add-UniqueDiagnosticFailure -List $DiagnosticFailures -Message "Falha ao gerar corpo consolidado: $($_.Exception.Message)" }
     }
     if (-not [string]::IsNullOrWhiteSpace($html)) {
-        Send-CascadeEmail -Subject "[FALHA] Backup Hyper-V - $env:COMPUTERNAME - $BackupSetId" -HtmlBody $html
+        $prefix = if ($outcome.ExitCode -eq 1) { '[FALHA]' } else { '[AVISO]' }
+        Send-CascadeEmail -Subject "$prefix Backup Hyper-V - $env:COMPUTERNAME - $BackupSetId" -HtmlBody $html
     }
 }
 
-$outcome = Get-NightlyCascadeOutcome -TierExecutions $tierExecutionArray -DiagnosticFailureCount $DiagnosticFailures.Count
+$outcome = Get-NightlyCascadeOutcome -TierExecutions $tierExecutionArray -DiagnosticFailureCount ($DiagnosticFailures.Count + $selectionWarningCount)
 $summary.Status = $outcome.Status; $summary.ExitCode = $outcome.ExitCode
 $summary.FinishedAt = (Get-Date).ToString('o'); $summary.DiagnosticFailures = $DiagnosticFailures.ToArray()
 $summary.NotificationStatus = $NotificationStatus; $summary.MailSent = $MailSent; $summary.MailError = $MailError

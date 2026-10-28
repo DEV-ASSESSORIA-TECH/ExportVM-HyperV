@@ -9,6 +9,17 @@ $tiersPath = Join-Path $repositoryRoot 'Config\Tiers.json'
 . $tierHelpersPath
 
 Describe 'Configuracao atual' {
+    It 'valida exclusoes por VMId sem aceitar GUID invalido ou vazio' {
+        $settings = Get-Content -LiteralPath $settingsPath -Raw | ConvertFrom-Json
+        $settings.ExcludeVMId = @('11111111-1111-1111-1111-111111111111')
+        Assert-SettingsSchemaV2 -ConfigObject $settings | Should Be $true
+        $settings.ExcludeVMId = @('invalido')
+        { Assert-SettingsSchemaV2 -ConfigObject $settings } | Should Throw 'GUIDs validos'
+        $settings.ExcludeVMId = @([guid]::Empty.ToString())
+        { Assert-SettingsSchemaV2 -ConfigObject $settings } | Should Throw 'GUIDs validos'
+        $settings.ExcludeVMId = '11111111-1111-1111-1111-111111111111'
+        { Assert-SettingsSchemaV2 -ConfigObject $settings } | Should Throw 'lista JSON'
+    }
     It 'valida a lista opcional de exclusoes' {
         $settings = Get-Content -LiteralPath $settingsPath -Raw | ConvertFrom-Json
         @($settings.ExcludeVMName).Count | Should Be 0
@@ -68,8 +79,68 @@ Describe 'Configuracao atual' {
   ],
   "DefaultTier": "SMALL"
 }
+
 '@ | Set-Content -LiteralPath $invalidPath -Encoding UTF8
 
         { Get-TierDefinitions -Path $invalidPath } | Should Throw
+    }
+}
+
+Describe 'Plano unico de selecao e exclusoes antes dos discos' {
+    It 'exclui por VMId apos renomeacao sem consultar discos da VM ignorada' {
+        $vms = @(
+            [pscustomobject]@{ Name = 'NOVO-NOME'; VMId = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa' },
+            [pscustomobject]@{ Name = 'INCLUIDA'; VMId = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb' }
+        )
+        $plan = New-VMSelectionPlan -AllVMs $vms -ExcludeVMId @('{AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA}') -GetSizeAction {
+            param($Name)
+            if ($Name -ne 'INCLUIDA') { throw 'Consultou disco de VM excluida.' }
+            1GB
+        }
+        @($plan.VMs).Count | Should Be 1
+        $plan.VMs[0].Name | Should Be 'INCLUIDA'
+        $plan.ExcludedVMs[0].Reason | Should Be 'ExcludeVMId'
+    }
+
+    It 'usa nomes exatos sem diferenciar maiusculas nem interpretar curingas' {
+        $vms = @(
+            [pscustomobject]@{ Name = 'VM-TESTE'; VMId = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa' },
+            [pscustomobject]@{ Name = 'VM-TESTE-2'; VMId = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb' }
+        )
+        $plan = New-VMSelectionPlan -AllVMs $vms -ExcludeVMName @('vm-teste', 'VM-*') -GetSizeAction { param($Name) 1GB }
+        @($plan.VMs).Count | Should Be 1
+        $plan.VMs[0].Name | Should Be 'VM-TESTE-2'
+        @($plan.Warnings).Count | Should Be 1
+        $plan.Warnings[0] | Should Match 'nao encontrada no host'
+    }
+
+    It 'mantem exclusao mesmo quando VMName solicita a VM explicitamente' {
+        $vms = @([pscustomobject]@{ Name = 'EXCLUIDA'; VMId = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa' })
+        $plan = New-VMSelectionPlan -AllVMs $vms -RequestedNames EXCLUIDA -ExcludeVMName EXCLUIDA -GetSizeAction { throw 'Nao deve consultar discos.' }
+        @($plan.VMs).Count | Should Be 0
+        @($plan.ExcludedVMs).Count | Should Be 1
+    }
+
+    It 'persiste lotes uma vez e resolve por VMId mesmo com renomeacao posterior' {
+        $definitions = Get-TierDefinitions -Path $tiersPath
+        $vms = @(
+            [pscustomobject]@{ Name = 'PEQUENA'; VMId = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa' },
+            [pscustomobject]@{ Name = 'GRANDE'; VMId = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb' }
+        )
+        $plan = New-VMSelectionPlan -AllVMs $vms -TierDefinitions $definitions -GetSizeAction {
+            param($Name)
+            if ($Name -eq 'PEQUENA') { 1GB } else { 100GB }
+        }
+        $plan = $plan | ConvertTo-Json -Depth 10 | ConvertFrom-Json
+        $vms[0].Name = 'RENOMEADA'
+        $small = @(Resolve-VMSelectionPlan -Plan $plan -AllVMs $vms -BatchName SMALL)
+        $big = @(Resolve-VMSelectionPlan -Plan $plan -AllVMs $vms -BatchName BIG)
+        $small.Count | Should Be 1
+        $small[0].Name | Should Be 'RENOMEADA'
+        $small[0].SourceBytes | Should Be 1GB
+        $big.Count | Should Be 1
+        $big[0].Name | Should Be 'GRANDE'
+        @(Resolve-VMSelectionPlan -Plan $plan -AllVMs $vms -BatchName MEDIUM).Count | Should Be 0
+        { Resolve-VMSelectionPlan -Plan $plan -AllVMs @() -BatchName SMALL } | Should Throw 'VM do plano nao encontrada'
     }
 }

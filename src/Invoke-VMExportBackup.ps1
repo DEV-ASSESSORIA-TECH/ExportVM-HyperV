@@ -14,6 +14,11 @@ param(
 
     [string[]]$ExcludeVMName = @(),
 
+    [string[]]$ExcludeVMId = @(),
+
+    # Plano persistido pelo wrapper; fixa a selecao e o lote durante a cascata.
+    [string]$SelectionPlanPath,
+
     [string]$BatchName,
 
     # Passado pelo wrapper Invoke-CascadeBackup.ps1 para que os lotes de uma mesma
@@ -59,8 +64,8 @@ param(
 
     [string[]]$MailTo = @('suporte@assessoriatech.com'),
 
-    # O e-mail direto dispara em FAILED/PARTIAL_SUCCESS (SUCCESS/PLAN
-    # ficam silenciosos por padrao). -SkipEmail passou a significar "forcar silencio
+    # O e-mail direto dispara em FAILED/PARTIAL_SUCCESS e em avisos de exclusao
+    # nas execucoes reais. PLAN fica silencioso. -SkipEmail significa "forcar silencio
     # mesmo em falha", util para testes manuais onde uma falha e esperada.
     [switch]$SkipEmail,
 
@@ -104,9 +109,10 @@ $TiersConfigPath = Join-Path $ConfigDir 'Tiers.json'
 $Timestamp = $RunStart.ToString('yyyy-MM-dd_HH-mm-ss')
 $logBatch = if (-not [string]::IsNullOrWhiteSpace($BatchName)) { $BatchName } elseif ($VMName) { 'ADHOC' } else { 'ALL' }
 $logBatch = [regex]::Replace($logBatch, '[^A-Za-z0-9_-]', '_')
-$LogPath = Join-Path $LogDir "$logBatch-$Timestamp.log"
-$JsonPath = Join-Path $ReportDir "$logBatch-$Timestamp.json"
-$HtmlPath = Join-Path $ReportDir "$logBatch-$Timestamp.html"
+$artifactName = "$logBatch-$Timestamp-$($RunId.Substring(0, 8))"
+$LogPath = Join-Path $LogDir "$artifactName.log"
+$JsonPath = Join-Path $ReportDir "$artifactName.json"
+$HtmlPath = Join-Path $ReportDir "$artifactName.html"
 if (-not [string]::IsNullOrWhiteSpace($ResultPath)) {
     $JsonPath = [System.IO.Path]::GetFullPath($ResultPath)
     $HtmlPath = [System.IO.Path]::ChangeExtension($JsonPath, '.html')
@@ -138,6 +144,9 @@ $VMResults = New-Object System.Collections.Generic.List[object]
 $DeletedRestorePoints = New-Object System.Collections.Generic.List[string]
 $SelectedVMs = @()
 $ExcludedVMs = @()
+$ExcludedVMDetails = @()
+$SelectionWarnings = @()
+$SkipReason = $null
 $InitialFreeGB = $null
 $FinalFreeGB = $null
 $RepositoryPublished = $false
@@ -527,49 +536,35 @@ function Remove-Lock {
     }
 }
 
-function Select-IncludedVMs {
-    param([object[]]$Candidates = @())
-
-    $script:ExcludedVMs = @($Candidates | Where-Object { $ExcludeVMName -icontains $_.Name } | Select-Object -ExpandProperty Name)
-    foreach ($name in $script:ExcludedVMs) {
-        Write-Log "VM ignorada por ExcludeVMName: $name."
-    }
-    return @($Candidates | Where-Object { $ExcludeVMName -inotcontains $_.Name })
-}
-
 function Get-SelectedVMs {
     $all = @(Get-VM -ErrorAction Stop | Sort-Object Name)
-    if ($all.Count -eq 0) { throw 'Nenhuma VM encontrada no host.' }
-
-    # Tamanho e lote sao calculados para TODA VM do host, independente do modo de
-    # selecao, para que o inventario (HostInventory.json/VMResults) sempre reflita a
-    # classificacao natural de cada VM, mesmo quando -VMName escolhe um subconjunto.
-    foreach ($vm in $all) {
-        $sizeBytes = Get-VMSourceSize -Name $vm.Name
-        $tierName = if ($null -ne $TierDefinitions) { Resolve-VMTier -SizeBytes $sizeBytes -TierDefinitions $TierDefinitions } else { $null }
-        Add-Member -InputObject $vm -NotePropertyName 'SourceBytes' -NotePropertyValue $sizeBytes -Force
-        Add-Member -InputObject $vm -NotePropertyName 'Tier' -NotePropertyValue $tierName -Force
-    }
-
-    if ($null -ne $VMName -and $VMName.Count -gt 0) {
-        $selected = New-Object System.Collections.Generic.List[object]
-        foreach ($name in $VMName) {
-            $vm = $all | Where-Object { $_.Name -ieq $name } | Select-Object -First 1
-            if ($null -eq $vm) { throw "VM solicitada nao encontrada: $name" }
-            $selected.Add($vm)
+    if (-not [string]::IsNullOrWhiteSpace($SelectionPlanPath)) {
+        $plan = Get-Content -LiteralPath $SelectionPlanPath -Raw -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop
+        if ($plan.BackupSetId -ne $BackupSetId -or $plan.ComputerName -ne $env:COMPUTERNAME) {
+            throw 'Plano de selecao pertence a outro BackupSetId ou host.'
         }
-        return @(Select-IncludedVMs -Candidates @($selected | Sort-Object Name))
     }
-
-    if ($EffectiveBatchName -eq 'ALL') {
-        return @(Select-IncludedVMs -Candidates $all)
+    else {
+        $plan = New-VMSelectionPlan -AllVMs $all -TierDefinitions $TierDefinitions -ExcludeVMName $ExcludeVMName `
+            -ExcludeVMId $ExcludeVMId -RequestedNames $VMName -BackupSetId $BackupSetId
     }
-
-    $matched = @($all | Where-Object { $_.Tier -eq $EffectiveBatchName })
-    if ($matched.Count -eq 0) {
-        throw "Nenhuma VM do host se enquadra no lote '$EffectiveBatchName' com os limiares atuais de $TiersConfigPath."
+    $script:ExcludedVMDetails = @($plan.ExcludedVMs)
+    $script:SelectionWarnings = @($plan.Warnings)
+    $script:ExcludedVMs = @($plan.ExcludedVMs | Select-Object -ExpandProperty Name)
+    foreach ($entry in $script:ExcludedVMDetails) { Write-Log "VM ignorada por $($entry.Reason): $($entry.Name) | VMId=$($entry.VMId)." }
+    foreach ($message in $plan.Warnings) {
+        $Warnings.Add([string]$message)
+        Write-Log $message 'WARNING'
     }
-    return @(Select-IncludedVMs -Candidates @($matched | Sort-Object Name))
+    $selected = @(Resolve-VMSelectionPlan -Plan $plan -AllVMs $all -BatchName $EffectiveBatchName)
+    if ($selected.Count -eq 0) {
+        $script:SkipReason = if (@($plan.VMs).Count -eq 0 -and $script:ExcludedVMs.Count -gt 0) {
+            "Todas as VMs selecionadas foram excluidas antes da classificacao ($($script:ExcludedVMs.Count) VM(s))."
+        } else {
+            "Nenhuma VM elegivel para o lote '$EffectiveBatchName' no plano. VMs excluidas antes da classificacao: $($script:ExcludedVMs.Count)."
+        }
+    }
+    return $selected
 }
 
 function Write-HostInventory {
@@ -703,7 +698,7 @@ function New-HtmlReport {
             [void]$failureRows.AppendLine('<tr>')
             [void]$failureRows.AppendLine("<td>$(ConvertTo-HtmlText $item.Name)</td>")
             [void]$failureRows.AppendLine("<td>$(ConvertTo-HtmlText $item.Attempts)</td>")
-            [void]$failureRows.AppendLine("<td>$(ConvertTo-HtmlText $item.Error)</td>")
+            [void]$failureRows.AppendLine("<td>$(ConvertTo-HtmlText (Format-VMFailureDetails -Result $item -LogPath $LogPath))</td>")
             [void]$failureRows.AppendLine('</tr>')
         }
 
@@ -769,6 +764,7 @@ $failureSummaryHtml
 <tr><th>Ponto publicado</th><td>$(ConvertTo-HtmlText $Summary.RestorePointPath)</td></tr>
 <tr><th>VMs</th><td>$(ConvertTo-HtmlText $Summary.VMCount)</td></tr>
 <tr><th>VMs ignoradas</th><td>$(ConvertTo-HtmlText ($ExcludedVMs -join ', '))</td></tr>
+<tr><th>Justificativa de lote ignorado</th><td>$(ConvertTo-HtmlText $SkipReason)</td></tr>
 <tr><th>Sucessos</th><td>$(ConvertTo-HtmlText $Summary.SuccessCount)</td></tr>
 <tr><th>Falhas</th><td>$(ConvertTo-HtmlText $Summary.FailureCount)</td></tr>
 <tr><th>Livre antes</th><td>$(ConvertTo-HtmlText $Summary.InitialFreeGB) GB</td></tr>
@@ -1126,6 +1122,10 @@ function Invoke-BackupExecutionV2 {
             }
         }
 
+        $availableFreeGB = [math]::Round(($space.FinalFreeBytes / 1GB), 2)
+        if (-not $result.Success) { try { $availableFreeGB = Get-FreeGB } catch { } }
+        $result | Add-Member -NotePropertyName RequiredFreeGB -NotePropertyValue ([math]::Round(($space.RequiredFreeBytes / 1GB), 2)) -Force
+        $result | Add-Member -NotePropertyName AvailableFreeGB -NotePropertyValue $availableFreeGB -Force
         $result | Add-Member -NotePropertyName BackupSetId -NotePropertyValue $BackupSetId -Force
         $result | Add-Member -NotePropertyName RunId -NotePropertyValue $RunId -Force
         if ($result.Success) {
@@ -1238,7 +1238,7 @@ $ConfigurableSettingNames = @(
     'BackupDrive', 'ExpectedVolumeLabel', 'RepositoryFolder', 'CompressionLevel',
     'HeartbeatSeconds', 'ExportTimeoutHours', 'CompressionTimeoutHours', 'IntegrityTimeoutHours',
     'MinFreeGB', 'RetryCount', 'FailedPayloadKeepPerVM', 'SevenZipPath',
-    'SmtpServer', 'SmtpPort', 'MailFrom', 'MailTo', 'SkipHash', 'KeepRestorePoints', 'ExcludeVMName'
+    'SmtpServer', 'SmtpPort', 'MailFrom', 'MailTo', 'SkipHash', 'KeepRestorePoints', 'ExcludeVMName', 'ExcludeVMId'
 )
 
 function Merge-ConfiguredDefaults {
@@ -1375,11 +1375,11 @@ try {
         $ExitCode = 0
         Write-Log 'Plano validado. Nenhuma exportacao ou exclusao foi executada.' 'SUCCESS'
     }
-    elseif ($SelectedVMs.Count -eq 0 -and $ExcludedVMs.Count -gt 0) {
-        $OverallStatus = 'SUCCESS'
+    elseif ($SelectedVMs.Count -eq 0) {
+        $OverallStatus = 'SKIPPED'
         $ExitCode = 0
         $FinalPoint = $null
-        Write-Log 'Todas as VMs selecionadas foram ignoradas por configuracao. Nenhum backup ou retencao executado.' 'SUCCESS'
+        Write-Log "$SkipReason Nenhum backup ou retencao executado." 'INFO'
     }
     else {
         Invoke-BackupExecutionV2
@@ -1443,12 +1443,13 @@ finally {
         $OverallStatus = if ($successCount -gt 0) { 'PARTIAL_SUCCESS' } else { 'FAILED' }
         $ExitCode = 1
     }
-    else {
+    elseif ($OverallStatus -notin @('SKIPPED', 'PLAN')) {
         $outcome = Get-BackupOutcome -VMResults $vmResultArray -WarningCount ($Warnings.Count + $DiagnosticFailures.Count)
         $OverallStatus = $outcome.Status
         $ExitCode = $outcome.ExitCode
     }
 
+    if ($OverallStatus -eq 'SKIPPED' -and ($Warnings.Count + $DiagnosticFailures.Count) -gt 0) { $ExitCode = 2 }
     $summary = [ordered]@{
         SchemaVersion = 2
         RunId = $RunId
@@ -1457,6 +1458,7 @@ finally {
         BatchName = $EffectiveBatchName
         BackupSetId = $BackupSetId
         Status = $OverallStatus
+        ExitCode = $ExitCode
         Mode = $Mode
         StartTime = $RunStart.ToString('yyyy-MM-dd HH:mm:ss')
         EndTime = $end.ToString('yyyy-MM-dd HH:mm:ss')
@@ -1468,6 +1470,10 @@ finally {
         RepositoryPublished = $RepositoryPublished
         VMCount = $SelectedVMs.Count
         ExcludedVMs = @($ExcludedVMs)
+        ExcludedVMDetails = @($ExcludedVMDetails)
+        SkipReason = $SkipReason
+        SelectionPlanPath = $SelectionPlanPath
+        SelectionWarnings = @($SelectionWarnings)
         SuccessCount = $successCount
         FailureCount = $failureCount
         InitialFreeGB = $InitialFreeGB
@@ -1494,6 +1500,7 @@ finally {
         'SUCCESS' { '[SUCESSO]' }
         'SUCCESS_WITH_WARNINGS' { '[AVISO]' }
         'PLAN' { '[PLANO]' }
+        'SKIPPED' { '[AVISO]' }
         default { '[FALHA]' }
     }
     $batchLabel = if ([string]::IsNullOrWhiteSpace($EffectiveBatchName)) { 'DESCONHECIDO' } else { $EffectiveBatchName }
@@ -1503,7 +1510,7 @@ finally {
         $NotificationStatus = 'DEFERRED_TO_WRAPPER'
         Write-Log 'E-mail adiado para consolidacao pelo wrapper.'
     }
-    elseif ($OverallStatus -in @('FAILED', 'PARTIAL_SUCCESS')) {
+    elseif ($OverallStatus -in @('FAILED', 'PARTIAL_SUCCESS') -or ($Execute -and $SelectionWarnings.Count -gt 0)) {
         if ([string]::IsNullOrWhiteSpace($html)) {
             try { $html = New-HtmlReport -Summary $summary }
             catch { Add-UniqueDiagnosticFailure -List $DiagnosticFailures -Message "Falha ao gerar corpo do e-mail: $($_.Exception.Message)" }
@@ -1519,12 +1526,14 @@ finally {
 
     # SMTP e a primeira gravacao de relatorio podem adicionar diagnosticos. Recalcula
     # somente estados sem falha de backup; codigo 1 sempre prevalece.
-    if (-not $backupFailed) {
+    if (-not $backupFailed -and $OverallStatus -notin @('SKIPPED', 'PLAN')) {
         $outcome = Get-BackupOutcome -VMResults $vmResultArray -WarningCount ($Warnings.Count + $DiagnosticFailures.Count)
         $OverallStatus = $outcome.Status
         $ExitCode = $outcome.ExitCode
     }
+    if ($OverallStatus -eq 'SKIPPED' -and ($Warnings.Count + $DiagnosticFailures.Count) -gt 0) { $ExitCode = 2 }
     $summary.Status = $OverallStatus
+    $summary.ExitCode = $ExitCode
     $summary.MailSent = $MailSent
     $summary.MailError = $MailError
     $summary.NotificationStatus = $NotificationStatus

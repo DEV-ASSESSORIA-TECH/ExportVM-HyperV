@@ -68,10 +68,17 @@ foreach ($tier in $tierDefinitions.Tiers) { $vmCountByTier[$tier.Name] = 0 }
 
 try {
     Import-Module Hyper-V -ErrorAction Stop
-    $allVMs = @(Get-VM -ErrorAction Stop)
-    foreach ($vm in $allVMs) {
-        $sizeBytes = Get-VMSourceSize -Name $vm.Name
-        $tierName = Resolve-VMTier -SizeBytes $sizeBytes -TierDefinitions $tierDefinitions
+    $excludeNames = @(); $excludeIds = @()
+    if ($null -ne $settingsConfig) {
+        [void](Assert-SettingsSchemaV2 -ConfigObject $settingsConfig)
+        if ($settingsConfig.PSObject.Properties.Name -contains 'ExcludeVMName') { $excludeNames = @($settingsConfig.ExcludeVMName) }
+        if ($settingsConfig.PSObject.Properties.Name -contains 'ExcludeVMId') { $excludeIds = @($settingsConfig.ExcludeVMId) }
+    }
+    $plan = New-VMSelectionPlan -AllVMs @(Get-VM -ErrorAction Stop) -TierDefinitions $tierDefinitions `
+        -ExcludeVMName $excludeNames -ExcludeVMId $excludeIds
+    foreach ($message in $plan.Warnings) { Write-Warning $message }
+    foreach ($vm in $plan.VMs) {
+        $tierName = $vm.Tier
         if ($vmCountByTier.ContainsKey($tierName)) {
             $vmCountByTier[$tierName]++
         }
