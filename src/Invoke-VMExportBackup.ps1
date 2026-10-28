@@ -12,6 +12,8 @@ param(
 
     [string[]]$VMName,
 
+    [string[]]$ExcludeVMName = @(),
+
     [string]$BatchName,
 
     # Passado pelo wrapper Invoke-CascadeBackup.ps1 para que os lotes de uma mesma
@@ -87,22 +89,24 @@ $LogDir = Join-Path $ScriptRoot 'Logs'
 $ReportDir = Join-Path $ScriptRoot 'Reports'
 $LockDir = Join-Path $ScriptRoot 'Locks'
 $ConfigDir = Join-Path $ScriptRoot 'Config'
-$WorkerPath = Join-Path $ScriptRoot 'Export-VMWorker.ps1'
-$HashWorkerPath = Join-Path $ScriptRoot 'Get-FileHashWorker.ps1'
-$TierHelpersPath = Join-Path $ScriptRoot 'TierHelpers.ps1'
-$RepositoryHelpersPath = Join-Path $ScriptRoot 'RepositoryHelpers.ps1'
-$RetentionHelpersPath = Join-Path $ScriptRoot 'RetentionHelpers.ps1'
-$SpaceHelpersPath = Join-Path $ScriptRoot 'SpaceHelpers.ps1'
-$FailureHelpersPath = Join-Path $ScriptRoot 'FailureClassificationHelpers.ps1'
-$TransactionHelpersPath = Join-Path $ScriptRoot 'VMTransactionHelpers.ps1'
-$PublishingHelpersPath = Join-Path $ScriptRoot 'PublishingHelpers.ps1'
-$ObservabilityHelpersPath = Join-Path $ScriptRoot 'ObservabilityHelpers.ps1'
+$WorkerPath = Join-Path $ScriptRoot 'Internal\Workers\Export-VMWorker.ps1'
+$HashWorkerPath = Join-Path $ScriptRoot 'Internal\Workers\Get-FileHashWorker.ps1'
+$TierHelpersPath = Join-Path $ScriptRoot 'Internal\Helpers\TierHelpers.ps1'
+$RepositoryHelpersPath = Join-Path $ScriptRoot 'Internal\Helpers\RepositoryHelpers.ps1'
+$RetentionHelpersPath = Join-Path $ScriptRoot 'Internal\Helpers\RetentionHelpers.ps1'
+$SpaceHelpersPath = Join-Path $ScriptRoot 'Internal\Helpers\SpaceHelpers.ps1'
+$FailureHelpersPath = Join-Path $ScriptRoot 'Internal\Helpers\FailureClassificationHelpers.ps1'
+$TransactionHelpersPath = Join-Path $ScriptRoot 'Internal\Helpers\VMTransactionHelpers.ps1'
+$PublishingHelpersPath = Join-Path $ScriptRoot 'Internal\Helpers\PublishingHelpers.ps1'
+$ObservabilityHelpersPath = Join-Path $ScriptRoot 'Internal\Helpers\ObservabilityHelpers.ps1'
 $SettingsConfigPath = Join-Path $ConfigDir 'Settings.json'
 $TiersConfigPath = Join-Path $ConfigDir 'Tiers.json'
 $Timestamp = $RunStart.ToString('yyyy-MM-dd_HH-mm-ss')
-$LogPath = Join-Path $LogDir "VMExportBackup-$Timestamp.log"
-$JsonPath = Join-Path $ReportDir "VMExportBackup-$Timestamp.json"
-$HtmlPath = Join-Path $ReportDir "VMExportBackup-$Timestamp.html"
+$logBatch = if (-not [string]::IsNullOrWhiteSpace($BatchName)) { $BatchName } elseif ($VMName) { 'ADHOC' } else { 'ALL' }
+$logBatch = [regex]::Replace($logBatch, '[^A-Za-z0-9_-]', '_')
+$LogPath = Join-Path $LogDir "$logBatch-$Timestamp.log"
+$JsonPath = Join-Path $ReportDir "$logBatch-$Timestamp.json"
+$HtmlPath = Join-Path $ReportDir "$logBatch-$Timestamp.html"
 if (-not [string]::IsNullOrWhiteSpace($ResultPath)) {
     $JsonPath = [System.IO.Path]::GetFullPath($ResultPath)
     $HtmlPath = [System.IO.Path]::ChangeExtension($JsonPath, '.html')
@@ -133,6 +137,7 @@ $Warnings = New-Object System.Collections.Generic.List[string]
 $VMResults = New-Object System.Collections.Generic.List[object]
 $DeletedRestorePoints = New-Object System.Collections.Generic.List[string]
 $SelectedVMs = @()
+$ExcludedVMs = @()
 $InitialFreeGB = $null
 $FinalFreeGB = $null
 $RepositoryPublished = $false
@@ -522,6 +527,16 @@ function Remove-Lock {
     }
 }
 
+function Select-IncludedVMs {
+    param([object[]]$Candidates = @())
+
+    $script:ExcludedVMs = @($Candidates | Where-Object { $ExcludeVMName -icontains $_.Name } | Select-Object -ExpandProperty Name)
+    foreach ($name in $script:ExcludedVMs) {
+        Write-Log "VM ignorada por ExcludeVMName: $name."
+    }
+    return @($Candidates | Where-Object { $ExcludeVMName -inotcontains $_.Name })
+}
+
 function Get-SelectedVMs {
     $all = @(Get-VM -ErrorAction Stop | Sort-Object Name)
     if ($all.Count -eq 0) { throw 'Nenhuma VM encontrada no host.' }
@@ -543,18 +558,18 @@ function Get-SelectedVMs {
             if ($null -eq $vm) { throw "VM solicitada nao encontrada: $name" }
             $selected.Add($vm)
         }
-        return @($selected | Sort-Object Name)
+        return @(Select-IncludedVMs -Candidates @($selected | Sort-Object Name))
     }
 
     if ($EffectiveBatchName -eq 'ALL') {
-        return $all
+        return @(Select-IncludedVMs -Candidates $all)
     }
 
     $matched = @($all | Where-Object { $_.Tier -eq $EffectiveBatchName })
     if ($matched.Count -eq 0) {
         throw "Nenhuma VM do host se enquadra no lote '$EffectiveBatchName' com os limiares atuais de $TiersConfigPath."
     }
-    return @($matched | Sort-Object Name)
+    return @(Select-IncludedVMs -Candidates @($matched | Sort-Object Name))
 }
 
 function Write-HostInventory {
@@ -753,6 +768,7 @@ $failureSummaryHtml
 <tr><th>Destino</th><td>$(ConvertTo-HtmlText $RepositoryRoot)</td></tr>
 <tr><th>Ponto publicado</th><td>$(ConvertTo-HtmlText $Summary.RestorePointPath)</td></tr>
 <tr><th>VMs</th><td>$(ConvertTo-HtmlText $Summary.VMCount)</td></tr>
+<tr><th>VMs ignoradas</th><td>$(ConvertTo-HtmlText ($ExcludedVMs -join ', '))</td></tr>
 <tr><th>Sucessos</th><td>$(ConvertTo-HtmlText $Summary.SuccessCount)</td></tr>
 <tr><th>Falhas</th><td>$(ConvertTo-HtmlText $Summary.FailureCount)</td></tr>
 <tr><th>Livre antes</th><td>$(ConvertTo-HtmlText $Summary.InitialFreeGB) GB</td></tr>
@@ -1216,12 +1232,13 @@ function Invoke-BackupExecutionV2 {
 # Nomes de parametro elegiveis para receber valor default de Config\Settings.json
 # quando nao informados explicitamente na linha de comando. Switches de escopo/seguranca
 # (-Execute, -VMName, -BatchName, -SkipEmail) ficam de fora de proposito: um JSON nao deve
-# poder ligar execucao real, mudar quais VMs sao processadas ou resuprimir e-mail de falha.
+# poder ligar execucao real, ampliar a selecao ou resuprimir e-mail de falha.
+# ExcludeVMName e uma exclusao persistente intencional e pode vir do JSON.
 $ConfigurableSettingNames = @(
     'BackupDrive', 'ExpectedVolumeLabel', 'RepositoryFolder', 'CompressionLevel',
     'HeartbeatSeconds', 'ExportTimeoutHours', 'CompressionTimeoutHours', 'IntegrityTimeoutHours',
     'MinFreeGB', 'RetryCount', 'FailedPayloadKeepPerVM', 'SevenZipPath',
-    'SmtpServer', 'SmtpPort', 'MailFrom', 'MailTo', 'SkipHash', 'KeepRestorePoints'
+    'SmtpServer', 'SmtpPort', 'MailFrom', 'MailTo', 'SkipHash', 'KeepRestorePoints', 'ExcludeVMName'
 )
 
 function Merge-ConfiguredDefaults {
@@ -1358,6 +1375,12 @@ try {
         $ExitCode = 0
         Write-Log 'Plano validado. Nenhuma exportacao ou exclusao foi executada.' 'SUCCESS'
     }
+    elseif ($SelectedVMs.Count -eq 0 -and $ExcludedVMs.Count -gt 0) {
+        $OverallStatus = 'SUCCESS'
+        $ExitCode = 0
+        $FinalPoint = $null
+        Write-Log 'Todas as VMs selecionadas foram ignoradas por configuracao. Nenhum backup ou retencao executado.' 'SUCCESS'
+    }
     else {
         Invoke-BackupExecutionV2
     }
@@ -1444,6 +1467,7 @@ finally {
         RestorePointPath = if ($Execute) { $FinalPoint } else { $null }
         RepositoryPublished = $RepositoryPublished
         VMCount = $SelectedVMs.Count
+        ExcludedVMs = @($ExcludedVMs)
         SuccessCount = $successCount
         FailureCount = $failureCount
         InitialFreeGB = $InitialFreeGB

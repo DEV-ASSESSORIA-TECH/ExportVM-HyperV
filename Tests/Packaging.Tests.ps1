@@ -28,6 +28,34 @@ Describe 'Pacote de release' {
 
         $entries -contains 'VM-Export-Backup-2.0.3\Invoke-VMExportBackup.ps1' | Should Be $true
         $entries -contains 'VM-Export-Backup-2.0.3\Config\Settings.json' | Should Be $true
+        $entryPoints = @('Invoke-VMExportBackup.ps1', 'Invoke-CascadeBackup.ps1', 'Install-VMExportBackupTask.ps1')
+        $rootScripts = @($entries | Where-Object { $_ -match '^VM-Export-Backup-2\.0\.3\\[^\\]+\.ps1$' })
+        $rootScripts.Count | Should Be 3
+        foreach ($entryPoint in $entryPoints) {
+            $entries -contains "VM-Export-Backup-2.0.3\$entryPoint" | Should Be $true
+        }
+        $internalFiles = @(Get-ChildItem -LiteralPath (Join-Path $projectRoot 'src\Internal') -File -Recurse -Filter '*.ps1')
+        $internalFiles.Count | Should Be 11
+        foreach ($internalFile in $internalFiles) {
+            $relative = $internalFile.FullName.Substring((Join-Path $projectRoot 'src').Length + 1)
+            $entries -contains "VM-Export-Backup-2.0.3\$relative" | Should Be $true
+        }
+        $extractRoot = Join-Path $TestDrive 'extracted'
+        [System.IO.Compression.ZipFile]::ExtractToDirectory($result.ArchivePath, $extractRoot)
+        $installedRoot = Join-Path $extractRoot 'VM-Export-Backup-2.0.3'
+        foreach ($entryPoint in $entryPoints) {
+            $source = Get-Content -LiteralPath (Join-Path $installedRoot $entryPoint) -Raw
+            $references = [regex]::Matches($source, "'(Internal\\[^']+\.ps1)'")
+            $references.Count | Should BeGreaterThan 0
+            foreach ($reference in $references) {
+                Test-Path -LiteralPath (Join-Path $installedRoot $reference.Groups[1].Value) -PathType Leaf | Should Be $true
+            }
+        }
+        foreach ($scriptFile in @(Get-ChildItem -LiteralPath $installedRoot -File -Recurse -Filter '*.ps1')) {
+            $tokens = $null; $parseErrors = $null
+            [void][System.Management.Automation.Language.Parser]::ParseFile($scriptFile.FullName, [ref]$tokens, [ref]$parseErrors)
+            $parseErrors.Count | Should Be 0
+        }
         @($entries | Where-Object { $_ -match '\\Tests\\|\\scripts\\|\.github' }).Count | Should Be 0
     }
 

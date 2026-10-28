@@ -1,14 +1,24 @@
-$here = Split-Path -Parent $MyInvocation.MyCommand.Path
+﻿$here = Split-Path -Parent $MyInvocation.MyCommand.Path
 . (Join-Path $here 'TestHelpers.ps1')
 
 $repositoryRoot = Get-RepositoryRoot
-$tierHelpersPath = Join-Path $repositoryRoot 'TierHelpers.ps1'
+$tierHelpersPath = Join-Path $repositoryRoot 'Internal\Helpers\TierHelpers.ps1'
 $settingsPath = Join-Path $repositoryRoot 'Config\Settings.json'
 $tiersPath = Join-Path $repositoryRoot 'Config\Tiers.json'
 
 . $tierHelpersPath
 
 Describe 'Configuracao atual' {
+    It 'valida a lista opcional de exclusoes' {
+        $settings = Get-Content -LiteralPath $settingsPath -Raw | ConvertFrom-Json
+        @($settings.ExcludeVMName).Count | Should Be 0
+        $settings.ExcludeVMName = @('VM-TESTE')
+        Assert-SettingsSchemaV2 -ConfigObject $settings | Should Be $true
+        $settings.ExcludeVMName = 'VM-TESTE'
+        { Assert-SettingsSchemaV2 -ConfigObject $settings } | Should Throw 'lista JSON'
+        $settings.ExcludeVMName = @('')
+        { Assert-SettingsSchemaV2 -ConfigObject $settings } | Should Throw 'nao vazios'
+    }
     It 'carrega Settings.json com o schema e defaults da v2.0' {
         $settings = Get-Content -LiteralPath $settingsPath -Raw | ConvertFrom-Json
 

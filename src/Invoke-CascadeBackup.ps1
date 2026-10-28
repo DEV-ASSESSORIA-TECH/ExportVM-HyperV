@@ -1,4 +1,4 @@
-#requires -Version 5.1
+﻿#requires -Version 5.1
 #requires -RunAsAdministrator
 
 <#
@@ -11,7 +11,7 @@
 
     Chamado uma vez por noite pela tarefa agendada unica criada por
     Install-VMExportBackupTask.ps1. Uma falha num lote nao impede os seguintes de
-    rodar - cada lote ja alerta por e-mail individualmente (ver Invoke-VMExportBackup.ps1).
+    rodar. O wrapper envia um unico alerta consolidado com os motivos das falhas.
     O exit code deste wrapper so serve para o LastTaskResult do Agendador do Windows.
 #>
 
@@ -24,9 +24,9 @@ $ErrorActionPreference = 'Stop'
 $ScriptPath = if (-not [string]::IsNullOrWhiteSpace($PSCommandPath)) { $PSCommandPath } else { $MyInvocation.MyCommand.Path }
 $ScriptRoot = Split-Path -Parent $ScriptPath
 $MainScript = Join-Path $ScriptRoot 'Invoke-VMExportBackup.ps1'
-$TierHelpersPath = Join-Path $ScriptRoot 'TierHelpers.ps1'
-$RepositoryHelpersPath = Join-Path $ScriptRoot 'RepositoryHelpers.ps1'
-$ObservabilityHelpersPath = Join-Path $ScriptRoot 'ObservabilityHelpers.ps1'
+$TierHelpersPath = Join-Path $ScriptRoot 'Internal\Helpers\TierHelpers.ps1'
+$RepositoryHelpersPath = Join-Path $ScriptRoot 'Internal\Helpers\RepositoryHelpers.ps1'
+$ObservabilityHelpersPath = Join-Path $ScriptRoot 'Internal\Helpers\ObservabilityHelpers.ps1'
 $TiersConfigPath = Join-Path $ScriptRoot 'Config\Tiers.json'
 $SettingsConfigPath = Join-Path $ScriptRoot 'Config\Settings.json'
 $LogDir = Join-Path $ScriptRoot 'Logs'
@@ -67,9 +67,33 @@ function New-CascadeHtmlReport {
     param([Parameter(Mandatory = $true)]$Summary)
 
     $rows = New-Object System.Text.StringBuilder
+    $failureRows = New-Object System.Text.StringBuilder
     foreach ($execution in $TierExecutions) {
         [void]$rows.AppendLine("<tr><td>$(ConvertTo-CascadeHtmlText $execution.TierName)</td><td>$(ConvertTo-CascadeHtmlText $execution.Status)</td><td>$(ConvertTo-CascadeHtmlText $execution.ExitCode)</td><td>$(ConvertTo-CascadeHtmlText $execution.SuccessCount)</td><td>$(ConvertTo-CascadeHtmlText $execution.FailureCount)</td><td>$(ConvertTo-CascadeHtmlText $execution.ResultPath)</td></tr>")
+        $result = $execution.Result
+        if ($null -eq $result) {
+            [void]$failureRows.AppendLine("<tr><td>$(ConvertTo-CascadeHtmlText $execution.TierName)</td><td>Lote</td><td>Resultado indisponivel; consulte o log do lote. Codigo de saida: $(ConvertTo-CascadeHtmlText $execution.ExitCode).</td></tr>")
+            continue
+        }
+        if ($result.PSObject.Properties.Name -contains 'Error' -and -not [string]::IsNullOrWhiteSpace($result.Error)) {
+            [void]$failureRows.AppendLine("<tr><td>$(ConvertTo-CascadeHtmlText $execution.TierName)</td><td>Lote</td><td>$(ConvertTo-CascadeHtmlText $result.Error)</td></tr>")
+        }
+        if ($result.PSObject.Properties.Name -contains 'VMResults') {
+            foreach ($vm in @($result.VMResults | Where-Object { -not $_.Success })) {
+                $details = New-Object System.Collections.Generic.List[string]
+                foreach ($field in @('CurrentStage', 'FailedStage', 'FailureKind', 'Error')) {
+                    if ($vm.PSObject.Properties.Name -contains $field -and -not [string]::IsNullOrWhiteSpace([string]$vm.$field)) {
+                        $details.Add("${field}: $($vm.$field)")
+                    }
+                }
+                if ($details.Count -eq 0) { $details.Add('Motivo indisponivel; consulte o log do lote.') }
+                [void]$failureRows.AppendLine("<tr><td>$(ConvertTo-CascadeHtmlText $execution.TierName)</td><td>$(ConvertTo-CascadeHtmlText $vm.Name)</td><td>$(ConvertTo-CascadeHtmlText ($details -join ' | '))</td></tr>")
+            }
+        }
     }
+    $failures = if ($failureRows.Length -gt 0) {
+        '<h2>Motivos das falhas</h2><table><tr><th>Lote</th><th>VM / Escopo</th><th>Motivo</th></tr>' + $failureRows.ToString() + '</table>'
+    } else { '' }
     $diagnostics = if ($DiagnosticFailures.Count -gt 0) {
         '<h2>Falhas de observabilidade</h2><ul>' + (($DiagnosticFailures | ForEach-Object { '<li>' + (ConvertTo-CascadeHtmlText $_) + '</li>' }) -join '') + '</ul>'
     } else { '' }
@@ -78,6 +102,7 @@ function New-CascadeHtmlReport {
 <style>body{font-family:Segoe UI,Arial,sans-serif;margin:24px;color:#222}table{border-collapse:collapse;width:100%}th,td{border:1px solid #ccc;padding:7px;text-align:left}th{background:#f2f2f2}</style></head>
 <body><h1>Cascata Backup Hyper-V</h1><p>Status: <strong>$(ConvertTo-CascadeHtmlText $Summary.Status)</strong></p>
 <p>BackupSetId: $(ConvertTo-CascadeHtmlText $Summary.BackupSetId)</p>
+$failures
 <table><tr><th>Tier</th><th>Status</th><th>Codigo</th><th>Sucessos</th><th>Falhas</th><th>Resultado</th></tr>$($rows.ToString())</table>
 $diagnostics</body></html>
 "@

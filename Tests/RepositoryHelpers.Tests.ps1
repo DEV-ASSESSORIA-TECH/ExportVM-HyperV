@@ -1,8 +1,8 @@
-$here = Split-Path -Parent $MyInvocation.MyCommand.Path
+﻿$here = Split-Path -Parent $MyInvocation.MyCommand.Path
 . (Join-Path $here 'TestHelpers.ps1')
 
 $repositoryRoot = Get-RepositoryRoot
-. (Join-Path $repositoryRoot 'RepositoryHelpers.ps1')
+. (Join-Path $repositoryRoot 'Internal\Helpers\RepositoryHelpers.ps1')
 
 Describe 'Identificadores e paths do repositorio schema 2' {
     It 'gera BackupSetId deterministico no formato esperado' {

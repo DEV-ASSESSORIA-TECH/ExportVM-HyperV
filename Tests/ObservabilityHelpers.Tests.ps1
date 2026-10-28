@@ -1,7 +1,49 @@
-$here = Split-Path -Parent $MyInvocation.MyCommand.Path
+﻿$here = Split-Path -Parent $MyInvocation.MyCommand.Path
 . (Join-Path $here 'TestHelpers.ps1')
 $repositoryRoot = Get-RepositoryRoot
-. (Join-Path $repositoryRoot 'ObservabilityHelpers.ps1')
+. (Join-Path $repositoryRoot 'Internal\Helpers\ObservabilityHelpers.ps1')
+
+Describe 'Motivos de falha no email consolidado' {
+    It 'inclui erro global e falha por VM no HTML com escape de caracteres' {
+        $wrapper = Join-Path $repositoryRoot 'Invoke-CascadeBackup.ps1'
+        . (Get-ScriptFunction -Path $wrapper -Name 'ConvertTo-CascadeHtmlText')
+        . (Get-ScriptFunction -Path $wrapper -Name 'New-CascadeHtmlReport')
+        $DiagnosticFailures = New-Object System.Collections.Generic.List[string]
+        $TierExecutions = @(
+            [pscustomobject]@{
+                TierName = 'BIG'; Status = 'FAILED'; ExitCode = 1
+                SuccessCount = 0; FailureCount = 1; ResultPath = 'BIG.json'
+                Result = [pscustomobject]@{
+                    Error = 'Destino <indisponivel>'
+                    VMResults = @([pscustomobject]@{
+                        Name = 'VM & Dados'; Success = $false; CurrentStage = 'INITIALIZE'
+                        FailureKind = 'INSUFFICIENT_SPACE'; Error = 'Espaco livre abaixo do minimo configurado.'
+                    })
+                }
+            }
+        ) | ConvertTo-Json -Depth 10 | ConvertFrom-Json
+        $html = New-CascadeHtmlReport -Summary ([pscustomobject]@{ Status = 'FAILED'; BackupSetId = 'test' })
+        $html | Should Match 'Motivos das falhas'
+        $html | Should Match 'Destino &lt;indisponivel&gt;'
+        $html | Should Match 'VM &amp; Dados'
+        $html | Should Match 'INSUFFICIENT_SPACE'
+        $html | Should Match 'Espaco livre abaixo do minimo'
+        $html | Should Match 'CurrentStage: INITIALIZE'
+    }
+
+    It 'mostra diagnostico quando o processo nao entrega resultado' {
+        $wrapper = Join-Path $repositoryRoot 'Invoke-CascadeBackup.ps1'
+        . (Get-ScriptFunction -Path $wrapper -Name 'ConvertTo-CascadeHtmlText')
+        . (Get-ScriptFunction -Path $wrapper -Name 'New-CascadeHtmlReport')
+        $DiagnosticFailures = New-Object System.Collections.Generic.List[string]
+        $TierExecutions = @([pscustomobject]@{
+            TierName = 'BIG'; Status = 'FAILED'; ExitCode = 1
+            SuccessCount = 0; FailureCount = 0; ResultPath = 'BIG.json'; Result = $null
+        })
+        $html = New-CascadeHtmlReport -Summary ([pscustomobject]@{ Status = 'FAILED'; BackupSetId = 'test' })
+        $html | Should Match 'Resultado indisponivel'
+    }
+}
 
 Describe 'Precedencia da cascata noturna' {
     It 'mantem codigo 1 quando backup e observabilidade falham juntos' {

@@ -15,7 +15,26 @@ docs/                 guia rápido e runbook
 VERSION               versão SemVer usada pelo pacote
 ```
 
-O conteúdo de `src/` permanece coeso: no pacote publicado, seus scripts são colocados na raiz e `Config/` continua ao lado deles, preservando os paths usados em produção.
+O pacote preserva a estrutura de `src/`. Somente os três scripts de entrada ficam na raiz da instalação:
+
+```text
+VMsBackups/
+  Invoke-CascadeBackup.ps1
+  Invoke-VMExportBackup.ps1
+  Install-VMExportBackupTask.ps1
+  Internal/
+    Helpers/          funções compartilhadas
+    Workers/          processos de exportação e hash
+  Config/
+  Logs/               criado durante a execução
+  Reports/            criado durante a execução
+  Locks/              criado durante a execução
+  docs/
+```
+
+Os scripts resolvem os caminhos a partir da própria instalação, independentemente da pasta atual do terminal. A pasta `Internal` deve ser copiada junto com os scripts de entrada; seus arquivos não devem ser executados diretamente.
+
+Ao atualizar uma instalação existente, pare as execuções, preserve o conteúdo de `Config`, `Logs`, `Reports` e `Locks`, e copie os scripts de entrada junto com a pasta `Internal` do novo pacote. Após conferir a cópia, remova da raiz as cópias antigas dos nove arquivos `*Helpers.ps1`, de `Export-VMWorker.ps1` e de `Get-FileHashWorker.ps1`; os arquivos usados passam a estar em `Internal/Helpers` e `Internal/Workers`. Como os scripts de entrada mantêm os nomes e caminhos, a tarefa agendada existente não precisa ser recriada por causa desta reorganização.
 
 ## Comportamento principal
 
@@ -106,6 +125,7 @@ Desativar SHA-256 não desativa as validações obrigatórias: `7z t`, estrutura
 ```json
 {
   "SchemaVersion": 2,
+  "ExcludeVMName": [],
   "BackupDrive": "F:",
   "ExpectedVolumeLabel": "BACKUP-HYPERV",
   "RepositoryFolder": "HyperV-Exports",
@@ -119,6 +139,10 @@ Desativar SHA-256 não desativa as validações obrigatórias: `7z t`, estrutura
 
 Os demais campos de timeout, 7-Zip e SMTP permanecem no arquivo entregue. Um parâmetro explícito na linha de comando vence o valor do JSON.
 
+Para ignorar uma VM em todos os lotes da cascata, configure `"ExcludeVMName": ["VM-SEM-BACKUP"]` em `Config\Settings.json`. Use os nomes exatos do Hyper-V; a comparação ignora maiúsculas/minúsculas e não interpreta curingas. A exclusão também prevalece quando a VM é solicitada por `-VMName`. Os nomes ignorados ficam no log e no campo `ExcludedVMs` do JSON. Se todas as VMs selecionadas forem excluídas, o lote termina com sucesso sem executar backup ou retenção.
+
+Em uma execução avulsa, `-ExcludeVMName 'VM-SEM-BACKUP'` substitui a lista do JSON; `-ExcludeVMName @()` limpa essa lista somente para a execução atual.
+
 `Config\Tiers.json` usa schema 2 e define faixas contínuas de tamanho, retenção, `CascadeStartTime` e `CascadeExecutionTimeLimitHours`. O início padrão permanece às 21:00.
 
 ## Retry
@@ -129,6 +153,8 @@ São retentáveis: timeout/processo, `Export-VM`, 7-Zip, hash opcional e I/O tra
 
 - Execução direta: pode alertar imediatamente em `FAILED` ou `PARTIAL_SUCCESS`; `-SkipEmail` força silêncio.
 - Cascata: cada tier usa `-DeferEmail` e grava um resultado determinístico em `Reports`; o wrapper executa todos os tiers e envia no máximo um alerta consolidado.
+- O corpo do alerta consolidado inclui os motivos das falhas por lote e VM, como falta de espaço, além da etapa e classificação disponíveis.
+- Logs e relatórios avulsos usam o lote como prefixo: `BIG-2026-10-28_21-00-00.log`, `MEDIUM-...` ou `SMALL-...`. Execuções manuais usam `ADHOC` (seleção por VM) ou `ALL`; o log geral permanece `Cascade-...`. Relatórios da cascata preservam o nome `BackupSet-<id>-<lote>.result.json/html`.
 - JSON e HTML são gravados por snapshot atômico antes de serem anexados.
 - Depois da tentativa SMTP, os relatórios locais são regravados com `NotificationStatus`, `MailSent` e `MailError`.
 - `DiagnosticFailures` registra falhas não bloqueantes de observabilidade.

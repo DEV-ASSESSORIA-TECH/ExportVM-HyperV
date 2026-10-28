@@ -1,5 +1,6 @@
 {
     "SchemaVersion": 2,
+    "ExcludeVMName": [],
     "BackupDrive": "F:",
     "ExpectedVolumeLabel": "BACKUP-HYPERV",
     "RepositoryFolder": "HyperV-Exports",

@@ -2,6 +2,18 @@
 
 Guia de operação, diagnóstico e recuperação. A arquitetura e os parâmetros estão em [README.md](../README.md).
 
+## Estrutura da instalação
+
+Na raiz ficam somente os três scripts de entrada: `Invoke-CascadeBackup.ps1`,
+`Invoke-VMExportBackup.ps1` e `Install-VMExportBackupTask.ps1`. Os auxiliares ficam
+em `Internal\Helpers` e os processos de exportação/hash em `Internal\Workers`.
+Copie sempre a pasta `Internal` junto com os scripts. `Config`, `Logs`, `Reports`
+e `Locks` continuam na raiz da instalação, e os comandos da tarefa permanecem iguais.
+
+Para atualizar a estrutura antiga, siga as instruções de atualização no README,
+preservando a configuração local e removendo apenas as cópias antigas dos auxiliares
+da raiz depois de conferir os novos arquivos internos.
+
 ## Checklist matinal
 
 ### 1. Conferir a tarefa

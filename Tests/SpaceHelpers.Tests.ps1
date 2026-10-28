@@ -1,10 +1,10 @@
-$here = Split-Path -Parent $MyInvocation.MyCommand.Path
+﻿$here = Split-Path -Parent $MyInvocation.MyCommand.Path
 . (Join-Path $here 'TestHelpers.ps1')
 
 $repositoryRoot = Get-RepositoryRoot
-. (Join-Path $repositoryRoot 'RepositoryHelpers.ps1')
-. (Join-Path $repositoryRoot 'RetentionHelpers.ps1')
-. (Join-Path $repositoryRoot 'SpaceHelpers.ps1')
+. (Join-Path $repositoryRoot 'Internal\Helpers\RepositoryHelpers.ps1')
+. (Join-Path $repositoryRoot 'Internal\Helpers\RetentionHelpers.ps1')
+. (Join-Path $repositoryRoot 'Internal\Helpers\SpaceHelpers.ps1')
 
 function New-FailedSpaceEntry {
     param(

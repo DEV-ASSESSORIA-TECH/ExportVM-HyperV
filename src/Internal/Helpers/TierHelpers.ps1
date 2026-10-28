@@ -61,6 +61,16 @@ function Assert-SettingsSchemaV2 {
     if ($properties -notcontains 'SkipHash') {
         throw 'Settings.json schema 2 exige SkipHash.'
     }
+    if ($properties -contains 'ExcludeVMName') {
+        if ($ConfigObject.ExcludeVMName -isnot [System.Array]) {
+            throw 'ExcludeVMName deve ser uma lista JSON de nomes de VMs (ou [] para nenhuma exclusao).'
+        }
+        foreach ($name in $ConfigObject.ExcludeVMName) {
+            if ($name -isnot [string] -or [string]::IsNullOrWhiteSpace($name)) {
+                throw 'ExcludeVMName deve conter somente nomes de VMs nao vazios.'
+            }
+        }
+    }
     return $true
 }
 

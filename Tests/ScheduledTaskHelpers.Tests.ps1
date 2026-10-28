@@ -1,8 +1,8 @@
-$here = Split-Path -Parent $MyInvocation.MyCommand.Path
+﻿$here = Split-Path -Parent $MyInvocation.MyCommand.Path
 . (Join-Path $here 'TestHelpers.ps1')
 
 $repositoryRoot = Get-RepositoryRoot
-$helpersPath = Join-Path $repositoryRoot 'ScheduledTaskHelpers.ps1'
+$helpersPath = Join-Path $repositoryRoot 'Internal\Helpers\ScheduledTaskHelpers.ps1'
 $installerPath = Join-Path $repositoryRoot 'Install-VMExportBackupTask.ps1'
 
 . $helpersPath

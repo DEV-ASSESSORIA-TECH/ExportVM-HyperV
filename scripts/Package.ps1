@@ -50,6 +50,7 @@ try {
         Copy-Item -LiteralPath $file.FullName -Destination $packageRoot -Force -ErrorAction Stop
     }
     Copy-Item -LiteralPath (Join-Path $sourceRoot 'Config') -Destination $packageRoot -Recurse -Force -ErrorAction Stop
+    Copy-Item -LiteralPath (Join-Path $sourceRoot 'Internal') -Destination $packageRoot -Recurse -Force -ErrorAction Stop
     Copy-Item -LiteralPath (Join-Path $projectRoot 'docs') -Destination $packageRoot -Recurse -Force -ErrorAction Stop
     foreach ($name in @('README.md', 'CHANGELOG.md', 'VERSION')) {
         Copy-Item -LiteralPath (Join-Path $projectRoot $name) -Destination $packageRoot -Force -ErrorAction Stop
@@ -59,6 +60,8 @@ try {
         'Invoke-VMExportBackup.ps1', 'Invoke-CascadeBackup.ps1', 'Install-VMExportBackupTask.ps1',
         'Config\Settings.json', 'Config\Tiers.json', 'README.md', 'VERSION'
     )
+    $required += @(Get-ChildItem -LiteralPath (Join-Path $sourceRoot 'Internal') -File -Filter '*.ps1' -Recurse |
+        ForEach-Object { $_.FullName.Substring($sourceRoot.Length + 1) })
     foreach ($relativePath in $required) {
         if (-not (Test-Path -LiteralPath (Join-Path $packageRoot $relativePath))) {
             throw "Arquivo obrigatorio ausente do staging do pacote: $relativePath"

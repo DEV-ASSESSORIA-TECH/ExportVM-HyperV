@@ -4,6 +4,12 @@ VM Export Backup v2.0.3
 Resumo rápido. A referência técnica está em ..\README.md e a operação/recuperação
 detalhada neste diretório em RUNBOOK.md.
 
+Instalação: somente Invoke-CascadeBackup.ps1, Invoke-VMExportBackup.ps1 e
+Install-VMExportBackupTask.ps1 ficam na raiz. Helpers ficam em Internal\Helpers
+e workers em Internal\Workers. Copie a pasta Internal inteira junto dos scripts.
+Config, Logs, Reports e Locks continuam na raiz. Para atualizar uma instalação
+antiga preservando a configuração local, siga a seção de organização do README.
+
 O que mudou
 ------------
 - Cada VM é publicada de forma independente.

@@ -1,4 +1,4 @@
-#requires -Version 5.1
+﻿#requires -Version 5.1
 #requires -RunAsAdministrator
 
 [CmdletBinding()]
@@ -14,8 +14,8 @@ $ErrorActionPreference = 'Stop'
 $scriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $mainScript = Join-Path $scriptRoot 'Invoke-VMExportBackup.ps1'
 $cascadeScript = Join-Path $scriptRoot 'Invoke-CascadeBackup.ps1'
-$tierHelpersPath = Join-Path $scriptRoot 'TierHelpers.ps1'
-$scheduledTaskHelpersPath = Join-Path $scriptRoot 'ScheduledTaskHelpers.ps1'
+$tierHelpersPath = Join-Path $scriptRoot 'Internal\Helpers\TierHelpers.ps1'
+$scheduledTaskHelpersPath = Join-Path $scriptRoot 'Internal\Helpers\ScheduledTaskHelpers.ps1'
 $configDir = Join-Path $scriptRoot 'Config'
 $tiersConfigPath = Join-Path $configDir 'Tiers.json'
 $settingsConfigPath = Join-Path $configDir 'Settings.json'

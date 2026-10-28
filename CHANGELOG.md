@@ -4,6 +4,11 @@ Histórico de versões. Para arquitetura/configuração atual veja [README.md](R
 
 ---
 
+## Não publicado
+
+- Auxiliares reorganizados em `Internal/Helpers` e `Internal/Workers`; somente os três scripts de entrada permanecem na raiz da instalação.
+- Atualizadas as referências nos scripts, nos testes, na documentação e no pacote ZIP para preservar a estrutura interna.
+
 ## v2.0.3 — 2026-09-08
 
 ### Alterado
