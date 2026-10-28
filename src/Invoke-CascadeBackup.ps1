@@ -288,6 +288,10 @@ foreach ($tier in $tierDefinitions.Tiers) {
             if ($null -eq $tierResult -or $tierResult.PSObject.Properties.Name -notcontains $property) { throw "Resultado do lote sem '$property'." }
         }
         if ($tierResult.Status -notin @('SUCCESS', 'SUCCESS_WITH_WARNINGS', 'PARTIAL_SUCCESS', 'FAILED', 'SKIPPED')) { throw 'Status de lote desconhecido.' }
+        foreach ($property in @('SuccessCount', 'FailureCount')) {
+            $count = 0
+            if (-not [int]::TryParse([string]$tierResult.$property, [ref]$count) -or $count -lt 0) { throw "Contagem invalida em '$property'." }
+        }
     }
     catch {
         Add-UniqueDiagnosticFailure -List $DiagnosticFailures -Message "Resultado do tier '$($tier.Name)' indisponivel: $($_.Exception.Message)"

@@ -563,6 +563,13 @@ function Write-HostInventory {
 
     $vmInventory = @($SelectedVMs | ForEach-Object {
         $vm = $_
+        if ($vm.PSObject.Properties.Name -contains 'SelectionError') {
+            [ordered]@{
+                Name = $vm.Name; VMId = [string]$vm.VMId; State = 'Missing'
+                Tier = $vm.Tier; SourceBytes = $vm.SourceBytes; Error = $vm.SelectionError
+            }
+        }
+        else {
         [ordered]@{
             Name = $vm.Name
             VMId = [string]$vm.VMId
@@ -609,6 +616,7 @@ function Write-HostInventory {
                     CreationTime = $_.CreationTime
                 }
             })
+        }
         }
     })
 
